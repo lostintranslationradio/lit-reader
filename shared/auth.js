@@ -5,8 +5,8 @@
 // Project Settings -> API). The anon key is meant to be public and safe to
 // ship in client-side code — it has no power on its own without the row-level
 // security policies defined in shared/schema.sql.
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://urozuwaidryhduquvtzi.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_tHobcgdhTkhP18yvEdg79Q_ItYxDVuw";
 
 const sb = (SUPABASE_URL.startsWith('http') && window.supabase)
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
