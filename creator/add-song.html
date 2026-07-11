@@ -123,6 +123,15 @@
 
 <main id="unlockedMain" style="display:none;">
 
+  <div class="panel">
+    <h2>0 · Edit an existing song (optional)</h2>
+    <p class="note">Pick a song to load it back into the form below — everything, including word tags and constructions, gets refilled so you can change and republish it.</p>
+    <select id="fExistingSong" style="margin-bottom:10px;">
+      <option value="">— new song —</option>
+    </select>
+    <button class="btn secondary" id="btnLoadExisting">Load for editing</button>
+    <div class="status-line" id="loadExistingStatus"></div>
+  </div>
 
   <div class="panel">
     <h2>1 · Song details</h2>
@@ -272,6 +281,7 @@ async function checkCreatorAccess(){
   const isCreator = profile ? !!profile.is_creator : false;
   document.getElementById('lockedMain').style.display = isCreator ? 'none' : 'block';
   document.getElementById('unlockedMain').style.display = isCreator ? 'block' : 'none';
+  if(isCreator) populateExistingSongs();
   if(user && !isCreator){
     const name = (profile && profile.username) ? profile.username : user.email;
     document.querySelector('#lockedMain .note').textContent =
@@ -283,6 +293,65 @@ document.getElementById('lockedSignIn').addEventListener('click', () => openAuth
 window.onAuthSuccess = () => checkCreatorAccess();
 authOnChange(() => checkCreatorAccess());
 checkCreatorAccess();
+
+async function populateExistingSongs(){
+  const { data, error } = await sb.from('songs').select('id, zh, en, status').order('added', { ascending: false });
+  if(error || !data) return;
+  const select = document.getElementById('fExistingSong');
+  select.innerHTML = '<option value="">— new song —</option>' +
+    data.map(s => `<option value="${s.id}">${s.zh} · ${s.en || s.id} (${s.status})</option>`).join('');
+}
+
+document.getElementById('btnLoadExisting').addEventListener('click', async () => {
+  const id = document.getElementById('fExistingSong').value;
+  const statusEl = document.getElementById('loadExistingStatus');
+  if(!id) return;
+  statusEl.classList.remove('ok');
+  statusEl.textContent = 'Loading…';
+
+  const { data: song, error } = await sb.from('songs').select('*').eq('id', id).single();
+  if(error || !song){
+    statusEl.textContent = 'Could not load that song.';
+    return;
+  }
+
+  document.getElementById('fZh').value = song.zh || '';
+  document.getElementById('fEn').value = song.en || '';
+  document.getElementById('fArtist').value = song.artist || '';
+  document.getElementById('fId').value = song.id;
+  document.getElementById('fId').dataset.touched = '1'; // don't let the slug auto-fill overwrite it
+  document.getElementById('fStatus').value = song.status || 'draft';
+  document.getElementById('fTags').value = (song.tags || []).join(', ');
+  document.getElementById('fYoutube').value = song.youtube_id || '';
+  document.getElementById('fContext').value = song.context || '';
+
+  coverUrl = song.cover_url || '';
+  if(coverUrl){
+    document.getElementById('coverPreview').src = coverUrl;
+    document.getElementById('coverPreviewWrap').style.display = 'block';
+  }
+
+  lineData = (song.lines || []).map(line => ({
+    tokens: line.words.map(w => ({
+      h: w.h, p: w.p, g: w.g, hsk: w.hsk, pos: w.pos || null,
+      isPunct: PUNCT_RE.test(w.h), unresolved: false,
+      reading_options: null, selected_reading: null, needsReadingPick: false
+    })),
+    translation: line.translation || '',
+    start: typeof line.start === 'number' ? line.start : null,
+    end: typeof line.end === 'number' ? line.end : null
+  }));
+  constructions = song.constructions || [];
+
+  document.getElementById('reviewPanel').style.display = 'block';
+  document.getElementById('bulkTranslationBox').style.display = 'block';
+  renderLines();
+  renderConstructionsList();
+
+  statusEl.textContent = `Loaded "${song.zh}" — editing in place. Publishing will overwrite it.`;
+  statusEl.classList.add('ok');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
 
 let DICT = {};
 let dictReady = false;
@@ -306,7 +375,7 @@ fetch('../data/dictionary.json')
 document.getElementById('fEn').addEventListener('input', function(){
   const idField = document.getElementById('fId');
   if(!idField.dataset.touched){
-    idField.value = 'song-' + this.value.toLowerCase()
+    idField.value = this.value.toLowerCase()
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || '';
   }
 });

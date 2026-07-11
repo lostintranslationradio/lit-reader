@@ -920,11 +920,16 @@ document.getElementById('translationToggle').addEventListener('click', function(
 let ytPlayer = null;
 let followVideo = false;
 let followInterval = null;
-let ytApiReady = false;
-
-function onYouTubeIframeAPIReady(){
-  ytApiReady = true;
-  if(SONG && SONG.youtubeId) renderVideo();
+function waitForYT(callback, attempts){
+  attempts = attempts || 0;
+  if(window.YT && window.YT.Player){
+    callback();
+  } else if(attempts < 100){ // give up after ~20s so a blocked/slow script doesn't loop forever
+    setTimeout(() => waitForYT(callback, attempts + 1), 200);
+  } else {
+    document.getElementById('videoWrap').innerHTML =
+      `<div class="video-placeholder">Couldn't load the video player. Try refreshing.</div>`;
+  }
 }
 
 function renderVideo(){
@@ -933,22 +938,20 @@ function renderVideo(){
     wrap.innerHTML = `<div class="video-placeholder">No video linked yet for this song</div>`;
     return;
   }
-  if(!ytApiReady){
-    // API script hasn't finished loading yet — onYouTubeIframeAPIReady will call this again.
-    wrap.innerHTML = `<div class="video-placeholder">Loading player…</div>`;
-    return;
-  }
-  wrap.innerHTML = `<div id="ytPlayerEl"></div>`;
-  ytPlayer = new YT.Player('ytPlayerEl', {
-    videoId: SONG.youtubeId,
-    playerVars: { rel: 0 },
-    events: {
-      onReady: () => {
-        const hasTimestamps = SONG.lines.some(l => typeof l.start === 'number');
-        document.getElementById('followToggle').style.display = hasTimestamps ? 'flex' : 'none';
-        setupMiniPlayer();
+  wrap.innerHTML = `<div class="video-placeholder">Loading player…</div>`;
+  waitForYT(() => {
+    wrap.innerHTML = `<div id="ytPlayerEl"></div>`;
+    ytPlayer = new YT.Player('ytPlayerEl', {
+      videoId: SONG.youtubeId,
+      playerVars: { rel: 0 },
+      events: {
+        onReady: () => {
+          const hasTimestamps = SONG.lines.some(l => typeof l.start === 'number');
+          document.getElementById('followToggle').style.display = hasTimestamps ? 'flex' : 'none';
+          setupMiniPlayer();
+        }
       }
-    }
+    });
   });
 }
 
