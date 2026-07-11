@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Lyric Reader</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#faf8f3;
+    --surface:#ffffff;
+    --surface-raised:#f1efe6;
+    --rule:#ddd7c8;
+    --text:#262420;
+    --text-dim:#79766c;
+    --accent:#b8863a;
+    --hsk1:#4f8a70;
+    --hsk2:#3f6fd1;
+    --hsk3:#7c5ec9;
+    --hsk4:#c94a70;
+    --hsk5:#c85f28;
+    --hsk6:#a83440;
+    --hsk79:#1f8f83;
+    --beyond:#111111;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:22px 28px;
+    border-bottom:1px solid var(--rule);
+    flex-wrap:wrap;
+    gap:14px;
+  }
+  .brand{display:flex;flex-direction:column;gap:2px;}
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+  }
+  .title{
+    font-family:'Noto Serif SC',serif;
+    font-size:22px;
+    font-weight:700;
+  }
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    row-gap:10px;
+    gap:22px;
+    align-items:center;
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--text-dim);
+  }
+  .toggle{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .switch{
+    width:34px;height:18px;border-radius:10px;
+    background:var(--rule);
+    position:relative;
+    transition:background .2s;
+    flex-shrink:0;
+  }
+  .switch::after{
+    content:'';
+    position:absolute;top:2px;left:2px;
+    width:14px;height:14px;border-radius:50%;
+    background:var(--text-dim);
+    transition:transform .2s, background .2s;
+  }
+  .switch.on{background:rgba(184,134,58,.25);}
+  .switch.on::after{transform:translateX(16px);background:var(--accent);}
+
+  main{
+    display:flex;
+    gap:32px;
+    padding:36px 28px 80px;
+    max-width:1180px;
+    margin:0 auto;
+    align-items:flex-start;
+  }
+  .reader{
+    flex:1 1 640px;
+    max-width:680px;
+    background:var(--surface);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    padding:36px 40px;
+  }
+  .video-wrap{
+    position:relative;
+    width:100%;
+    padding-top:56.25%;
+    background:var(--surface-raised);
+    border-radius:4px;
+    overflow:hidden;
+    margin-bottom:24px;
+  }
+  .video-wrap iframe{
+    position:absolute; top:0; left:0;
+    width:100%; height:100%;
+    border:0;
+  }
+  .video-placeholder{
+    position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    text-align:center;
+    padding:20px;
+    color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    line-height:1.6;
+  }
+  .context-block{
+    margin-bottom:24px;
+    border:1px solid var(--rule);
+    border-radius:4px;
+    background:var(--surface-raised);
+  }
+  .context-block summary{
+    cursor:pointer;
+    padding:12px 16px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--accent);
+    list-style:none;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .context-block summary::-webkit-details-marker{ display:none; }
+  .context-block summary::after{
+    content:'+';
+    font-size:15px;
+    color:var(--text-dim);
+  }
+  .context-block[open] summary::after{ content:'\2013'; }
+  .context-body{
+    padding:0 16px 16px;
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    line-height:1.65;
+    color:var(--text);
+    opacity:.9;
+  }
+  .reader-heading{
+    font-family:'Noto Serif SC',serif;
+    font-size:26px;
+    font-weight:600;
+    margin:0 0 6px;
+  }
+  .reader-sub{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    letter-spacing:.08em;
+    margin-bottom:28px;
+    padding-bottom:24px;
+    border-bottom:1px solid var(--rule);
+  }
+  .line-block{ margin-bottom:26px; }
+  .line{
+    display:flex;
+    flex-wrap:wrap;
+    gap:2px 4px;
+    line-height:1.2;
+  }
+  .translation{
+    margin-top:8px;
+    font-family:'Inter',sans-serif;
+    font-style:italic;
+    font-size:14px;
+    color:var(--text);
+    opacity:.75;
+    border-left:2px solid var(--rule);
+    padding-left:12px;
+  }
+  body.hide-translation .translation{ display:none; }
+  .word{
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:6px 5px 4px;
+    border-radius:6px;
+    cursor:pointer;
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    transition:background .15s;
+  }
+  .word:hover{background:var(--surface-raised);}
+  .pinyin{
+    font-family:'Inter',sans-serif;
+    font-size:11px;
+    color:var(--text-dim);
+    height:14px;
+    white-space:nowrap;
+  }
+  .hanzi{
+    font-family:'Noto Serif SC',serif;
+    font-size:26px;
+    font-weight:500;
+    white-space:nowrap;
+    transition:color .2s;
+  }
+  .gloss{
+    font-family:'Inter',sans-serif;
+    font-size:10px;
+    color:var(--text-dim);
+    white-space:nowrap;
+    opacity:.85;
+  }
+  .word.g-hidden .gloss,
+  .word.g-hidden .pinyin{ visibility:hidden; }
+  body.hide-hsk .hanzi{ color:var(--text) !important; }
+  .level-control{ display:flex; align-items:center; gap:10px; }
+  .level-control input[type=range]{ width:110px; accent-color:var(--accent); }
+  .level-value{ color:var(--accent); min-width:54px; }
+  .level-pct{ color:var(--text-dim); font-size:11px; min-width:66px; }
+  .word.saved::after{
+    content:'★';
+    position:absolute;
+    top:-3px; right:-6px;
+    font-size:9px;
+    color:var(--accent);
+  }
+  .popup-overlay{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,.6);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index:50;
+    padding:20px;
+  }
+  .popup-overlay.open{ display:flex; }
+  .popup-card{
+    background:var(--surface);
+    border:1px solid var(--rule);
+    border-radius:8px;
+    max-width:320px;
+    width:100%;
+    padding:26px 22px 20px;
+    position:relative;
+  }
+  .popup-close{
+    position:absolute; top:12px; left:14px;
+    background:none; border:none;
+    color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    cursor:pointer;
+  }
+  .popup-close:hover{ color:var(--text); }
+  .popup-star{
+    position:absolute; top:10px; right:12px;
+    background:none; border:none;
+    font-size:22px;
+    line-height:1;
+    cursor:pointer;
+    color:var(--text-dim);
+    transition:color .15s, transform .1s;
+  }
+  .popup-star.starred{ color:var(--accent); }
+  .popup-star:active{ transform:scale(1.18); }
+  .popup-hanzi{
+    font-family:'Noto Serif SC',serif;
+    font-size:42px;
+    font-weight:600;
+    text-align:center;
+    margin-top:16px;
+  }
+  .popup-pinyin{
+    text-align:center;
+    color:var(--text-dim);
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    margin-top:2px;
+  }
+  .popup-hsk-badge{
+    display:block;
+    text-align:center;
+    margin:12px auto 16px;
+    width:fit-content;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    padding:3px 11px;
+    border-radius:10px;
+    border:1px solid var(--rule);
+  }
+  .popup-defs{
+    border-top:1px solid var(--rule);
+    padding-top:14px;
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    line-height:1.6;
+  }
+  .popup-defs ol{ margin:0; padding-left:18px; }
+  .popup-hint{
+    margin-top:16px;
+    text-align:center;
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px;
+    color:var(--text-dim);
+  }
+  .ring{
+    position:absolute;
+    top:14px; left:50%;
+    transform:translate(-50%,-50%) rotate(-90deg);
+    width:34px; height:34px;
+    pointer-events:none;
+    opacity:0;
+  }
+  .ring circle{
+    fill:none;
+    stroke:var(--accent);
+    stroke-width:2.5;
+    stroke-linecap:round;
+    stroke-dasharray:88;
+    stroke-dashoffset:88;
+  }
+  .word.holding .ring{ opacity:1; }
+  .word.holding .ring circle{
+    transition:stroke-dashoffset .6s linear;
+    stroke-dashoffset:0;
+  }
+  .word.holding{ background:var(--surface-raised); }
+  aside{
+    flex:0 0 260px;
+    position:sticky;
+    top:24px;
+    background:var(--surface);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    padding:20px;
+  }
+  .aside-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:14px;
+    padding-bottom:12px;
+    border-bottom:1px solid var(--rule);
+  }
+  .aside-title{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+  }
+  .count{ font-family:'Noto Serif SC',serif; font-size:20px; color:var(--accent); }
+  .vocab-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:9px 0;
+    border-bottom:1px solid var(--rule);
+  }
+  .vocab-item:last-child{border-bottom:none;}
+  .vocab-info .vh{ font-family:'Noto Serif SC',serif; font-size:17px; }
+  .vocab-info .vp{ font-family:'Inter',sans-serif; font-size:10px; color:var(--text-dim); }
+  .vocab-info .vg{ font-family:'Inter',sans-serif; font-size:10px; color:var(--text-dim); opacity:.7; }
+  .vocab-info .vsrc{ font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--accent); opacity:.75; margin-top:2px; }
+  .cross{
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px;
+    color:var(--accent);
+    border:1px solid var(--accent);
+    border-radius:8px;
+    padding:0 5px;
+    margin-left:5px;
+    vertical-align:middle;
+  }
+  @media (max-width: 760px){
+    main{ flex-direction:column; padding:22px 16px 60px; gap:20px; }
+    .reader{ max-width:100%; padding:24px 20px; }
+    aside{ position:static; flex:1 1 auto; width:100%; }
+    header{ padding:16px 18px; }
+    .title{ font-size:18px; }
+    .controls{ gap:12px 14px; font-size:11px; }
+    .level-control input[type=range]{ width:70px; }
+    .hanzi{ font-size:23px; }
+  }
+  @media (max-width: 400px){ .level-pct{ display:none; } }
+  .remove{ background:none;border:none; color:var(--text-dim); font-size:14px; cursor:pointer; padding:4px; }
+  .remove:hover{color:var(--hsk4);}
+  .empty{ font-size:12px; color:var(--text-dim); font-style:italic; padding:6px 0; }
+  .hint{
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px solid var(--rule);
+    font-size:11px;
+    color:var(--text-dim);
+    line-height:1.5;
+  }
+  .key{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+  .key span{ display:flex;align-items:center;gap:4px; font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim); }
+  .dot{width:7px;height:7px;border-radius:50%;}
+  .load-state{
+    max-width:1180px; margin:60px auto; padding:0 28px;
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-dim);
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared/auth.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <a href="index.html" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);text-decoration:none;letter-spacing:.08em;">← LIBRARY</a>
+    <div class="eyebrow">annotated reader</div>
+    <div class="title" id="pageTitle">歌词读本 · Lyric Reader</div>
+  </div>
+  <div class="controls">
+    <div class="level-control">
+      <span>Glosses</span>
+      <input type="range" id="levelSlider" min="0" max="8" step="1" value="3">
+      <span class="level-value" id="levelValue">HSK 3</span>
+      <span class="level-pct" id="levelPct">—% hidden</span>
+    </div>
+    <div class="toggle" id="hskToggle">
+      <div class="switch on"></div> hsk colors
+    </div>
+    <div class="toggle" id="translationToggle">
+      <div class="switch on"></div> translation
+    </div>
+  </div>
+</header>
+
+<div class="load-state" id="loadState">Loading song…</div>
+
+<main id="mainArea" style="display:none;">
+  <div class="reader">
+    <div class="video-wrap" id="videoWrap"></div>
+    <div class="reader-heading" id="readerHeading"></div>
+    <details class="context-block" id="contextBlock">
+      <summary>About this song</summary>
+      <div class="context-body" id="contextBody"></div>
+    </details>
+    <div class="reader-sub" id="readerSub"></div>
+    <div id="lines"></div>
+  </div>
+
+  <aside>
+    <div class="aside-head">
+      <div class="aside-title">Saved words</div>
+      <div class="count" id="vocabCount">0</div>
+    </div>
+    <div id="vocabAuth" style="margin-bottom:12px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
+      <span id="vocabAuthStatus">Saving to this device only.</span>
+      <a href="#" id="vocabAuthLink" style="color:var(--accent);">Sign in to sync</a>
+    </div>
+    <div id="vocabList"></div>
+    <div class="hint">
+      Tap a word to show/hide its pinyin and gloss. Press and hold to open its definition, then tap the star to save it. Tap the ✕ in the list to remove.
+      <div class="key">
+        <span><i class="dot" style="background:var(--hsk1)"></i>HSK1</span>
+        <span><i class="dot" style="background:var(--hsk2)"></i>HSK2</span>
+        <span><i class="dot" style="background:var(--hsk3)"></i>HSK3</span>
+        <span><i class="dot" style="background:var(--hsk4)"></i>HSK4</span>
+        <span><i class="dot" style="background:var(--hsk5)"></i>HSK5</span>
+        <span><i class="dot" style="background:var(--hsk6)"></i>HSK6</span>
+        <span><i class="dot" style="background:var(--hsk79)"></i>HSK 7–9</span>
+        <span><i class="dot" style="background:var(--beyond)"></i>Beyond</span>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div class="popup-overlay" id="popupOverlay">
+  <div class="popup-card">
+    <button class="popup-close" id="popupClose">✕ CLOSE</button>
+    <button class="popup-star" id="popupStar">★</button>
+    <div class="popup-hanzi" id="popupHanzi"></div>
+    <div class="popup-pinyin" id="popupPinyin"></div>
+    <div class="popup-hsk-badge" id="popupHsk"></div>
+    <div class="popup-defs" id="popupDefs"></div>
+    <div class="popup-hint">tap the star to save · tap outside to close</div>
+  </div>
+</div>
+
+<script>
+const SONG_ID = new URLSearchParams(location.search).get('song') || 'song-1';
+let SONG = null;       // the current song's full data
+let SONG_TITLES = {};  // id -> zh title, for labeling cross-song vocab sources
+
+const HSK_VAR = {0:'--beyond',1:'--hsk1',2:'--hsk2',3:'--hsk3',4:'--hsk4',5:'--hsk5',6:'--hsk6',7:'--hsk79',8:'--hsk79',9:'--hsk79'};
+const linesEl = document.getElementById('lines');
+let saved = JSON.parse(localStorage.getItem('lyricVocab') || '[]');
+saved = saved.map(s => ({...s, sources: s.sources || []}));
+let currentUser = null; // when signed in, `saved` is backed by Supabase instead of localStorage
+let currentLevel = 3;
+let overrides = {};
+
+function rank(tok){ return tok.hsk === 0 ? 10 : Math.min(tok.hsk, 7); }
+
+function defaultHidden(tok){
+  if(currentLevel === 0) return false;
+  if(currentLevel === 8) return true;
+  return rank(tok) < currentLevel;
+}
+function isHidden(tok, key){
+  const ov = overrides[key];
+  if(ov === 'show') return false;
+  if(ov === 'hide') return true;
+  return defaultHidden(tok);
+}
+function levelLabel(){
+  if(currentLevel === 0) return 'Show all';
+  if(currentLevel === 8) return 'Hide all';
+  if(currentLevel === 7) return 'HSK 7\u20139';
+  return 'HSK ' + currentLevel;
+}
+function updateLevelLabels(){
+  let total = 0, hidden = 0;
+  SONG.lines.forEach(entry=>entry.words.forEach(tok=>{
+    if(tok.h.length===1 && /[。，！？]/.test(tok.h)) return;
+    total++;
+    if(defaultHidden(tok)) hidden++;
+  }));
+  const pct = total ? Math.round(hidden/total*100) : 0;
+  document.getElementById('levelValue').textContent = levelLabel();
+  document.getElementById('levelPct').textContent = pct + '% hidden';
+}
+
+function render(){
+  linesEl.innerHTML = '';
+  SONG.lines.forEach((entry, lineIdx)=>{
+    const block = document.createElement('div');
+    block.className = 'line-block';
+    const lineEl = document.createElement('div');
+    lineEl.className = 'line';
+    entry.words.forEach((tok, wordIdx)=>{
+      const w = document.createElement('div');
+      w.className = 'word';
+      const isPunct = tok.h.length===1 && /[。，！？]/.test(tok.h);
+      if(isPunct){
+        w.innerHTML = `<span class="pinyin"></span><span class="hanzi" style="color:var(--text-dim)">${tok.h}</span><span class="gloss"></span>`;
+        lineEl.appendChild(w);
+        return;
+      }
+      const key = lineIdx + '_' + wordIdx;
+      const isSavedAlready = saved.some(s=>s.h===tok.h);
+      if(isSavedAlready) w.classList.add('saved');
+      if(isHidden(tok, key)) w.classList.add('g-hidden');
+      const glossFirst = Array.isArray(tok.g) ? (tok.g[0] || '') : (tok.g || '');
+      w.innerHTML = `
+        <span class="pinyin">${tok.p}</span>
+        <span class="hanzi" style="color:var(${HSK_VAR[tok.hsk]})">${tok.h}</span>
+        <span class="gloss">${glossFirst}</span>
+        <svg class="ring" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14"></circle></svg>
+      `;
+      attachPress(w, tok, key);
+      lineEl.appendChild(w);
+    });
+    block.appendChild(lineEl);
+    const t = document.createElement('div');
+    t.className = 'translation';
+    t.textContent = entry.translation;
+    block.appendChild(t);
+    linesEl.appendChild(block);
+  });
+  updateLevelLabels();
+}
+
+function attachPress(el, tok, key){
+  let timer = null;
+  let longPressFired = false;
+  const HOLD_MS = 550;
+  const start = (e)=>{
+    e.preventDefault();
+    longPressFired = false;
+    el.classList.add('holding');
+    timer = setTimeout(()=>{
+      longPressFired = true;
+      el.classList.remove('holding');
+      openPopup(tok, key, el);
+    }, HOLD_MS);
+  };
+  const finish = ()=>{
+    clearTimeout(timer);
+    el.classList.remove('holding');
+    if(!longPressFired) toggleOverride(tok, key, el);
+  };
+  const abort = ()=>{ clearTimeout(timer); el.classList.remove('holding'); };
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', finish);
+  el.addEventListener('mouseleave', abort);
+  el.addEventListener('touchstart', start, {passive:false});
+  el.addEventListener('touchend', finish);
+  el.addEventListener('touchcancel', abort);
+}
+
+function toggleOverride(tok, key, el){
+  const newHidden = !isHidden(tok, key);
+  overrides[key] = newHidden ? 'hide' : 'show';
+  el.classList.toggle('g-hidden', newHidden);
+}
+
+function hskBadgeLabel(hsk){
+  if(hsk === 0) return 'Beyond HSK';
+  if(hsk >= 7) return 'HSK 7\u20139';
+  return 'HSK ' + hsk;
+}
+
+let currentPopup = null;
+function openPopup(tok, key, el){
+  currentPopup = { tok, key, el };
+  document.getElementById('popupHanzi').textContent = tok.h;
+  document.getElementById('popupPinyin').textContent = tok.p;
+  const badge = document.getElementById('popupHsk');
+  badge.textContent = hskBadgeLabel(tok.hsk);
+  badge.style.color = `var(${HSK_VAR[tok.hsk]})`;
+  badge.style.borderColor = `var(${HSK_VAR[tok.hsk]})`;
+  const defs = (Array.isArray(tok.g) ? tok.g : [tok.g]).filter(Boolean);
+  document.getElementById('popupDefs').innerHTML = defs.length
+    ? '<ol>' + defs.map(d=>`<li>${d}</li>`).join('') + '</ol>'
+    : '<div style="opacity:.6">(no definition yet)</div>';
+  const isSaved = saved.some(s=>s.h===tok.h);
+  document.getElementById('popupStar').classList.toggle('starred', isSaved);
+  document.getElementById('popupOverlay').classList.add('open');
+}
+function closePopup(){
+  document.getElementById('popupOverlay').classList.remove('open');
+  currentPopup = null;
+}
+
+async function saveWord(tok, el){
+  const existing = saved.find(s=>s.h===tok.h);
+  if(existing){
+    if(!existing.sources.includes(SONG_ID)) existing.sources.push(SONG_ID);
+  } else {
+    saved.push({...tok, sources:[SONG_ID]});
+  }
+  el.classList.add('saved');
+  if(currentUser){
+    await sb.from('saved_words').upsert({
+      user_id: currentUser.id, hanzi: tok.h, pinyin: tok.p,
+      gloss: tok.g, hsk: tok.hsk, sources: existing ? existing.sources : [SONG_ID]
+    }, { onConflict: 'user_id,hanzi' });
+  } else {
+    localStorage.setItem('lyricVocab', JSON.stringify(saved));
+  }
+  renderVocab();
+}
+async function removeWord(h){
+  saved = saved.filter(s=>s.h!==h);
+  if(currentUser){
+    await sb.from('saved_words').delete().eq('user_id', currentUser.id).eq('hanzi', h);
+  } else {
+    localStorage.setItem('lyricVocab', JSON.stringify(saved));
+  }
+  renderVocab();
+  render();
+}
+function renderVocab(){
+  const list = document.getElementById('vocabList');
+  document.getElementById('vocabCount').textContent = saved.length;
+  if(saved.length===0){
+    list.innerHTML = '<div class="empty">Nothing saved yet.</div>';
+    return;
+  }
+  list.innerHTML = saved.map(s=>{
+    const crossSong = s.sources.length > 1;
+    const sourceNames = s.sources.map(id => SONG_TITLES[id] || id).join(' · ');
+    const g0 = Array.isArray(s.g) ? (s.g[0]||'') : (s.g||'');
+    return `
+    <div class="vocab-item">
+      <div class="vocab-info">
+        <div class="vh" style="color:var(${HSK_VAR[s.hsk]})">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}</div>
+        <div class="vp">${s.p}</div>
+        <div class="vg">${g0}</div>
+        <div class="vsrc">${sourceNames}</div>
+      </div>
+      <button class="remove" onclick="removeWord('${s.h}')">✕</button>
+    </div>
+  `;}).join('');
+}
+
+document.getElementById('popupStar').addEventListener('click', function(){
+  if(!currentPopup) return;
+  const { tok, el } = currentPopup;
+  const isSaved = saved.some(s=>s.h===tok.h);
+  if(isSaved){ removeWord(tok.h); el.classList.remove('saved'); }
+  else { saveWord(tok, el); }
+  this.classList.toggle('starred', !isSaved);
+});
+document.getElementById('popupClose').addEventListener('click', closePopup);
+document.getElementById('popupOverlay').addEventListener('click', function(e){
+  if(e.target.id === 'popupOverlay') closePopup();
+});
+document.getElementById('levelSlider').addEventListener('input', function(){
+  currentLevel = parseInt(this.value, 10);
+  overrides = {};
+  render();
+});
+document.getElementById('hskToggle').addEventListener('click', function(){
+  document.body.classList.toggle('hide-hsk');
+  this.querySelector('.switch').classList.toggle('on');
+});
+document.getElementById('translationToggle').addEventListener('click', function(){
+  document.body.classList.toggle('hide-translation');
+  this.querySelector('.switch').classList.toggle('on');
+});
+
+function renderVideo(){
+  const wrap = document.getElementById('videoWrap');
+  if(SONG.youtubeId){
+    wrap.innerHTML = `<iframe src="https://www.youtube.com/embed/${SONG.youtubeId}" title="${SONG.zh}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+  } else {
+    wrap.innerHTML = `<div class="video-placeholder">No video linked yet for this song</div>`;
+  }
+}
+
+injectAuthModal();
+
+function refreshVocabAuthUI(){
+  const statusEl = document.getElementById('vocabAuthStatus');
+  const linkEl = document.getElementById('vocabAuthLink');
+  if(currentUser){
+    statusEl.textContent = `Synced as ${currentUser.email}. `;
+    linkEl.textContent = 'Sign out';
+  } else {
+    statusEl.textContent = 'Saving to this device only. ';
+    linkEl.textContent = 'Sign in to sync';
+  }
+}
+
+async function loadVocabFromSupabase(){
+  const { data, error } = await sb.from('saved_words').select('*').eq('user_id', currentUser.id);
+  if(error){ console.error(error); return; }
+  const remote = (data || []).map(r => ({ h: r.hanzi, p: r.pinyin, g: r.gloss, hsk: r.hsk, sources: r.sources || [] }));
+
+  // merge: any word saved locally as a guest but not yet in the account gets uploaded once
+  const localOnly = saved.filter(s => !remote.some(r => r.h === s.h));
+  for(const word of localOnly){
+    await sb.from('saved_words').upsert({
+      user_id: currentUser.id, hanzi: word.h, pinyin: word.p,
+      gloss: word.g, hsk: word.hsk, sources: word.sources
+    }, { onConflict: 'user_id,hanzi' });
+  }
+  saved = [...remote, ...localOnly];
+  renderVocab();
+  render();
+}
+
+window.onAuthSuccess = async function(user){
+  currentUser = user;
+  refreshVocabAuthUI();
+  await loadVocabFromSupabase();
+};
+
+document.getElementById('vocabAuthLink').addEventListener('click', async (e) => {
+  e.preventDefault();
+  if(currentUser){
+    await authSignOut();
+    currentUser = null;
+    saved = JSON.parse(localStorage.getItem('lyricVocab') || '[]').map(s => ({...s, sources: s.sources || []}));
+    refreshVocabAuthUI();
+    renderVocab();
+    render();
+  } else {
+    openAuthModal();
+  }
+});
+
+authOnChange(async (user) => {
+  currentUser = user;
+  refreshVocabAuthUI();
+  if(user) await loadVocabFromSupabase();
+});
+
+async function init(){
+  try{
+    const [songRes, titlesRes] = await Promise.all([
+      sb.from('songs').select('*').eq('id', SONG_ID).single(),
+      sb.from('songs').select('id, zh')
+    ]);
+    if(songRes.error || !songRes.data) throw new Error('song not found');
+    SONG = songRes.data;
+    SONG.youtubeId = SONG.youtube_id; // keep the camelCase name the rest of the script expects
+    (titlesRes.data || []).forEach(s => { SONG_TITLES[s.id] = s.zh; });
+
+    document.title = SONG.zh + ' — Lyric Reader';
+    document.getElementById('pageTitle').textContent = SONG.zh + ' · Lyric Reader';
+    document.getElementById('readerHeading').textContent = SONG.zh;
+    document.getElementById('readerSub').textContent =
+      (SONG.artist || '') + (SONG.tags && SONG.tags.length ? ' · ' + SONG.tags.join(', ') : '');
+    document.getElementById('contextBody').textContent = SONG.context || '';
+    if(!SONG.context) document.getElementById('contextBlock').style.display = 'none';
+
+    document.getElementById('loadState').style.display = 'none';
+    document.getElementById('mainArea').style.display = 'flex';
+
+    render();
+    renderVocab();
+    renderVideo();
+  } catch(err){
+    document.getElementById('loadState').textContent =
+      `Couldn't load "${SONG_ID}". It may not exist, or it's a draft you don't have creator access to.`;
+    console.error(err);
+  }
+}
+init();
+</script>
+</body>
+</html>

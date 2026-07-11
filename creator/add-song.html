@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Add Song — L.I.T. Reader</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#faf8f3; --surface:#ffffff; --surface-raised:#f1efe6; --rule:#ddd7c8;
+    --text:#262420; --text-dim:#79766c; --accent:#b8863a;
+    --hsk1:#4f8a70; --hsk2:#3f6fd1; --hsk3:#7c5ec9; --hsk4:#c94a70; --hsk5:#c85f28;
+    --hsk6:#a83440; --hsk79:#1f8f83; --beyond:#111111;
+    --ok:#3f7d5c; --warn:#c94a70;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+  header{
+    padding:24px 28px; border-bottom:1px solid var(--rule);
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+  }
+  .eyebrow{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+  .title{ font-family:'Noto Serif SC',serif; font-size:24px; font-weight:700; }
+  header a{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); text-decoration:none; }
+  main{ max-width:840px; margin:0 auto; padding:30px 24px 100px; }
+  .panel{
+    background:var(--surface); border:1px solid var(--rule); border-radius:6px;
+    padding:22px 24px; margin-bottom:22px;
+  }
+  .panel h2{
+    margin:0 0 16px; font-family:'JetBrains Mono',monospace; font-size:11px;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--accent);
+  }
+  label{ display:block; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-bottom:5px; letter-spacing:.04em; }
+  input[type=text], textarea, select{
+    width:100%; background:var(--surface-raised); border:1px solid var(--rule); border-radius:4px;
+    padding:9px 11px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px; outline:none;
+  }
+  input[type=text]:focus, textarea:focus, select:focus{ border-color:var(--accent); }
+  textarea{ resize:vertical; font-family:'Noto Serif SC',serif; line-height:1.7; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .field{ margin-bottom:14px; }
+  .field:last-child{ margin-bottom:0; }
+  .btn{
+    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.03em;
+    padding:10px 18px; border-radius:4px; border:1px solid var(--accent);
+    background:rgba(184,134,58,.12); color:var(--accent); cursor:pointer;
+  }
+  .btn:hover{ background:rgba(184,134,58,.22); }
+  .btn.secondary{ border-color:var(--rule); background:transparent; color:var(--text-dim); }
+  .btn.secondary:hover{ color:var(--text); border-color:var(--text-dim); }
+  .btn.small{ padding:4px 8px; font-size:10px; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .status-line{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); margin-top:10px; }
+  .status-line.ok{ color:var(--ok); }
+
+  .line-review{
+    border:1px solid var(--rule); border-radius:6px; padding:14px 16px; margin-bottom:14px;
+    background:var(--surface-raised);
+  }
+  .line-review-head{ font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-bottom:10px; }
+  .tokens{ display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start; margin-bottom:10px; }
+  .token-card{
+    background:var(--surface); border:1px solid var(--rule); border-radius:6px;
+    padding:8px 8px 6px; display:flex; flex-direction:column; align-items:center; gap:4px;
+    min-width:64px; position:relative;
+  }
+  .token-card.unresolved{ border-color:var(--warn); }
+  .token-hanzi{ font-family:'Noto Serif SC',serif; font-size:20px; }
+  .token-card input{
+    width:100%; background:var(--bg); border:1px solid var(--rule); border-radius:3px;
+    font-size:10px; padding:3px 4px; text-align:center; color:var(--text);
+  }
+  .token-hsk-row{ display:flex; align-items:center; gap:3px; }
+  .token-hsk-row input{ width:32px; }
+  .token-btns{ display:flex; gap:3px; margin-top:2px; }
+  .token-btns button{
+    font-size:9px; padding:2px 5px; border-radius:3px; border:1px solid var(--rule);
+    background:transparent; color:var(--text-dim); cursor:pointer;
+  }
+  .token-btns button:hover{ color:var(--text); border-color:var(--accent); }
+  .punct-card{ opacity:.4; min-width:auto; padding:8px 4px; }
+
+  .translation-field label{ margin-top:4px; }
+
+  .unresolved-note{
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--warn); margin-top:2px;
+  }
+
+  .manifest-snippet{
+    font-family:'JetBrains Mono',monospace; font-size:11px; white-space:pre-wrap;
+    background:var(--surface-raised); border:1px solid var(--rule); border-radius:4px;
+    padding:12px; max-height:220px; overflow:auto; color:var(--text-dim);
+  }
+  .note{
+    font-family:'Inter',sans-serif; font-size:12px; color:var(--text-dim); line-height:1.6;
+  }
+  .note b{ color:var(--text); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../shared/auth.js"></script>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="eyebrow">creator tool</div>
+    <div class="title">Add a Song</div>
+  </div>
+  <a href="../index.html">← Library</a>
+</header>
+
+<main id="lockedMain" style="text-align:center; padding-top:60px;">
+  <div class="eyebrow" style="margin-bottom:12px;">creator tool</div>
+  <p class="note" style="max-width:340px; margin:0 auto 18px;">This page is only for the site's creator. Sign in with the creator account to continue.</p>
+  <button class="btn" id="lockedSignIn">Sign in</button>
+</main>
+
+<main id="unlockedMain" style="display:none;">
+
+
+  <div class="panel">
+    <h2>1 · Song details</h2>
+    <div class="field">
+      <label>Chinese title</label>
+      <input type="text" id="fZh" placeholder="红豆">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>English title</label>
+        <input type="text" id="fEn" placeholder="Red Bean">
+      </div>
+      <div class="field">
+        <label>Artist</label>
+        <input type="text" id="fArtist" placeholder="Faye Wong">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Song ID (used in the URL — auto-filled, editable)</label>
+        <input type="text" id="fId" placeholder="song-5">
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="fStatus">
+          <option value="draft" selected>Draft</option>
+          <option value="published">Published</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>YouTube link or video ID</label>
+        <input type="text" id="fYoutube" placeholder="https://youtube.com/watch?v=...">
+      </div>
+      <div class="field">
+        <label>Tags (comma separated)</label>
+        <input type="text" id="fTags" placeholder="pop, 90s">
+      </div>
+    </div>
+    <div class="field">
+      <label>About this song (optional — shown collapsed above the lyrics)</label>
+      <textarea id="fContext" rows="3" style="font-family:'Inter',sans-serif;" placeholder="e.g. references the Tang-dynasty poem 相思, where red beans symbolize longing..."></textarea>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>2 · Paste lyrics</h2>
+    <div class="field">
+      <label>Raw Chinese lyrics — one line per row</label>
+      <textarea id="fLyrics" rows="8" placeholder="音乐没有国界。&#10;但是歌词需要翻译。"></textarea>
+    </div>
+    <button class="btn" id="btnSegment">Segment &amp; auto-tag</button>
+    <div class="status-line" id="dictStatus">Loading dictionary…</div>
+  </div>
+
+  <div class="panel" id="reviewPanel" style="display:none;">
+    <h2>3 · Review, correct, and translate each line</h2>
+    <p class="note">
+      Words were split and tagged automatically from the bundled CC-CEDICT + HSK 3.0 data.
+      <b>Merge</b> joins a word with the one after it if the split was wrong. <b>Split</b> breaks
+      a word into its first character and the rest. Anything outlined in pink wasn't found in the
+      dictionary — fill in pinyin/gloss by hand, or leave it: it'll just render as a Beyond-tier word
+      with no gloss until you do. The translation field is the only thing that was never automatic.
+    </p>
+    <div id="linesContainer"></div>
+  </div>
+
+  <div class="panel" id="generatePanel" style="display:none;">
+    <h2>4 · Publish</h2>
+    <button class="btn" id="btnPublish">Publish to site</button>
+    <button class="btn secondary" id="btnGenerate">Download backup JSON</button>
+    <div id="publishStatus" class="status-line" style="margin-top:12px;"></div>
+    <p class="note" style="margin-top:16px;">
+      <b>Publish</b> writes this song directly into the site's database — no files, no redeploying.
+      If its status is set to <b>Draft</b> above, only your signed-in creator account can see it;
+      switch to <b>Published</b> whenever you want it live for everyone. The backup JSON is just a
+      local copy for your own records, not something you need to do anything with.</p>
+  </div>
+
+</main>
+
+<script>
+injectAuthModal();
+let currentUser = null;
+
+async function checkCreatorAccess(){
+  const user = await authGetUser();
+  currentUser = user;
+  const isCreator = user ? await authIsCreator(user.id) : false;
+  document.getElementById('lockedMain').style.display = isCreator ? 'none' : 'block';
+  document.getElementById('unlockedMain').style.display = isCreator ? 'block' : 'none';
+  if(user && !isCreator){
+    document.querySelector('#lockedMain .note').textContent =
+      `Signed in as ${user.email}, but this account isn't marked as the creator.`;
+  }
+}
+
+document.getElementById('lockedSignIn').addEventListener('click', () => openAuthModal());
+window.onAuthSuccess = () => checkCreatorAccess();
+authOnChange(() => checkCreatorAccess());
+checkCreatorAccess();
+
+let DICT = {};
+let dictReady = false;
+
+fetch('../data/dictionary.json')
+  .then(r => r.json())
+  .then(d => {
+    DICT = d;
+    dictReady = true;
+    document.getElementById('dictStatus').textContent =
+      `Dictionary loaded — ${Object.keys(DICT).length.toLocaleString()} entries.`;
+    document.getElementById('dictStatus').classList.add('ok');
+  })
+  .catch(err => {
+    document.getElementById('dictStatus').textContent =
+      'Could not load data/dictionary.json — check the file exists relative to this page.';
+    console.error(err);
+  });
+
+// slugify English title -> default song id
+document.getElementById('fEn').addEventListener('input', function(){
+  const idField = document.getElementById('fId');
+  if(!idField.dataset.touched){
+    idField.value = 'song-' + this.value.toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || '';
+  }
+});
+document.getElementById('fId').addEventListener('input', function(){ this.dataset.touched = '1'; });
+
+function extractYoutubeId(input){
+  if(!input) return '';
+  input = input.trim();
+  if(/^[a-zA-Z0-9_-]{11}$/.test(input)) return input; // already a bare ID
+  const m = input.match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+
+function lookup(word){
+  if(DICT[word]) return { p: DICT[word].p || '', g: DICT[word].g || [], hsk: DICT[word].hsk || 0 };
+  return null;
+}
+
+// fallback: look up each character individually and stitch together
+function fallbackLookup(word){
+  const chars = Array.from(word);
+  const parts = chars.map(c => DICT[c]).filter(Boolean);
+  if(parts.length === 0) return null;
+  return {
+    p: parts.map(p => p.p || '').join(' '),
+    g: parts.length === chars.length ? ['(from characters) ' + parts.map(p => (p.g && p.g[0]) || '').join(' + ')] : [],
+    hsk: 0 // compounds assembled from characters aren't an official HSK entry — treat as Beyond
+  };
+}
+
+const PUNCT_RE = /^[。，！？、；：""''…—·\s]+$/;
+
+function segmentLine(text){
+  const seg = new Intl.Segmenter('zh', { granularity: 'word' });
+  const tokens = [];
+  for(const { segment } of seg.segment(text)){
+    if(!segment) continue;
+    if(PUNCT_RE.test(segment)){
+      tokens.push({ h: segment, p: '', g: [], hsk: 0, isPunct: true });
+      continue;
+    }
+    let entry = lookup(segment) || fallbackLookup(segment);
+    tokens.push({
+      h: segment,
+      p: entry ? entry.p : '',
+      g: entry ? entry.g : [],
+      hsk: entry ? entry.hsk : 0,
+      isPunct: false,
+      unresolved: !entry
+    });
+  }
+  return tokens;
+}
+
+let lineData = []; // [{tokens:[...], translation:''}]
+
+function renderLines(){
+  const container = document.getElementById('linesContainer');
+  container.innerHTML = '';
+  lineData.forEach((line, li) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'line-review';
+
+    const head = document.createElement('div');
+    head.className = 'line-review-head';
+    head.textContent = `LINE ${li + 1}`;
+    wrap.appendChild(head);
+
+    const tokensEl = document.createElement('div');
+    tokensEl.className = 'tokens';
+    line.tokens.forEach((tok, ti) => {
+      tokensEl.appendChild(renderTokenCard(line, li, ti));
+    });
+    wrap.appendChild(tokensEl);
+
+    const transField = document.createElement('div');
+    transField.className = 'translation-field';
+    transField.innerHTML = `<label>English translation of this line</label>
+      <input type="text" data-li="${li}" class="translationInput" value="${(line.translation||'').replace(/"/g,'&quot;')}" placeholder="Your line-by-line translation...">`;
+    wrap.appendChild(transField);
+
+    container.appendChild(wrap);
+  });
+
+  container.querySelectorAll('.translationInput').forEach(inp => {
+    inp.addEventListener('input', e => {
+      lineData[e.target.dataset.li].translation = e.target.value;
+    });
+  });
+
+  document.getElementById('generatePanel').style.display = lineData.length ? 'block' : 'none';
+}
+
+function renderTokenCard(line, li, ti){
+  const tok = line.tokens[ti];
+  const card = document.createElement('div');
+
+  if(tok.isPunct){
+    card.className = 'token-card punct-card';
+    card.innerHTML = `<div class="token-hanzi" style="font-size:16px;color:var(--text-dim)">${tok.h}</div>`;
+    return card;
+  }
+
+  card.className = 'token-card' + (tok.unresolved ? ' unresolved' : '');
+  card.innerHTML = `
+    <div class="token-hanzi">${tok.h}</div>
+    <input type="text" value="${(tok.p||'').replace(/"/g,'&quot;')}" placeholder="pinyin" data-field="p">
+    <input type="text" value="${(tok.g && tok.g[0] ? tok.g[0] : '').replace(/"/g,'&quot;')}" placeholder="gloss" data-field="g">
+    <div class="token-hsk-row">
+      <span style="font-size:9px;color:var(--text-dim);">HSK</span>
+      <input type="text" value="${tok.hsk}" data-field="hsk">
+    </div>
+    <div class="token-btns">
+      <button data-action="merge" ${ti === line.tokens.length - 1 ? 'disabled' : ''}>merge →</button>
+      <button data-action="split" ${Array.from(tok.h).length < 2 ? 'disabled' : ''}>split</button>
+    </div>
+  `;
+
+  card.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const field = inp.dataset.field;
+      if(field === 'p') tok.p = inp.value;
+      if(field === 'g') tok.g = [inp.value];
+      if(field === 'hsk') tok.hsk = parseInt(inp.value, 10) || 0;
+      tok.unresolved = false;
+      card.classList.remove('unresolved');
+    });
+  });
+
+  const mergeBtn = card.querySelector('[data-action="merge"]');
+  if(mergeBtn) mergeBtn.addEventListener('click', () => {
+    const next = line.tokens[ti + 1];
+    if(!next) return;
+    const merged = tok.h + next.h;
+    const entry = lookup(merged) || fallbackLookup(merged);
+    line.tokens.splice(ti, 2, {
+      h: merged,
+      p: entry ? entry.p : '',
+      g: entry ? entry.g : [],
+      hsk: entry ? entry.hsk : 0,
+      isPunct: false,
+      unresolved: !entry
+    });
+    renderLines();
+  });
+
+  const splitBtn = card.querySelector('[data-action="split"]');
+  if(splitBtn) splitBtn.addEventListener('click', () => {
+    const chars = Array.from(tok.h);
+    const first = chars[0], rest = chars.slice(1).join('');
+    const e1 = lookup(first) || fallbackLookup(first);
+    const e2 = lookup(rest) || fallbackLookup(rest);
+    line.tokens.splice(ti, 1,
+      { h: first, p: e1?e1.p:'', g: e1?e1.g:[], hsk: e1?e1.hsk:0, isPunct:false, unresolved:!e1 },
+      { h: rest, p: e2?e2.p:'', g: e2?e2.g:[], hsk: e2?e2.hsk:0, isPunct:false, unresolved:!e2 }
+    );
+    renderLines();
+  });
+
+  return card;
+}
+
+document.getElementById('btnSegment').addEventListener('click', () => {
+  if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
+  const raw = document.getElementById('fLyrics').value;
+  const rawLines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  if(rawLines.length === 0){ alert('Paste some lyrics first.'); return; }
+  lineData = rawLines.map(line => ({ tokens: segmentLine(line), translation: '' }));
+  document.getElementById('reviewPanel').style.display = 'block';
+  renderLines();
+});
+
+function buildSongObject(){
+  const id = document.getElementById('fId').value.trim();
+  return {
+    id,
+    zh: document.getElementById('fZh').value.trim(),
+    en: document.getElementById('fEn').value.trim(),
+    artist: document.getElementById('fArtist').value.trim(),
+    status: document.getElementById('fStatus').value,
+    tags: document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    youtubeId: extractYoutubeId(document.getElementById('fYoutube').value),
+    context: document.getElementById('fContext').value.trim(),
+    lines: lineData.map(l => ({
+      words: l.tokens.map(t => ({ h: t.h, p: t.p, g: t.g, hsk: t.hsk })),
+      translation: l.translation
+    }))
+  };
+}
+
+document.getElementById('btnGenerate').addEventListener('click', () => {
+  const song = buildSongObject();
+  if(!song.id){ alert('Set a Song ID first.'); return; }
+  const blob = new Blob([JSON.stringify(song, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${song.id}.json`;
+  a.click();
+});
+
+document.getElementById('btnPublish').addEventListener('click', async () => {
+  const song = buildSongObject();
+  const statusEl = document.getElementById('publishStatus');
+  if(!song.id){ alert('Set a Song ID first.'); return; }
+  if(!currentUser){ alert('Sign in as the creator first.'); return; }
+
+  statusEl.classList.remove('ok');
+  statusEl.textContent = 'Publishing…';
+
+  const { error } = await sb.from('songs').upsert({
+    id: song.id, zh: song.zh, en: song.en, artist: song.artist,
+    status: song.status, tags: song.tags, youtube_id: song.youtubeId,
+    context: song.context, lines: song.lines
+  }, { onConflict: 'id' });
+
+  if(error){
+    statusEl.textContent = 'Failed: ' + error.message;
+    console.error(error);
+  } else {
+    statusEl.textContent = `Saved as "${song.status}". ` +
+      (song.status === 'published' ? 'It\u2019s live now.' : 'Only your creator account can see it.');
+    statusEl.classList.add('ok');
+  }
+});
+</script>
+</body>
+</html>

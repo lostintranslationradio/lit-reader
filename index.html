@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Song Library — L.I.T. Reader</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#faf8f3;
+    --surface:#ffffff;
+    --surface-raised:#f1efe6;
+    --rule:#ddd7c8;
+    --text:#262420;
+    --text-dim:#79766c;
+    --accent:#b8863a;
+    --hsk1:#4f8a70;
+    --hsk2:#3f6fd1;
+    --hsk3:#7c5ec9;
+    --hsk4:#c94a70;
+    --hsk5:#c85f28;
+    --hsk6:#a83440;
+    --hsk79:#1f8f83;
+    --beyond:#111111;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+  header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:14px;
+    padding:32px 28px 26px;
+    border-bottom:1px solid var(--rule);
+    flex-wrap:wrap;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin-bottom:4px;
+  }
+  .title{
+    font-family:'Noto Serif SC',serif;
+    font-size:28px;
+    font-weight:700;
+  }
+  .creator-link{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    background:none;
+    border:1px solid var(--rule);
+    border-radius:20px;
+    padding:7px 14px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .creator-link:hover{ border-color:var(--accent); color:var(--text); }
+  .creator-link.active{
+    color:var(--accent);
+    border-color:var(--accent);
+    background:rgba(184,134,58,.1);
+  }
+
+  .toolbar{
+    max-width:1180px;
+    margin:0 auto;
+    padding:22px 28px 0;
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .toolbar-left{
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    align-items:center;
+    flex:1 1 auto;
+  }
+  .search{
+    flex:1 1 220px;
+    max-width:360px;
+    position:relative;
+  }
+  .search input{
+    width:100%;
+    background:var(--surface);
+    border:1px solid var(--rule);
+    border-radius:4px;
+    padding:10px 14px;
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    outline:none;
+  }
+  .search input:focus{ border-color:var(--accent); }
+  .search input::placeholder{ color:var(--text-dim); }
+
+  .chips{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .chip{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.04em;
+    padding:7px 13px;
+    border-radius:20px;
+    border:1px solid var(--rule);
+    color:var(--text-dim);
+    cursor:pointer;
+    background:transparent;
+    transition:all .15s;
+  }
+  .chip:hover{ border-color:var(--accent); color:var(--text); }
+  .chip.active{
+    background:rgba(184,134,58,.14);
+    border-color:var(--accent);
+    color:var(--accent);
+  }
+
+  .right-controls{
+    display:flex;
+    gap:16px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .view-toggle{
+    display:flex;
+    border:1px solid var(--rule);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .view-toggle button{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    padding:7px 12px;
+    background:transparent;
+    border:none;
+    color:var(--text-dim);
+    cursor:pointer;
+  }
+  .view-toggle button + button{ border-left:1px solid var(--rule); }
+  .view-toggle button.active{
+    background:rgba(184,134,58,.14);
+    color:var(--accent);
+  }
+
+  .sort{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .sort select{
+    background:var(--surface);
+    border:1px solid var(--rule);
+    color:var(--text);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    padding:6px 8px;
+    border-radius:4px;
+  }
+
+  main{
+    max-width:1180px;
+    margin:0 auto;
+    padding:26px 28px 90px;
+  }
+  .count-line{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    margin-bottom:18px;
+  }
+
+  /* GRID VIEW */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(230px,1fr));
+    gap:18px;
+  }
+  .card{
+    background:var(--surface);
+    border:1px solid var(--rule);
+    border-radius:6px;
+    overflow:hidden;
+    cursor:pointer;
+    text-decoration:none;
+    color:var(--text);
+    display:flex;
+    flex-direction:column;
+    transition:transform .15s, border-color .15s;
+  }
+  .card:hover{
+    transform:translateY(-3px);
+    border-color:var(--accent);
+  }
+  .cover{
+    height:100px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .cover .zh{
+    font-family:'Noto Serif SC',serif;
+    font-size:32px;
+    font-weight:700;
+    color:rgba(0,0,0,.55);
+    transition:transform .4s ease;
+  }
+  .card:hover .cover .zh{ transform:rotate(-6deg) scale(1.06); }
+  .status-pill{
+    position:absolute;
+    top:8px; right:8px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    padding:3px 7px;
+    border-radius:10px;
+    background:rgba(0,0,0,.35);
+    color:rgba(255,255,255,.85);
+  }
+  .card-body{
+    padding:13px 15px 15px;
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+    flex:1;
+  }
+  .zh-title{
+    font-family:'Noto Serif SC',serif;
+    font-size:16px;
+    font-weight:600;
+  }
+  .en-title{
+    font-family:'Inter',sans-serif;
+    font-size:11px;
+    color:var(--text-dim);
+    margin-top:-4px;
+  }
+  .artist{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:var(--text-dim);
+  }
+  .tags{
+    display:flex;
+    gap:5px;
+    flex-wrap:wrap;
+    margin-top:1px;
+  }
+  .tag{
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px;
+    color:var(--text-dim);
+    border:1px solid var(--rule);
+    padding:2px 7px;
+    border-radius:10px;
+  }
+  .hsk-bar{
+    display:flex;
+    height:5px;
+    border-radius:3px;
+    overflow:hidden;
+    margin-top:auto;
+  }
+  .hsk-bar span{ display:block; height:100%; }
+
+  /* LIST / PLAYLIST VIEW */
+  .list{
+    display:flex;
+    flex-direction:column;
+    border:1px solid var(--rule);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:11px 16px;
+    text-decoration:none;
+    color:var(--text);
+    background:var(--surface);
+    border-bottom:1px solid var(--rule);
+    transition:background .12s;
+  }
+  .row:last-child{ border-bottom:none; }
+  .row:hover{ background:var(--surface-raised); }
+  .row-index{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    width:20px;
+    text-align:right;
+    flex-shrink:0;
+  }
+  .row-swatch{
+    width:34px; height:34px;
+    border-radius:5px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  .row-swatch span{
+    font-family:'Noto Serif SC',serif;
+    font-size:15px;
+    font-weight:700;
+  }
+  .row-main{
+    flex:1 1 auto;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:1px;
+  }
+  .row-title-line{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .row-zh{
+    font-family:'Noto Serif SC',serif;
+    font-size:15px;
+    font-weight:600;
+  }
+  .row-en{
+    font-family:'Inter',sans-serif;
+    font-size:11px;
+    color:var(--text-dim);
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .row-artist{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:var(--text-dim);
+  }
+  .row-tags{
+    display:none;
+    gap:5px;
+    flex-shrink:0;
+  }
+  .row-hsk{
+    width:90px;
+    flex-shrink:0;
+    display:flex;
+    height:5px;
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .row-hsk span{ display:block; height:100%; }
+  .row-status{
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--text-dim);
+    border:1px solid var(--rule);
+    padding:2px 7px;
+    border-radius:10px;
+    flex-shrink:0;
+  }
+
+  .empty-state{
+    text-align:center;
+    padding:60px 20px;
+    color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+  }
+
+  /* RESPONSIVE */
+  @media (min-width: 720px){
+    .row-tags{ display:flex; }
+  }
+  @media (max-width: 640px){
+    header{ padding:22px 18px 18px; }
+    .title{ font-size:22px; }
+    .toolbar{ padding:16px 18px 0; }
+    main{ padding:18px 18px 70px; }
+    .grid{ grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:12px; }
+    .cover{ height:80px; }
+    .cover .zh{ font-size:24px; }
+    .card-body{ padding:10px 11px 12px; gap:5px; }
+    .row{ padding:9px 12px; gap:10px; }
+    .row-index{ display:none; }
+    .row-hsk{ width:44px; }
+    .row-artist{ display:none; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="shared/auth.js"></script>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="eyebrow">song library — concept</div>
+    <div class="title">歌曲库 · L.I.T. Reader</div>
+  </div>
+  <button class="creator-link" id="creatorLink">Sign in</button>
+  <a class="creator-link" id="addSongLink" href="creator/add-song.html" style="display:none; text-decoration:none;">+ Add Song</a>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-left">
+    <div class="search">
+      <input type="text" id="searchInput" placeholder="Search title, artist, or tag…">
+    </div>
+    <div class="chips" id="statusChips">
+      <button class="chip active" data-status="all">All</button>
+      <button class="chip" data-status="published">Published</button>
+      <button class="chip" data-status="draft" id="draftChip" style="display:none;">Draft</button>
+    </div>
+  </div>
+  <div class="right-controls">
+    <div class="view-toggle" id="viewToggle">
+      <button data-view="grid" class="active">Tiles</button>
+      <button data-view="list">Playlist</button>
+    </div>
+    <div class="sort">
+      Sort
+      <select id="sortSelect">
+        <option value="recent">Recently added</option>
+        <option value="title">Title (A–Z)</option>
+        <option value="difficulty">Difficulty (easy → hard)</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="count-line" id="countLine"></div>
+  <div class="grid" id="grid"></div>
+  <div class="list" id="list" style="display:none;"></div>
+  <div class="empty-state" id="emptyState" style="display:none;">No songs match that search.</div>
+</main>
+
+<script>
+// One lightweight entry per song — this is the ONLY thing the library page needs.
+// Full lyric/word data lives in data/songs/song-N.json, loaded by reader.html.
+// This whole list is fetched from data/manifest.json rather than hardcoded here,
+// so the "Add Song" creator page can update it without anyone touching this file.
+let manifest = [];
+
+// --- CREATOR MODE ---
+// Creator status is a real database flag (profiles.is_creator), enforced by
+// row-level security in Supabase — not a value stored or checked in this file.
+let creatorMode = false;
+let currentUser = null;
+
+const HSK_VAR = {1:'--hsk1',2:'--hsk2',3:'--hsk3',4:'--hsk4',5:'--hsk5',6:'--hsk6',7:'--hsk79',8:'--hsk79',9:'--hsk79',none:'--beyond'};
+const COVER_HUES = ['#4f8a70','#3f6fd1','#7c5ec9','#c94a70','#c85f28'];
+
+let state = { q:'', status:'all', sort:'recent', view: localStorage.getItem('libraryView') || 'grid' };
+
+function coverColor(id){
+  let sum = 0;
+  for(const ch of id) sum += ch.charCodeAt(0);
+  return COVER_HUES[sum % COVER_HUES.length];
+}
+
+function computeStats(lines){
+  const counts = {};
+  let total = 0, diffSum = 0;
+  (lines || []).forEach(line => (line.words || []).forEach(w => {
+    if(w.h.length === 1 && /[。，！？、；：]/.test(w.h)) return;
+    total++;
+    const bucket = w.hsk === 0 ? 'none' : (w.hsk >= 7 ? '7' : String(w.hsk));
+    counts[bucket] = (counts[bucket] || 0) + 1;
+    diffSum += (w.hsk === 0 ? 8 : w.hsk);
+  }));
+  const pct = {};
+  Object.entries(counts).forEach(([k, v]) => { pct[k] = Math.round(v / total * 100); });
+  return { hsk: pct, avgDifficulty: total ? Math.round((diffSum / total) * 10) / 10 : 0 };
+}
+
+function matches(song){
+  const q = state.q.trim().toLowerCase();
+  const inText = !q || [song.zh, song.en, song.artist, ...song.tags].join(' ').toLowerCase().includes(q);
+  const inStatus = state.status === 'all' || song.status === state.status;
+  return inText && inStatus;
+}
+
+function sortSongs(list){
+  const l = [...list];
+  if(state.sort === 'title') l.sort((a,b)=> a.en.localeCompare(b.en));
+  else if(state.sort === 'difficulty') l.sort((a,b)=> a.avgDifficulty - b.avgDifficulty);
+  else l.sort((a,b)=> b.added - a.added);
+  return l;
+}
+
+function hskBarHTML(hsk){
+  return Object.entries(hsk).filter(([,v])=>v>0).map(([k,v])=>
+    `<span style="width:${v}%; background:var(${HSK_VAR[k]})"></span>`
+  ).join('');
+}
+
+function renderGrid(list){
+  document.getElementById('grid').innerHTML = list.map(song => `
+    <a class="card" href="reader.html?song=${song.id}">
+      <div class="cover" style="background:${coverColor(song.id)}22; border-bottom:1px solid var(--rule);">
+        ${creatorMode ? `<span class="status-pill">${song.status}</span>` : ''}
+        <div class="zh" style="color:${coverColor(song.id)}">${song.zh.slice(0,2)}</div>
+      </div>
+      <div class="card-body">
+        <div class="zh-title">${song.zh}</div>
+        <div class="en-title">${song.en}</div>
+        <div class="artist">${song.artist}</div>
+        <div class="tags">${song.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        <div class="hsk-bar">${hskBarHTML(song.hsk)}</div>
+      </div>
+    </a>
+  `).join('');
+}
+
+function renderList(list){
+  document.getElementById('list').innerHTML = list.map((song, i) => `
+    <a class="row" href="reader.html?song=${song.id}">
+      <span class="row-index">${i+1}</span>
+      <div class="row-swatch" style="background:${coverColor(song.id)}22;">
+        <span style="color:${coverColor(song.id)}">${song.zh.slice(0,1)}</span>
+      </div>
+      <div class="row-main">
+        <div class="row-title-line">
+          <span class="row-zh">${song.zh}</span>
+          <span class="row-en">${song.en}</span>
+        </div>
+        <div class="row-artist">${song.artist}</div>
+      </div>
+      <div class="row-tags">${song.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      <div class="row-hsk">${hskBarHTML(song.hsk)}</div>
+      ${creatorMode ? `<span class="row-status">${song.status}</span>` : ''}
+    </a>
+  `).join('');
+}
+
+function render(){
+  const filtered = sortSongs(manifest.filter(matches));
+
+  document.getElementById('countLine').textContent =
+    `${filtered.length} song${filtered.length===1?'':'s'}`;
+  document.getElementById('emptyState').style.display = filtered.length ? 'none' : 'block';
+
+  document.getElementById('grid').style.display = state.view === 'grid' ? 'grid' : 'none';
+  document.getElementById('list').style.display = state.view === 'list' ? 'flex' : 'none';
+
+  if(state.view === 'grid') renderGrid(filtered);
+  else renderList(filtered);
+
+  document.getElementById('draftChip').style.display = creatorMode ? 'inline-block' : 'none';
+  const creatorLink = document.getElementById('creatorLink');
+  creatorLink.textContent = creatorMode ? 'Exit creator view' : 'Creator sign-in';
+  creatorLink.classList.toggle('active', creatorMode);
+  document.getElementById('addSongLink').style.display = creatorMode ? 'inline-block' : 'none';
+}
+
+document.getElementById('searchInput').addEventListener('input', e=>{
+  state.q = e.target.value;
+  render();
+});
+document.getElementById('sortSelect').addEventListener('change', e=>{
+  state.sort = e.target.value;
+  render();
+});
+document.querySelectorAll('#statusChips .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('#statusChips .chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    state.status = chip.dataset.status;
+    render();
+  });
+});
+document.querySelectorAll('#viewToggle button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#viewToggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.view = btn.dataset.view;
+    localStorage.setItem('libraryView', state.view);
+    render();
+  });
+});
+injectAuthModal();
+
+function refreshCreatorUI(){
+  const creatorLink = document.getElementById('creatorLink');
+  if(currentUser){
+    creatorLink.textContent = creatorMode ? 'Sign out (creator)' : 'Sign out';
+    creatorLink.classList.toggle('active', creatorMode);
+  } else {
+    creatorLink.textContent = 'Sign in';
+    creatorLink.classList.remove('active');
+  }
+  document.getElementById('addSongLink').style.display = creatorMode ? 'inline-block' : 'none';
+}
+
+window.onAuthSuccess = async function(user){
+  currentUser = user;
+  creatorMode = await authIsCreator(user.id);
+  refreshCreatorUI();
+  render();
+};
+
+document.getElementById('creatorLink').addEventListener('click', async () => {
+  if(currentUser){
+    await authSignOut();
+    currentUser = null;
+    creatorMode = false;
+    refreshCreatorUI();
+    render();
+  } else {
+    openAuthModal();
+  }
+});
+
+authOnChange(async (user) => {
+  currentUser = user;
+  creatorMode = user ? await authIsCreator(user.id) : false;
+  refreshCreatorUI();
+  render();
+});
+
+sb.from('songs').select('*').then(({ data, error }) => {
+  if(error){
+    document.getElementById('grid').innerHTML =
+      '<div class="empty-state">Could not load songs from Supabase</div>';
+    console.error(error);
+    return;
+  }
+  manifest = (data || []).map(s => {
+    const stats = computeStats(s.lines);
+    return {
+      id: s.id, zh: s.zh, en: s.en, artist: s.artist, status: s.status,
+      tags: s.tags || [], hsk: stats.hsk, avgDifficulty: stats.avgDifficulty,
+      added: new Date(s.added).getTime()
+    };
+  });
+  render();
+});
+</script>
+</body>
+</html>
