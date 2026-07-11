@@ -209,12 +209,14 @@ let currentUser = null;
 async function checkCreatorAccess(){
   const user = await authGetUser();
   currentUser = user;
-  const isCreator = user ? await authIsCreator(user.id) : false;
+  const profile = user ? await authGetProfile(user.id) : null;
+  const isCreator = profile ? !!profile.is_creator : false;
   document.getElementById('lockedMain').style.display = isCreator ? 'none' : 'block';
   document.getElementById('unlockedMain').style.display = isCreator ? 'block' : 'none';
   if(user && !isCreator){
+    const name = (profile && profile.username) ? profile.username : user.email;
     document.querySelector('#lockedMain .note').textContent =
-      `Signed in as ${user.email}, but this account isn't marked as the creator.`;
+      `Signed in as ${name}, but this account isn't marked as the creator.`;
   }
 }
 

@@ -510,6 +510,7 @@ const linesEl = document.getElementById('lines');
 let saved = JSON.parse(localStorage.getItem('lyricVocab') || '[]');
 saved = saved.map(s => ({...s, sources: s.sources || []}));
 let currentUser = null; // when signed in, `saved` is backed by Supabase instead of localStorage
+let currentProfile = null; // { username, email, is_creator }
 let currentLevel = 3;
 let overrides = {};
 
@@ -739,7 +740,8 @@ function refreshVocabAuthUI(){
   const statusEl = document.getElementById('vocabAuthStatus');
   const linkEl = document.getElementById('vocabAuthLink');
   if(currentUser){
-    statusEl.textContent = `Synced as ${currentUser.email}. `;
+    const name = (currentProfile && currentProfile.username) ? currentProfile.username : currentUser.email;
+    statusEl.textContent = `Synced as ${name}. `;
     linkEl.textContent = 'Sign out';
   } else {
     statusEl.textContent = 'Saving to this device only. ';
@@ -767,6 +769,7 @@ async function loadVocabFromSupabase(){
 
 window.onAuthSuccess = async function(user){
   currentUser = user;
+  currentProfile = await authGetProfile(user.id);
   refreshVocabAuthUI();
   await loadVocabFromSupabase();
 };
@@ -776,6 +779,7 @@ document.getElementById('vocabAuthLink').addEventListener('click', async (e) => 
   if(currentUser){
     await authSignOut();
     currentUser = null;
+    currentProfile = null;
     saved = JSON.parse(localStorage.getItem('lyricVocab') || '[]').map(s => ({...s, sources: s.sources || []}));
     refreshVocabAuthUI();
     renderVocab();
@@ -787,6 +791,7 @@ document.getElementById('vocabAuthLink').addEventListener('click', async (e) => 
 
 authOnChange(async (user) => {
   currentUser = user;
+  currentProfile = user ? await authGetProfile(user.id) : null;
   refreshVocabAuthUI();
   if(user) await loadVocabFromSupabase();
 });

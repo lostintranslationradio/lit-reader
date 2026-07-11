@@ -5,6 +5,7 @@
 create table profiles (
   id uuid references auth.users primary key,
   email text,
+  username text unique,
   is_creator boolean default false
 );
 
@@ -90,3 +91,18 @@ create policy "Creator can update songs"
 create policy "Creator can delete songs"
   on songs for delete
   using (exists (select 1 from profiles where id = auth.uid() and is_creator = true));
+
+-- Lets the sign-in and forgot-password flows resolve "username" -> the real
+-- email Supabase needs, without exposing the rest of anyone's profile data.
+-- SECURITY DEFINER means it runs with elevated rights internally, but it only
+-- ever returns a single email string for a single username lookup.
+create or replace function public.get_login_email(p_username text)
+returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select email from public.profiles where lower(username) = lower(p_username) limit 1;
+$$;
+
+grant execute on function public.get_login_email(text) to anon, authenticated;
