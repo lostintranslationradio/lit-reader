@@ -135,22 +135,37 @@ function injectAuthModal(){
   wrap.innerHTML = `
     <div id="authCard" style="background:var(--surface); border:1px solid var(--rule); border-radius:8px;
                 max-width:320px; width:100%; padding:24px; font-family:'Inter',sans-serif; position:relative;">
-      <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em;
-                  text-transform:uppercase; color:var(--accent); margin-bottom:14px;" id="authModalTitle">Sign in</div>
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:14px;">
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em;
+                    text-transform:uppercase; color:var(--accent);" id="authModalTitle">Sign in</span>
+        <span id="authEmailWhy" title="Email used to recover password. Never shown publicly."
+          style="display:none; width:13px; height:13px; border-radius:50%; border:1px solid var(--text-dim); color:var(--text-dim);
+                 font-size:9px; line-height:11px; text-align:center; cursor:help; flex-shrink:0;">?</span>
+      </div>
 
       <div id="authEmailField" style="display:none;">
-        <div style="display:flex; align-items:center; gap:5px; margin-bottom:4px;">
-          <span style="font-size:10px; color:var(--text-dim); font-family:'JetBrains Mono',monospace;">email</span>
-          <span id="authEmailWhy" title="Only used if you ever need to reset your password. Never shown publicly."
-            style="width:13px; height:13px; border-radius:50%; border:1px solid var(--text-dim); color:var(--text-dim);
-                   font-size:9px; line-height:11px; text-align:center; cursor:help;">?</span>
-        </div>
         <input type="email" id="authEmail" placeholder="email" autocomplete="email" style="${fieldStyle}">
       </div>
 
       <input type="text" id="authUsername" placeholder="username" autocomplete="username" style="${fieldStyle}">
-      <input type="password" id="authPassword" placeholder="password" autocomplete="current-password" style="${fieldStyle}">
-      <input type="password" id="authNewPassword" placeholder="new password" autocomplete="new-password" style="${fieldStyle} display:none;">
+
+      <div id="authPasswordWrap" style="position:relative; margin-bottom:10px;">
+        <input type="password" id="authPassword" placeholder="password" autocomplete="current-password"
+          style="width:100%; background:var(--surface-raised); border:1px solid var(--rule); border-radius:4px;
+                 padding:9px 44px 9px 11px; color:var(--text); font-size:13px; outline:none; box-sizing:border-box;">
+        <button type="button" class="authEyeBtn" data-target="authPassword" style="position:absolute; right:8px; top:50%;
+          transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--text-dim);
+          font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.03em; padding:2px 4px;">show</button>
+      </div>
+
+      <div id="authNewPasswordWrap" style="position:relative; margin-bottom:10px; display:none;">
+        <input type="password" id="authNewPassword" placeholder="new password" autocomplete="new-password"
+          style="width:100%; background:var(--surface-raised); border:1px solid var(--rule); border-radius:4px;
+                 padding:9px 44px 9px 11px; color:var(--text); font-size:13px; outline:none; box-sizing:border-box;">
+        <button type="button" class="authEyeBtn" data-target="authNewPassword" style="position:absolute; right:8px; top:50%;
+          transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--text-dim);
+          font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.03em; padding:2px 4px;">show</button>
+      </div>
 
       <div id="authError" style="color:var(--hsk4); font-size:11px; margin-bottom:10px; display:none;"></div>
       <div id="authInfo" style="color:var(--accent); font-size:11px; margin-bottom:10px; display:none;"></div>
@@ -182,9 +197,10 @@ function injectAuthModal(){
     document.getElementById('authError').style.display = 'none';
     document.getElementById('authInfo').style.display = 'none';
     show('authEmailField', m === 'signup');
+    document.getElementById('authEmailWhy').style.display = m === 'signup' ? 'inline-block' : 'none';
     show('authUsername', m !== 'reset-confirm');
-    show('authPassword', m === 'signin' || m === 'signup');
-    show('authNewPassword', m === 'reset-confirm');
+    show('authPasswordWrap', m === 'signin' || m === 'signup');
+    show('authNewPasswordWrap', m === 'reset-confirm');
     document.getElementById('authForgotLink').style.display = m === 'signin' ? 'inline' : 'none';
     document.getElementById('authToggleRow').style.display = (m === 'signin' || m === 'signup') ? 'block' : 'none';
 
@@ -195,6 +211,15 @@ function injectAuthModal(){
     document.getElementById('authToggleText').textContent = m === 'signin' ? 'No account?' : 'Already have one?';
     document.getElementById('authToggleMode').textContent = m === 'signin' ? 'Create one' : 'Sign in';
   }
+
+  wrap.querySelectorAll('.authEyeBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(btn.dataset.target);
+      const revealing = input.type === 'password';
+      input.type = revealing ? 'text' : 'password';
+      btn.textContent = revealing ? 'hide' : 'show';
+    });
+  });
 
   document.getElementById('authToggleMode').addEventListener('click', (e) => {
     e.preventDefault();
