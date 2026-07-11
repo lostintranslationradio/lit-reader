@@ -38,6 +38,7 @@ create trigger on_auth_user_created
 create table saved_words (
   id bigint generated always as identity primary key,
   user_id uuid references auth.users not null,
+  kind text default 'word',
   hanzi text not null,
   pinyin text,
   gloss jsonb default '[]'::jsonb,
@@ -67,6 +68,8 @@ create table songs (
   youtube_id text default '',
   context text default '',
   lines jsonb default '[]'::jsonb,
+  constructions jsonb default '[]'::jsonb,
+  cover_url text default '',
   added timestamptz default now()
 );
 
@@ -106,3 +109,26 @@ as $$
 $$;
 
 grant execute on function public.get_login_email(text) to anon, authenticated;
+
+-- Cover art storage: a public bucket, but only the creator can upload to it.
+insert into storage.buckets (id, name, public)
+values ('covers', 'covers', true)
+on conflict (id) do nothing;
+
+create policy "Anyone can view cover art"
+  on storage.objects for select
+  using (bucket_id = 'covers');
+
+create policy "Creator can upload cover art"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'covers'
+    and exists (select 1 from public.profiles where id = auth.uid() and is_creator = true)
+  );
+
+create policy "Creator can replace cover art"
+  on storage.objects for update
+  using (
+    bucket_id = 'covers'
+    and exists (select 1 from public.profiles where id = auth.uid() and is_creator = true)
+  );

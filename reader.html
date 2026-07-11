@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   :root{
+    --font-scale:1;
     --bg:#faf8f3;
     --surface:#ffffff;
     --surface-raised:#f1efe6;
@@ -112,12 +113,47 @@
     border-radius:4px;
     overflow:hidden;
     margin-bottom:24px;
+    transition:box-shadow .2s;
   }
   .video-wrap iframe{
     position:absolute; top:0; left:0;
     width:100%; height:100%;
     border:0;
   }
+  .video-wrap.mini{
+    position:fixed;
+    top:auto;
+    bottom:20px;
+    right:20px;
+    width:min(300px, 40vw);
+    padding-top:min(168.75px, 22.5vw);
+    margin-bottom:0;
+    z-index:45;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);
+    border:1px solid var(--rule);
+  }
+  .video-mini-spacer{ display:none; }
+  .video-wrap.mini + .video-mini-spacer{
+    display:block;
+    height:0;
+    margin-bottom:24px;
+  }
+  .video-mini-close{
+    position:absolute;
+    top:6px; right:6px;
+    z-index:2;
+    width:22px; height:22px;
+    border-radius:50%;
+    background:rgba(0,0,0,.6);
+    color:#fff;
+    border:none;
+    font-size:12px;
+    cursor:pointer;
+    display:none;
+    align-items:center;
+    justify-content:center;
+  }
+  .video-wrap.mini .video-mini-close{ display:flex; }
   .video-placeholder{
     position:absolute; inset:0;
     display:flex; align-items:center; justify-content:center;
@@ -177,7 +213,14 @@
     padding-bottom:24px;
     border-bottom:1px solid var(--rule);
   }
-  .line-block{ margin-bottom:26px; }
+  .line-block{ margin-bottom:26px; scroll-margin:100px; transition:background .3s; }
+  .line-block.active-line{
+    background:rgba(184,134,58,.08);
+    border-radius:6px;
+    box-shadow:inset 3px 0 0 var(--accent);
+    padding-left:10px;
+    margin-left:-10px;
+  }
   .line{
     display:flex;
     flex-wrap:wrap;
@@ -188,7 +231,7 @@
     margin-top:8px;
     font-family:'Inter',sans-serif;
     font-style:italic;
-    font-size:14px;
+    font-size:calc(14px * var(--font-scale));
     color:var(--text);
     opacity:.75;
     border-left:2px solid var(--rule);
@@ -211,21 +254,21 @@
   .word:hover{background:var(--surface-raised);}
   .pinyin{
     font-family:'Inter',sans-serif;
-    font-size:11px;
+    font-size:calc(11px * var(--font-scale));
     color:var(--text-dim);
-    height:14px;
+    height:calc(14px * var(--font-scale));
     white-space:nowrap;
   }
   .hanzi{
     font-family:'Noto Serif SC',serif;
-    font-size:26px;
+    font-size:calc(26px * var(--font-scale));
     font-weight:500;
     white-space:nowrap;
     transition:color .2s;
   }
   .gloss{
     font-family:'Inter',sans-serif;
-    font-size:10px;
+    font-size:calc(10px * var(--font-scale));
     color:var(--text-dim);
     white-space:nowrap;
     opacity:.85;
@@ -315,6 +358,56 @@
     line-height:1.6;
   }
   .popup-defs ol{ margin:0; padding-left:18px; }
+  .popup-readings{
+    margin-top:12px;
+    border-top:1px solid var(--rule);
+    padding-top:12px;
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+  }
+  .popup-readings .reading-label{
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin-bottom:6px;
+  }
+  .reading-chip{
+    display:inline-block;
+    padding:3px 9px;
+    margin:0 5px 5px 0;
+    border-radius:10px;
+    border:1px solid var(--rule);
+    font-size:11px;
+  }
+  .reading-chip.selected{
+    border-color:var(--accent);
+    color:var(--accent);
+    background:rgba(184,134,58,.1);
+  }
+  .popup-construction{
+    margin-top:12px;
+    border-top:1px solid var(--rule);
+    padding-top:12px;
+    font-family:'Inter',sans-serif;
+    font-size:12px;
+    line-height:1.5;
+  }
+  .popup-construction .cons-pattern{
+    font-family:'Noto Serif SC',serif;
+    font-size:16px;
+    color:var(--accent);
+    margin-bottom:4px;
+  }
+  .popup-construction .cons-gloss{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+    margin-bottom:6px;
+  }
   .popup-hint{
     margin-top:16px;
     text-align:center;
@@ -422,6 +515,7 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
 <script src="shared/auth.js"></script>
 </head>
 <body>
@@ -445,6 +539,19 @@
     <div class="toggle" id="translationToggle">
       <div class="switch on"></div> translation
     </div>
+    <div class="toggle" id="followToggle" style="display:none;">
+      <div class="switch"></div> follow video
+    </div>
+    <div class="level-control" id="textSizeControl">
+      <span>Text size</span>
+      <button type="button" id="textSizeDown" style="font-family:'JetBrains Mono',monospace; font-size:12px;
+        width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
+        color:var(--text-dim); cursor:pointer; line-height:1;">−</button>
+      <span class="level-value" id="textSizeLabel">100%</span>
+      <button type="button" id="textSizeUp" style="font-family:'JetBrains Mono',monospace; font-size:12px;
+        width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
+        color:var(--text-dim); cursor:pointer; line-height:1;">+</button>
+    </div>
   </div>
 </header>
 
@@ -452,7 +559,11 @@
 
 <main id="mainArea" style="display:none;">
   <div class="reader">
-    <div class="video-wrap" id="videoWrap"></div>
+    <div class="video-wrap" id="videoOuter">
+      <div id="videoWrap" style="position:absolute; inset:0;"></div>
+      <button class="video-mini-close" id="videoMiniClose" title="Close mini player">✕</button>
+    </div>
+    <div class="video-mini-spacer" id="videoMiniSpacer"></div>
     <div class="reader-heading" id="readerHeading"></div>
     <details class="context-block" id="contextBlock">
       <summary>About this song</summary>
@@ -496,6 +607,8 @@
     <div class="popup-pinyin" id="popupPinyin"></div>
     <div class="popup-hsk-badge" id="popupHsk"></div>
     <div class="popup-defs" id="popupDefs"></div>
+    <div id="popupReadings" style="display:none;"></div>
+    <div id="popupConstruction" style="display:none;"></div>
     <div class="popup-hint">tap the star to save · tap outside to close</div>
   </div>
 </div>
@@ -545,6 +658,19 @@ function updateLevelLabels(){
   document.getElementById('levelPct').textContent = pct + '% hidden';
 }
 
+const CONSTRUCTION_COLORS = ['--hsk3', '--hsk4', '--hsk79', '--hsk6', '--hsk2'];
+let constructionForKey = {}; // "lineIdx_wordIdx" -> {construction, colorVar}
+
+function indexConstructions(){
+  constructionForKey = {};
+  (SONG.constructions || []).forEach((c, ci) => {
+    const colorVar = CONSTRUCTION_COLORS[ci % CONSTRUCTION_COLORS.length];
+    (c.members || []).forEach(([li, wi]) => {
+      constructionForKey[li + '_' + wi] = { construction: c, colorVar };
+    });
+  });
+}
+
 function render(){
   linesEl.innerHTML = '';
   SONG.lines.forEach((entry, lineIdx)=>{
@@ -566,9 +692,12 @@ function render(){
       if(isSavedAlready) w.classList.add('saved');
       if(isHidden(tok, key)) w.classList.add('g-hidden');
       const glossFirst = Array.isArray(tok.g) ? (tok.g[0] || '') : (tok.g || '');
+      const cons = constructionForKey[key];
+      const hanziStyle = `color:var(${HSK_VAR[tok.hsk]});` +
+        (cons ? `border-bottom:2px solid var(${cons.colorVar}); padding-bottom:1px;` : '');
       w.innerHTML = `
         <span class="pinyin">${tok.p}</span>
-        <span class="hanzi" style="color:var(${HSK_VAR[tok.hsk]})">${tok.h}</span>
+        <span class="hanzi" style="${hanziStyle}">${tok.h}</span>
         <span class="gloss">${glossFirst}</span>
         <svg class="ring" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14"></circle></svg>
       `;
@@ -635,9 +764,48 @@ function openPopup(tok, key, el){
   badge.style.color = `var(${HSK_VAR[tok.hsk]})`;
   badge.style.borderColor = `var(${HSK_VAR[tok.hsk]})`;
   const defs = (Array.isArray(tok.g) ? tok.g : [tok.g]).filter(Boolean);
-  document.getElementById('popupDefs').innerHTML = defs.length
+  const posLabel = tok.pos ? `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim);
+    text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">${tok.pos}</div>` : '';
+  document.getElementById('popupDefs').innerHTML = posLabel + (defs.length
     ? '<ol>' + defs.map(d=>`<li>${d}</li>`).join('') + '</ol>'
-    : '<div style="opacity:.6">(no definition yet)</div>';
+    : '<div style="opacity:.6">(no definition yet)</div>');
+
+  const readingsEl = document.getElementById('popupReadings');
+  if(tok.reading_options && tok.reading_options.length > 1){
+    readingsEl.innerHTML = `<div class="reading-label">This character has multiple readings — here's the one used in this line:</div>` +
+      tok.reading_options.map(r =>
+        `<span class="reading-chip${r.pinyin === tok.selected_reading ? ' selected' : ''}">${r.pinyin} — ${r.gloss_short || (r.definitions && r.definitions[0]) || ''}</span>`
+      ).join('');
+    readingsEl.style.display = 'block';
+  } else {
+    readingsEl.style.display = 'none';
+  }
+
+  const consEl = document.getElementById('popupConstruction');
+  const cons = constructionForKey[key];
+  if(cons){
+    const isConsSaved = saved.some(s => s.h === cons.construction.pattern && s.kind === 'construction');
+    consEl.innerHTML = `
+      <div class="cons-pattern">${cons.construction.pattern}</div>
+      <div class="cons-gloss">${cons.construction.gloss}</div>
+      ${cons.construction.note ? `<div style="margin-bottom:8px;">${cons.construction.note}</div>` : ''}
+      <button id="popupConsSave" style="font-family:'JetBrains Mono',monospace; font-size:10px;
+        padding:5px 10px; border-radius:12px; border:1px solid ${isConsSaved ? 'var(--accent)' : 'var(--rule)'};
+        background:${isConsSaved ? 'rgba(184,134,58,.14)' : 'transparent'};
+        color:${isConsSaved ? 'var(--accent)' : 'var(--text-dim)'}; cursor:pointer;">
+        ${isConsSaved ? '\u2605 saved' : '\u2606 save this construction'}
+      </button>
+    `;
+    consEl.style.display = 'block';
+    document.getElementById('popupConsSave').addEventListener('click', async () => {
+      if(isConsSaved) await removeConstruction(cons.construction.pattern);
+      else await saveConstruction(cons.construction);
+      openPopup(tok, key, el); // re-render popup to reflect new saved state
+    });
+  } else {
+    consEl.style.display = 'none';
+  }
+
   const isSaved = saved.some(s=>s.h===tok.h);
   document.getElementById('popupStar').classList.toggle('starred', isSaved);
   document.getElementById('popupOverlay').classList.add('open');
@@ -652,12 +820,12 @@ async function saveWord(tok, el){
   if(existing){
     if(!existing.sources.includes(SONG_ID)) existing.sources.push(SONG_ID);
   } else {
-    saved.push({...tok, sources:[SONG_ID]});
+    saved.push({...tok, kind: 'word', sources:[SONG_ID]});
   }
   el.classList.add('saved');
   if(currentUser){
     await sb.from('saved_words').upsert({
-      user_id: currentUser.id, hanzi: tok.h, pinyin: tok.p,
+      user_id: currentUser.id, kind: 'word', hanzi: tok.h, pinyin: tok.p,
       gloss: tok.g, hsk: tok.hsk, sources: existing ? existing.sources : [SONG_ID]
     }, { onConflict: 'user_id,hanzi' });
   } else {
@@ -675,6 +843,29 @@ async function removeWord(h){
   renderVocab();
   render();
 }
+
+async function saveConstruction(cons){
+  const existing = saved.find(s => s.h === cons.pattern && s.kind === 'construction');
+  if(existing){
+    if(!existing.sources.includes(SONG_ID)) existing.sources.push(SONG_ID);
+  } else {
+    saved.push({ h: cons.pattern, p: '', g: [cons.gloss, cons.note].filter(Boolean), hsk: 0, kind: 'construction', sources: [SONG_ID] });
+  }
+  if(currentUser){
+    await sb.from('saved_words').upsert({
+      user_id: currentUser.id, kind: 'construction', hanzi: cons.pattern, pinyin: '',
+      gloss: [cons.gloss, cons.note].filter(Boolean), hsk: 0,
+      sources: existing ? existing.sources : [SONG_ID]
+    }, { onConflict: 'user_id,hanzi' });
+  } else {
+    localStorage.setItem('lyricVocab', JSON.stringify(saved));
+  }
+  renderVocab();
+}
+async function removeConstruction(pattern){
+  return removeWord(pattern);
+}
+
 function renderVocab(){
   const list = document.getElementById('vocabList');
   document.getElementById('vocabCount').textContent = saved.length;
@@ -686,15 +877,16 @@ function renderVocab(){
     const crossSong = s.sources.length > 1;
     const sourceNames = s.sources.map(id => SONG_TITLES[id] || id).join(' · ');
     const g0 = Array.isArray(s.g) ? (s.g[0]||'') : (s.g||'');
+    const isCons = s.kind === 'construction';
     return `
     <div class="vocab-item">
       <div class="vocab-info">
-        <div class="vh" style="color:var(${HSK_VAR[s.hsk]})">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}</div>
-        <div class="vp">${s.p}</div>
+        <div class="vh" style="${isCons ? 'font-style:italic; color:var(--accent);' : `color:var(${HSK_VAR[s.hsk]})`}">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}${isCons ? ' <span style="font-size:9px; color:var(--text-dim);">construction</span>' : ''}</div>
+        ${s.p ? `<div class="vp">${s.p}</div>` : ''}
         <div class="vg">${g0}</div>
         <div class="vsrc">${sourceNames}</div>
       </div>
-      <button class="remove" onclick="removeWord('${s.h}')">✕</button>
+      <button class="remove" onclick="removeWord('${s.h.replace(/'/g,"\\'")}')">✕</button>
     </div>
   `;}).join('');
 }
@@ -725,14 +917,132 @@ document.getElementById('translationToggle').addEventListener('click', function(
   this.querySelector('.switch').classList.toggle('on');
 });
 
+let ytPlayer = null;
+let followVideo = false;
+let followInterval = null;
+let ytApiReady = false;
+
+function onYouTubeIframeAPIReady(){
+  ytApiReady = true;
+  if(SONG && SONG.youtubeId) renderVideo();
+}
+
 function renderVideo(){
   const wrap = document.getElementById('videoWrap');
-  if(SONG.youtubeId){
-    wrap.innerHTML = `<iframe src="https://www.youtube.com/embed/${SONG.youtubeId}" title="${SONG.zh}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
-  } else {
+  if(!SONG.youtubeId){
     wrap.innerHTML = `<div class="video-placeholder">No video linked yet for this song</div>`;
+    return;
   }
+  if(!ytApiReady){
+    // API script hasn't finished loading yet — onYouTubeIframeAPIReady will call this again.
+    wrap.innerHTML = `<div class="video-placeholder">Loading player…</div>`;
+    return;
+  }
+  wrap.innerHTML = `<div id="ytPlayerEl"></div>`;
+  ytPlayer = new YT.Player('ytPlayerEl', {
+    videoId: SONG.youtubeId,
+    playerVars: { rel: 0 },
+    events: {
+      onReady: () => {
+        const hasTimestamps = SONG.lines.some(l => typeof l.start === 'number');
+        document.getElementById('followToggle').style.display = hasTimestamps ? 'flex' : 'none';
+        setupMiniPlayer();
+      }
+    }
+  });
 }
+
+let miniPlayerDismissed = false;
+let miniObserver = null;
+
+function setupMiniPlayer(){
+  const outer = document.getElementById('videoOuter');
+  const spacer = document.getElementById('videoMiniSpacer');
+  if(miniObserver) miniObserver.disconnect();
+
+  miniObserver = new IntersectionObserver((entries) => {
+    const entry = entries[0];
+    const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+    if(scrolledPast && !miniPlayerDismissed){
+      outer.classList.add('mini');
+      spacer.style.height = entry.boundingClientRect.height + 'px';
+    } else if(!scrolledPast){
+      outer.classList.remove('mini');
+      spacer.style.height = '0';
+      miniPlayerDismissed = false; // scrolling back up re-enables mini mode next time
+    }
+  }, { threshold: 0 });
+
+  miniObserver.observe(outer);
+}
+
+document.getElementById('videoMiniClose').addEventListener('click', () => {
+  const outer = document.getElementById('videoOuter');
+  const spacer = document.getElementById('videoMiniSpacer');
+  outer.classList.remove('mini');
+  spacer.style.height = '0';
+  miniPlayerDismissed = true;
+});
+
+function findActiveLineIndex(t){
+  for(let i = 0; i < SONG.lines.length; i++){
+    const l = SONG.lines[i];
+    if(typeof l.start === 'number' && typeof l.end === 'number' && t >= l.start && t < l.end) return i;
+  }
+  return -1;
+}
+
+function startFollowing(){
+  if(followInterval) return;
+  followInterval = setInterval(() => {
+    if(!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+    const t = ytPlayer.getCurrentTime();
+    const idx = findActiveLineIndex(t);
+    document.querySelectorAll('.line-block.active-line').forEach(el => el.classList.remove('active-line'));
+    if(idx >= 0){
+      const blocks = document.querySelectorAll('.line-block');
+      const active = blocks[idx];
+      if(active){
+        active.classList.add('active-line');
+        active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, 400);
+}
+
+function stopFollowing(){
+  clearInterval(followInterval);
+  followInterval = null;
+  document.querySelectorAll('.line-block.active-line').forEach(el => el.classList.remove('active-line'));
+}
+
+document.getElementById('followToggle').addEventListener('click', function(){
+  followVideo = !followVideo;
+  this.querySelector('.switch').classList.toggle('on', followVideo);
+  if(followVideo) startFollowing(); else stopFollowing();
+});
+
+const TEXT_SCALE_STEPS = [0.85, 1, 1.15, 1.3, 1.5];
+let textScaleIndex = TEXT_SCALE_STEPS.indexOf(
+  parseFloat(localStorage.getItem('textScale')) || 1
+);
+if(textScaleIndex === -1) textScaleIndex = 1;
+
+function applyTextScale(){
+  const scale = TEXT_SCALE_STEPS[textScaleIndex];
+  document.documentElement.style.setProperty('--font-scale', scale);
+  document.getElementById('textSizeLabel').textContent = Math.round(scale * 100) + '%';
+  localStorage.setItem('textScale', scale);
+}
+document.getElementById('textSizeUp').addEventListener('click', () => {
+  textScaleIndex = Math.min(textScaleIndex + 1, TEXT_SCALE_STEPS.length - 1);
+  applyTextScale();
+});
+document.getElementById('textSizeDown').addEventListener('click', () => {
+  textScaleIndex = Math.max(textScaleIndex - 1, 0);
+  applyTextScale();
+});
+applyTextScale();
 
 injectAuthModal();
 
@@ -804,6 +1114,7 @@ async function init(){
     ]);
     if(songRes.error || !songRes.data) throw new Error('song not found');
     SONG = songRes.data;
+    indexConstructions();
     SONG.youtubeId = SONG.youtube_id; // keep the camelCase name the rest of the script expects
     (titlesRes.data || []).forEach(s => { SONG_TITLES[s.id] = s.zh; });
 
@@ -829,5 +1140,8 @@ async function init(){
 }
 init();
 </script>
+<footer style="text-align:center; padding:20px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
+  Definitions powered by <a href="https://cc-cedict.org/" target="_blank" rel="noopener" style="color:var(--text-dim);">CC-CEDICT</a>
+</footer>
 </body>
 </html>

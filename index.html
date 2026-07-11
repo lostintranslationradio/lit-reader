@@ -523,9 +523,9 @@ function hskBarHTML(hsk){
 function renderGrid(list){
   document.getElementById('grid').innerHTML = list.map(song => `
     <a class="card" href="reader.html?song=${song.id}">
-      <div class="cover" style="background:${coverColor(song.id)}22; border-bottom:1px solid var(--rule);">
+      <div class="cover" style="background:${coverColor(song.id)}22; border-bottom:1px solid var(--rule); ${song.coverUrl ? `background-image:url('${song.coverUrl}'); background-size:cover; background-position:center;` : ''}">
         ${creatorMode ? `<span class="status-pill">${song.status}</span>` : ''}
-        <div class="zh" style="color:${coverColor(song.id)}">${song.zh.slice(0,2)}</div>
+        ${song.coverUrl ? '' : `<div class="zh" style="color:${coverColor(song.id)}">${song.zh.slice(0,2)}</div>`}
       </div>
       <div class="card-body">
         <div class="zh-title">${song.zh}</div>
@@ -542,8 +542,8 @@ function renderList(list){
   document.getElementById('list').innerHTML = list.map((song, i) => `
     <a class="row" href="reader.html?song=${song.id}">
       <span class="row-index">${i+1}</span>
-      <div class="row-swatch" style="background:${coverColor(song.id)}22;">
-        <span style="color:${coverColor(song.id)}">${song.zh.slice(0,1)}</span>
+      <div class="row-swatch" style="background:${coverColor(song.id)}22; ${song.coverUrl ? `background-image:url('${song.coverUrl}'); background-size:cover; background-position:center;` : ''}">
+        ${song.coverUrl ? '' : `<span style="color:${coverColor(song.id)}">${song.zh.slice(0,1)}</span>`}
       </div>
       <div class="row-main">
         <div class="row-title-line">
@@ -656,11 +656,14 @@ sb.from('songs').select('*').then(({ data, error }) => {
     return {
       id: s.id, zh: s.zh, en: s.en, artist: s.artist, status: s.status,
       tags: s.tags || [], hsk: stats.hsk, avgDifficulty: stats.avgDifficulty,
-      added: new Date(s.added).getTime()
+      added: new Date(s.added).getTime(), coverUrl: s.cover_url || ''
     };
   });
   render();
 });
 </script>
+<footer style="text-align:center; padding:20px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
+  Definitions powered by <a href="https://cc-cedict.org/" target="_blank" rel="noopener" style="color:var(--text-dim);">CC-CEDICT</a>
+</footer>
 </body>
 </html>

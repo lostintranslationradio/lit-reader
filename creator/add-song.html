@@ -68,6 +68,9 @@
     min-width:64px; position:relative;
   }
   .token-card.unresolved{ border-color:var(--warn); }
+  .token-card.needs-reading{ border-color:var(--accent); }
+  .token-card.link-selected{ border-color:var(--accent); background:rgba(184,134,58,.12); }
+  .token-card.link-mode{ cursor:pointer; }
   .token-hanzi{ font-family:'Noto Serif SC',serif; font-size:20px; }
   .token-card input{
     width:100%; background:var(--bg); border:1px solid var(--rule); border-radius:3px;
@@ -164,6 +167,14 @@
       <label>About this song (optional — shown collapsed above the lyrics)</label>
       <textarea id="fContext" rows="3" style="font-family:'Inter',sans-serif;" placeholder="e.g. references the Tang-dynasty poem 相思, where red beans symbolize longing..."></textarea>
     </div>
+    <div class="field">
+      <label>Cover art (optional)</label>
+      <input type="file" id="fCoverFile" accept="image/*">
+      <div id="coverPreviewWrap" style="display:none; margin-top:10px;">
+        <img id="coverPreview" style="width:100px; height:100px; object-fit:cover; border-radius:4px; border:1px solid var(--rule);">
+      </div>
+      <div id="coverStatus" class="status-line" style="margin-top:6px;"></div>
+    </div>
   </div>
 
   <div class="panel">
@@ -174,6 +185,21 @@
     </div>
     <button class="btn" id="btnSegment">Segment &amp; auto-tag</button>
     <div class="status-line" id="dictStatus">Loading dictionary…</div>
+
+    <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--rule);">
+      <label>Or import timed lyrics (JSON) instead — carries start/end timestamps into the reader for karaoke-style sync</label>
+      <input type="file" id="fTimedFile" accept="application/json">
+      <p class="note" style="margin-top:8px;">
+        Expected format: an array of <code>{"start": 40.63, "end": 42.55, "text": "..."}</code> objects,
+        one per line, in order. Segmentation and auto-tagging run the same way as the plain-text path above.
+      </p>
+    </div>
+
+    <div id="bulkTranslationBox" style="display:none; margin-top:20px; padding-top:16px; border-top:1px solid var(--rule);">
+      <label>Paste all translations at once (one per line, matched to the lines above by order)</label>
+      <textarea id="fBulkTranslations" rows="6" placeholder="Music knows no borders,&#10;but the words still need someone to carry them across."></textarea>
+      <button class="btn secondary" id="btnApplyTranslations" style="margin-top:8px;">Apply to lines</button>
+    </div>
   </div>
 
   <div class="panel" id="reviewPanel" style="display:none;">
@@ -186,6 +212,39 @@
       with no gloss until you do. The translation field is the only thing that was never automatic.
     </p>
     <div id="linesContainer"></div>
+  </div>
+
+  <div class="panel" id="constructionsPanel" style="display:none;">
+    <h2>3.5 · Constructions (optional)</h2>
+    <p class="note">
+      For grammar patterns split across non-adjacent words (like <b>在...之前</b>), click
+      <b>Link words</b>, then click each word that's part of the pattern in the review area above.
+      Save once you've picked them all. Linked words get an underline in the published reader,
+      color-coded per pattern.
+    </p>
+    <button class="btn secondary" id="btnLinkMode">Link words</button>
+    <span id="selectStatus" class="status-line" style="display:inline-block; margin-left:10px;"></span>
+
+    <div id="constructionForm" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--rule);">
+      <div class="field">
+        <label>Pattern (e.g. 在...之前)</label>
+        <input type="text" id="consPattern" placeholder="在...之前">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Short gloss</label>
+          <input type="text" id="consGloss" placeholder="before">
+        </div>
+        <div class="field">
+          <label>Note (optional)</label>
+          <input type="text" id="consNote" placeholder="Discontinuous — other words may sit between them.">
+        </div>
+      </div>
+      <button class="btn" id="btnSaveConstruction">Save construction</button>
+      <button class="btn secondary" id="btnCancelConstruction">Cancel</button>
+    </div>
+
+    <div id="constructionsList" style="margin-top:14px;"></div>
   </div>
 
   <div class="panel" id="generatePanel" style="display:none;">
@@ -262,7 +321,10 @@ function extractYoutubeId(input){
 }
 
 function lookup(word){
-  if(DICT[word]) return { p: DICT[word].p || '', g: DICT[word].g || [], hsk: DICT[word].hsk || 0 };
+  if(DICT[word]){
+    const d = DICT[word];
+    return { p: d.p || '', g: d.g || [], hsk: d.hsk || 0, pos: d.pos || null, readings: d.readings || null };
+  }
   return null;
 }
 
@@ -274,7 +336,8 @@ function fallbackLookup(word){
   return {
     p: parts.map(p => p.p || '').join(' '),
     g: parts.length === chars.length ? ['(from characters) ' + parts.map(p => (p.g && p.g[0]) || '').join(' + ')] : [],
-    hsk: 0 // compounds assembled from characters aren't an official HSK entry — treat as Beyond
+    hsk: 0, // compounds assembled from characters aren't an official HSK entry — treat as Beyond
+    pos: null, readings: null
   };
 }
 
@@ -290,19 +353,106 @@ function segmentLine(text){
       continue;
     }
     let entry = lookup(segment) || fallbackLookup(segment);
+    const hasMultipleReadings = entry && entry.readings && entry.readings.length > 1;
     tokens.push({
       h: segment,
       p: entry ? entry.p : '',
       g: entry ? entry.g : [],
       hsk: entry ? entry.hsk : 0,
+      pos: entry ? entry.pos : null,
       isPunct: false,
-      unresolved: !entry
+      unresolved: !entry,
+      reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: r.g[0] || '' })) : null,
+      selected_reading: hasMultipleReadings ? entry.p : null,
+      needsReadingPick: hasMultipleReadings
     });
   }
   return tokens;
 }
 
 let lineData = []; // [{tokens:[...], translation:''}]
+let constructions = []; // [{id, pattern, gloss, note, members:[[li,ti],...]}]
+let linkMode = false;
+let selectedMembers = [];
+
+function toggleMemberSelection(li, ti){
+  const idx = selectedMembers.findIndex(m => m[0] === li && m[1] === ti);
+  if(idx === -1) selectedMembers.push([li, ti]);
+  else selectedMembers.splice(idx, 1);
+  renderLines();
+  updateSelectStatus();
+}
+
+function updateSelectStatus(){
+  const statusEl = document.getElementById('selectStatus');
+  const formEl = document.getElementById('constructionForm');
+  if(!linkMode){
+    statusEl.textContent = '';
+    formEl.style.display = 'none';
+    return;
+  }
+  statusEl.textContent = selectedMembers.length
+    ? `${selectedMembers.length} word${selectedMembers.length===1?'':'s'} selected`
+    : 'Click words above to select them';
+  formEl.style.display = selectedMembers.length >= 2 ? 'block' : 'none';
+}
+
+function renderConstructionsList(){
+  const el = document.getElementById('constructionsList');
+  if(constructions.length === 0){ el.innerHTML = ''; return; }
+  el.innerHTML = constructions.map((c, ci) => {
+    const words = c.members.map(([li, ti]) => lineData[li]?.tokens[ti]?.h || '?').join(' + ');
+    return `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--rule);">
+        <div>
+          <span style="font-family:'Noto Serif SC',serif; color:var(--accent);">${c.pattern}</span>
+          <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${c.gloss} · ${words}</span>
+        </div>
+        <button class="btn secondary small" data-del-cons="${ci}">delete</button>
+      </div>`;
+  }).join('');
+  el.querySelectorAll('[data-del-cons]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      constructions.splice(parseInt(btn.dataset.delCons, 10), 1);
+      renderConstructionsList();
+    });
+  });
+}
+
+document.getElementById('btnLinkMode').addEventListener('click', () => {
+  linkMode = !linkMode;
+  selectedMembers = [];
+  document.getElementById('btnLinkMode').textContent = linkMode ? 'Cancel linking' : 'Link words';
+  updateSelectStatus();
+  renderLines();
+});
+
+document.getElementById('btnCancelConstruction').addEventListener('click', () => {
+  selectedMembers = [];
+  updateSelectStatus();
+  renderLines();
+});
+
+document.getElementById('btnSaveConstruction').addEventListener('click', () => {
+  const pattern = document.getElementById('consPattern').value.trim();
+  const gloss = document.getElementById('consGloss').value.trim();
+  const note = document.getElementById('consNote').value.trim();
+  if(!pattern || !gloss){ alert('Fill in at least the pattern and gloss.'); return; }
+  constructions.push({
+    id: 'c' + Date.now(),
+    pattern, gloss, note,
+    members: selectedMembers.map(m => [...m])
+  });
+  document.getElementById('consPattern').value = '';
+  document.getElementById('consGloss').value = '';
+  document.getElementById('consNote').value = '';
+  selectedMembers = [];
+  linkMode = false;
+  document.getElementById('btnLinkMode').textContent = 'Link words';
+  updateSelectStatus();
+  renderConstructionsList();
+  renderLines();
+});
 
 function renderLines(){
   const container = document.getElementById('linesContainer');
@@ -339,6 +489,8 @@ function renderLines(){
   });
 
   document.getElementById('generatePanel').style.display = lineData.length ? 'block' : 'none';
+  document.getElementById('constructionsPanel').style.display = lineData.length ? 'block' : 'none';
+  updateSelectStatus();
 }
 
 function renderTokenCard(line, li, ti){
@@ -351,9 +503,22 @@ function renderTokenCard(line, li, ti){
     return card;
   }
 
-  card.className = 'token-card' + (tok.unresolved ? ' unresolved' : '');
+  card.className = 'token-card' + (tok.unresolved ? ' unresolved' : '') +
+    (tok.needsReadingPick && !tok.readingConfirmed ? ' needs-reading' : '') +
+    (linkMode ? ' link-mode' : '') +
+    (selectedMembers.some(m => m[0] === li && m[1] === ti) ? ' link-selected' : '');
+
+  const readingPicker = tok.reading_options ? `
+    <select data-field="reading" style="width:100%; margin-bottom:5px; background:var(--bg); border:1px solid var(--rule);
+      border-radius:3px; font-size:10px; padding:2px; color:var(--text);">
+      ${tok.reading_options.map((r, ri) => `<option value="${ri}" ${r.pinyin === tok.selected_reading ? 'selected' : ''}>${r.pinyin} — ${r.gloss_short}</option>`).join('')}
+    </select>
+  ` : '';
+
   card.innerHTML = `
     <div class="token-hanzi">${tok.h}</div>
+    ${tok.needsReadingPick && !tok.readingConfirmed ? '<div style="font-size:8px; color:var(--accent); margin-bottom:3px;">pick reading ↓</div>' : ''}
+    ${readingPicker}
     <input type="text" value="${(tok.p||'').replace(/"/g,'&quot;')}" placeholder="pinyin" data-field="p">
     <input type="text" value="${(tok.g && tok.g[0] ? tok.g[0] : '').replace(/"/g,'&quot;')}" placeholder="gloss" data-field="g">
     <div class="token-hsk-row">
@@ -366,6 +531,25 @@ function renderTokenCard(line, li, ti){
     </div>
   `;
 
+  const readingSelect = card.querySelector('[data-field="reading"]');
+  if(readingSelect){
+    readingSelect.addEventListener('change', () => {
+      const chosen = tok.reading_options[parseInt(readingSelect.value, 10)];
+      tok.p = chosen.pinyin;
+      tok.g = chosen.definitions;
+      tok.selected_reading = chosen.pinyin;
+      tok.readingConfirmed = true;
+      renderLines();
+    });
+  }
+
+  if(linkMode){
+    card.addEventListener('click', (e) => {
+      if(e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
+      toggleMemberSelection(li, ti);
+    });
+  }
+
   card.querySelectorAll('input').forEach(inp => {
     inp.addEventListener('input', () => {
       const field = inp.dataset.field;
@@ -377,20 +561,28 @@ function renderTokenCard(line, li, ti){
     });
   });
 
-  const mergeBtn = card.querySelector('[data-action="merge"]');
+function makeToken(hanzi){
+  const entry = lookup(hanzi) || fallbackLookup(hanzi);
+  const hasMultipleReadings = entry && entry.readings && entry.readings.length > 1;
+  return {
+    h: hanzi,
+    p: entry ? entry.p : '',
+    g: entry ? entry.g : [],
+    hsk: entry ? entry.hsk : 0,
+    pos: entry ? entry.pos : null,
+    isPunct: false,
+    unresolved: !entry,
+    reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: r.g[0] || '' })) : null,
+    selected_reading: hasMultipleReadings ? entry.p : null,
+    needsReadingPick: hasMultipleReadings
+  };
+}
+
+const mergeBtn = card.querySelector('[data-action="merge"]');
   if(mergeBtn) mergeBtn.addEventListener('click', () => {
     const next = line.tokens[ti + 1];
     if(!next) return;
-    const merged = tok.h + next.h;
-    const entry = lookup(merged) || fallbackLookup(merged);
-    line.tokens.splice(ti, 2, {
-      h: merged,
-      p: entry ? entry.p : '',
-      g: entry ? entry.g : [],
-      hsk: entry ? entry.hsk : 0,
-      isPunct: false,
-      unresolved: !entry
-    });
+    line.tokens.splice(ti, 2, makeToken(tok.h + next.h));
     renderLines();
   });
 
@@ -398,25 +590,73 @@ function renderTokenCard(line, li, ti){
   if(splitBtn) splitBtn.addEventListener('click', () => {
     const chars = Array.from(tok.h);
     const first = chars[0], rest = chars.slice(1).join('');
-    const e1 = lookup(first) || fallbackLookup(first);
-    const e2 = lookup(rest) || fallbackLookup(rest);
-    line.tokens.splice(ti, 1,
-      { h: first, p: e1?e1.p:'', g: e1?e1.g:[], hsk: e1?e1.hsk:0, isPunct:false, unresolved:!e1 },
-      { h: rest, p: e2?e2.p:'', g: e2?e2.g:[], hsk: e2?e2.hsk:0, isPunct:false, unresolved:!e2 }
-    );
+    line.tokens.splice(ti, 1, makeToken(first), makeToken(rest));
     renderLines();
   });
 
   return card;
 }
 
+let coverUrl = '';
+
+document.getElementById('fCoverFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('coverStatus');
+  if(!currentUser){ statusEl.textContent = 'Sign in as the creator first.'; return; }
+
+  statusEl.textContent = 'Uploading…';
+  const ext = file.name.split('.').pop();
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error } = await sb.storage.from('covers').upload(path, file, { upsert: false });
+  if(error){
+    statusEl.textContent = 'Upload failed: ' + error.message;
+    console.error(error);
+    return;
+  }
+  const { data } = sb.storage.from('covers').getPublicUrl(path);
+  coverUrl = data.publicUrl;
+  document.getElementById('coverPreview').src = coverUrl;
+  document.getElementById('coverPreviewWrap').style.display = 'block';
+  statusEl.textContent = 'Uploaded.';
+});
+
+document.getElementById('fTimedFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
+  try{
+    const raw = JSON.parse(await file.text());
+    if(!Array.isArray(raw)) throw new Error('Expected a JSON array.');
+    lineData = raw.map(row => ({
+      tokens: segmentLine(row.text || ''),
+      translation: '',
+      start: typeof row.start === 'number' ? row.start : null,
+      end: typeof row.end === 'number' ? row.end : null
+    }));
+    document.getElementById('reviewPanel').style.display = 'block';
+    document.getElementById('bulkTranslationBox').style.display = 'block';
+    renderLines();
+  } catch(err){
+    alert('Could not read that file: ' + err.message);
+  }
+});
+
+document.getElementById('btnApplyTranslations').addEventListener('click', () => {
+  const rows = document.getElementById('fBulkTranslations').value.split('\n');
+  lineData.forEach((line, i) => { if(rows[i] !== undefined) line.translation = rows[i].trim(); });
+  renderLines();
+});
+
 document.getElementById('btnSegment').addEventListener('click', () => {
   if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
   const raw = document.getElementById('fLyrics').value;
   const rawLines = raw.split('\n').map(l => l.trim()).filter(Boolean);
   if(rawLines.length === 0){ alert('Paste some lyrics first.'); return; }
-  lineData = rawLines.map(line => ({ tokens: segmentLine(line), translation: '' }));
+  lineData = rawLines.map(line => ({ tokens: segmentLine(line), translation: '', start: null, end: null }));
   document.getElementById('reviewPanel').style.display = 'block';
+  document.getElementById('bulkTranslationBox').style.display = 'block';
   renderLines();
 });
 
@@ -431,10 +671,14 @@ function buildSongObject(){
     tags: document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean),
     youtubeId: extractYoutubeId(document.getElementById('fYoutube').value),
     context: document.getElementById('fContext').value.trim(),
+    coverUrl,
     lines: lineData.map(l => ({
-      words: l.tokens.map(t => ({ h: t.h, p: t.p, g: t.g, hsk: t.hsk })),
-      translation: l.translation
-    }))
+      words: l.tokens.map(t => ({ h: t.h, p: t.p, g: t.g, hsk: t.hsk, pos: t.pos || null })),
+      translation: l.translation,
+      start: l.start != null ? l.start : null,
+      end: l.end != null ? l.end : null
+    })),
+    constructions
   };
 }
 
@@ -460,7 +704,7 @@ document.getElementById('btnPublish').addEventListener('click', async () => {
   const { error } = await sb.from('songs').upsert({
     id: song.id, zh: song.zh, en: song.en, artist: song.artist,
     status: song.status, tags: song.tags, youtube_id: song.youtubeId,
-    context: song.context, lines: song.lines
+    context: song.context, lines: song.lines, constructions: song.constructions, cover_url: song.coverUrl
   }, { onConflict: 'id' });
 
   if(error){
