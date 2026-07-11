@@ -454,6 +454,24 @@ document.getElementById('btnSaveConstruction').addEventListener('click', () => {
   renderLines();
 });
 
+function deleteLine(li){
+  // Drop any construction members that pointed at the deleted line, and shift
+  // line indices down for everything after it. If a construction ends up with
+  // fewer than 2 members, it's no longer a meaningful pairing — drop it too.
+  constructions = constructions
+    .map(c => ({
+      ...c,
+      members: c.members
+        .filter(([lIdx]) => lIdx !== li)
+        .map(([lIdx, wIdx]) => lIdx > li ? [lIdx - 1, wIdx] : [lIdx, wIdx])
+    }))
+    .filter(c => c.members.length >= 2);
+
+  lineData.splice(li, 1);
+  renderConstructionsList();
+  renderLines();
+}
+
 function mergeLines(li){
   const a = lineData[li];
   const b = lineData[li + 1];
@@ -494,13 +512,21 @@ function renderLines(){
     head.style.justifyContent = 'space-between';
     head.style.alignItems = 'center';
     head.innerHTML = `<span>LINE ${li + 1}${line.start != null ? ` <span style="opacity:.6">(${line.start.toFixed(2)}–${line.end?.toFixed(2) ?? '?'}s)</span>` : ''}</span>`;
+    const headBtns = document.createElement('span');
     if(li < lineData.length - 1){
       const mergeBtn = document.createElement('button');
       mergeBtn.className = 'btn secondary small';
       mergeBtn.textContent = 'merge with next line ↓';
+      mergeBtn.style.marginRight = '6px';
       mergeBtn.addEventListener('click', () => mergeLines(li));
-      head.appendChild(mergeBtn);
+      headBtns.appendChild(mergeBtn);
     }
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn secondary small';
+    deleteBtn.textContent = 'delete line';
+    deleteBtn.addEventListener('click', () => deleteLine(li));
+    headBtns.appendChild(deleteBtn);
+    head.appendChild(headBtns);
     wrap.appendChild(head);
 
     const tokensEl = document.createElement('div');
@@ -666,15 +692,22 @@ document.getElementById('fTimedFile').addEventListener('change', async (e) => {
   try{
     const raw = JSON.parse(await file.text());
     if(!Array.isArray(raw)) throw new Error('Expected a JSON array.');
-    lineData = raw.map(row => ({
-      tokens: segmentLine(row.text || ''),
-      translation: '',
-      start: typeof row.start === 'number' ? row.start : null,
-      end: typeof row.end === 'number' ? row.end : null
-    }));
+    const skipped = raw.filter(row => !row.text || !row.text.trim()).length;
+    lineData = raw
+      .filter(row => row.text && row.text.trim())
+      .map(row => ({
+        tokens: segmentLine(row.text),
+        translation: '',
+        start: typeof row.start === 'number' ? row.start : null,
+        end: typeof row.end === 'number' ? row.end : null
+      }));
     document.getElementById('reviewPanel').style.display = 'block';
     document.getElementById('bulkTranslationBox').style.display = 'block';
     renderLines();
+    if(skipped > 0){
+      document.getElementById('dictStatus').textContent =
+        `Imported ${lineData.length} lines — skipped ${skipped} empty-text row${skipped===1?'':'s'} (instrumental gaps).`;
+    }
   } catch(err){
     alert('Could not read that file: ' + err.message);
   }
