@@ -19,12 +19,22 @@ create policy "Users can insert their own profile"
   on profiles for insert
   with check (auth.uid() = id);
 
--- Automatically create a profile row whenever someone signs up.
+-- Automatically create a profile row whenever someone signs up, pulling the
+-- username straight from the signup metadata so it's set immediately —
+-- this runs at the database level and doesn't depend on the person having
+-- an active session yet (e.g. while email confirmation is still pending).
 create function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, email)
-  values (new.id, new.email);
+  begin
+    insert into public.profiles (id, email, username)
+    values (new.id, new.email, new.raw_user_meta_data->>'username');
+  exception when unique_violation then
+    -- requested username was already taken — create the profile anyway,
+    -- just without a username; the person can set one after signing in.
+    insert into public.profiles (id, email)
+    values (new.id, new.email);
+  end;
   return new;
 end;
 $$ language plpgsql security definer;

@@ -33,14 +33,17 @@ async function emailForUsername(username){
 
 async function authSignUp(email, username, password){
   if(!authConfigured()) throw new Error('not configured');
-  const { data, error } = await sb.auth.signUp({ email, password });
+  const { data, error } = await sb.auth.signUp({
+    email, password,
+    options: { data: { username } }
+  });
   if(error) throw error;
   if(data.user){
-    try{
-      await authSetUsername(data.user.id, username);
-    } catch(unameErr){
-      throw new Error('Account created, but that username is taken — sign in and set a different one.');
-    }
+    // Best-effort follow-up in case a session is already active (email confirmation off) —
+    // the real mechanism is the database trigger reading the metadata above, which works
+    // regardless of session state. This second attempt just isn't relied on anymore.
+    try{ await authSetUsername(data.user.id, username); }
+    catch(unameErr){ console.warn('Username follow-up update skipped:', unameErr.message); }
   }
   return data;
 }
