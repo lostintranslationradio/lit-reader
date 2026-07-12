@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <title>Lyric Reader</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -227,6 +231,14 @@
     gap:2px 4px;
     line-height:1.2;
   }
+  .original-english-line{
+    font-family:'Inter',sans-serif;
+    font-size:calc(20px * var(--font-scale));
+    font-weight:600;
+    text-align:left;
+    color:var(--text);
+    padding:4px 0;
+  }
   .translation{
     margin-top:8px;
     font-family:'Inter',sans-serif;
@@ -251,8 +263,9 @@
     -webkit-user-select:none;
     user-select:none;
     -webkit-tap-highlight-color:transparent;
-    transition:background .15s;
+    transition:background .15s, padding .15s;
   }
+  body.glosses-full .word{ padding:3px 4px 2px; }
   .word:hover{background:var(--surface-raised);}
   .pinyin{
     font-family:'Inter',sans-serif;
@@ -528,34 +541,50 @@
     <div class="eyebrow">annotated reader</div>
     <div class="title" id="pageTitle">歌词读本 · Lyric Reader</div>
   </div>
-  <div class="controls">
-    <div class="level-control">
+</header>
+
+<button id="settingsToggle" title="Settings" style="position:fixed; top:18px; right:18px; z-index:60;
+  width:38px; height:38px; border-radius:50%; border:1px solid var(--rule); background:var(--surface);
+  color:var(--text-dim); font-size:16px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08);">⚙</button>
+
+<div id="settingsPanel" style="display:none; position:fixed; top:62px; right:18px; z-index:60;
+  width:220px; background:var(--surface); border:1px solid var(--rule); border-radius:8px;
+  padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.15); font-family:'JetBrains Mono',monospace; font-size:12px;">
+
+  <div style="margin-bottom:14px;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:6px; color:var(--text-dim);">
       <span>Glosses</span>
-      <input type="range" id="levelSlider" min="0" max="8" step="1" value="3">
-      <span class="level-value" id="levelValue">HSK 3</span>
-      <span class="level-pct" id="levelPct">—% hidden</span>
+      <span id="levelValue">HSK 3</span>
     </div>
-    <div class="toggle" id="hskToggle">
-      <div class="switch on"></div> hsk colors
-    </div>
-    <div class="toggle" id="translationToggle">
-      <div class="switch on"></div> translation
-    </div>
-    <div class="toggle" id="followToggle" style="display:none;">
-      <div class="switch"></div> follow video
-    </div>
-    <div class="level-control" id="textSizeControl">
+    <input type="range" id="levelSlider" min="0" max="8" step="1" value="3" style="width:100%;">
+    <div id="levelPct" style="color:var(--text-dim); font-size:11px; margin-top:2px;">—% hidden</div>
+  </div>
+
+  <div class="toggle" id="hskToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
+    hsk colors <div class="switch on"></div>
+  </div>
+  <div class="toggle" id="translationToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
+    translation <div class="switch on"></div>
+  </div>
+  <div class="toggle" id="followToggle" style="display:none; margin-bottom:10px; justify-content:space-between; width:100%;">
+    follow video <div class="switch"></div>
+  </div>
+
+  <div style="border-top:1px solid var(--rule); padding-top:12px; margin-top:4px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; color:var(--text-dim);">
       <span>Text size</span>
-      <button type="button" id="textSizeDown" style="font-family:'JetBrains Mono',monospace; font-size:12px;
-        width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
-        color:var(--text-dim); cursor:pointer; line-height:1;">−</button>
-      <span class="level-value" id="textSizeLabel">100%</span>
-      <button type="button" id="textSizeUp" style="font-family:'JetBrains Mono',monospace; font-size:12px;
-        width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
-        color:var(--text-dim); cursor:pointer; line-height:1;">+</button>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button type="button" id="textSizeDown" style="font-family:'JetBrains Mono',monospace; font-size:12px;
+          width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
+          color:var(--text-dim); cursor:pointer; line-height:1;">−</button>
+        <span id="textSizeLabel">100%</span>
+        <button type="button" id="textSizeUp" style="font-family:'JetBrains Mono',monospace; font-size:12px;
+          width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
+          color:var(--text-dim); cursor:pointer; line-height:1;">+</button>
+      </div>
     </div>
   </div>
-</header>
+</div>
 
 <div class="load-state" id="loadState">Loading song…</div>
 
@@ -659,6 +688,7 @@ function updateLevelLabels(){
   const pct = total ? Math.round(hidden/total*100) : 0;
   document.getElementById('levelValue').textContent = levelLabel();
   document.getElementById('levelPct').textContent = pct + '% hidden';
+  document.body.classList.toggle('glosses-full', currentLevel === 0);
 }
 
 const CONSTRUCTION_COLORS = ['--hsk3', '--hsk4', '--hsk79', '--hsk6', '--hsk2'];
@@ -666,8 +696,14 @@ let constructionForKey = {}; // "lineIdx_wordIdx" -> {construction, colorVar}
 
 function indexConstructions(){
   constructionForKey = {};
-  (SONG.constructions || []).forEach((c, ci) => {
-    const colorVar = CONSTRUCTION_COLORS[ci % CONSTRUCTION_COLORS.length];
+  const patternColors = {};
+  let colorSlot = 0;
+  (SONG.constructions || []).forEach((c) => {
+    if(!(c.pattern in patternColors)){
+      patternColors[c.pattern] = CONSTRUCTION_COLORS[colorSlot % CONSTRUCTION_COLORS.length];
+      colorSlot++;
+    }
+    const colorVar = patternColors[c.pattern];
     (c.members || []).forEach(([li, wi]) => {
       constructionForKey[li + '_' + wi] = { construction: c, colorVar };
     });
@@ -676,10 +712,32 @@ function indexConstructions(){
 
 function render(){
   linesEl.innerHTML = '';
+  const CJK_RE = /[\u4e00-\u9fff]/;
   SONG.lines.forEach((entry, lineIdx)=>{
     const block = document.createElement('div');
     block.className = 'line-block';
     const lineEl = document.createElement('div');
+
+    const isOriginalEnglish = entry.words.length > 0 &&
+      entry.words.every(w => w.isPunct || !CJK_RE.test(w.h));
+
+    if(isOriginalEnglish){
+      lineEl.className = 'line original-english-line';
+      lineEl.textContent = entry.words.map(w => w.h).join(' ');
+      block.appendChild(lineEl);
+      const t = document.createElement('div');
+      t.className = 'translation';
+      t.textContent = entry.translation;
+      if(typeof entry.start === 'number'){
+        t.classList.add('seekable');
+        t.title = 'Jump video to this line';
+        t.addEventListener('click', () => jumpToLine(entry.start));
+      }
+      block.appendChild(t);
+      linesEl.appendChild(block);
+      return;
+    }
+
     lineEl.className = 'line';
     entry.words.forEach((tok, wordIdx)=>{
       const w = document.createElement('div');
@@ -697,7 +755,7 @@ function render(){
       const glossFirst = Array.isArray(tok.g) ? (tok.g[0] || '') : (tok.g || '');
       const cons = constructionForKey[key];
       const hanziStyle = `color:var(${HSK_VAR[tok.hsk]});` +
-        (cons ? `border-bottom:2px solid var(${cons.colorVar}); padding-bottom:1px;` : '');
+        (cons ? `box-shadow:0 2px 0 0 var(${cons.colorVar});` : '');
       w.innerHTML = `
         <span class="pinyin">${tok.p}</span>
         <span class="hanzi" style="${hanziStyle}">${tok.h}</span>
@@ -911,6 +969,18 @@ document.getElementById('popupClose').addEventListener('click', closePopup);
 document.getElementById('popupOverlay').addEventListener('click', function(e){
   if(e.target.id === 'popupOverlay') closePopup();
 });
+document.getElementById('settingsToggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const panel = document.getElementById('settingsPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('settingsPanel');
+  if(panel.style.display === 'block' && !panel.contains(e.target) && e.target.id !== 'settingsToggle'){
+    panel.style.display = 'none';
+  }
+});
+
 document.getElementById('levelSlider').addEventListener('input', function(){
   currentLevel = parseInt(this.value, 10);
   overrides = {};
