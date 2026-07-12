@@ -9,7 +9,8 @@
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Changa+One:ital@0;1&family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 @font-face{
   font-family:'KN Bobohei';
@@ -19,6 +20,7 @@
 }
 :root{
     --bg:#faf8f3;
+    --font-brand:'Changa One', 'Noto Serif SC', serif;
     --surface:#ffffff;
     --surface-raised:#f1efe6;
     --rule:#ddd7c8;
@@ -64,9 +66,9 @@
     margin-bottom:4px;
   }
   .title{
-    font-family:'Noto Serif SC',serif;
+    font-family:var(--font-brand);
     font-size:28px;
-    font-weight:700;
+    font-weight:400;
   }
   .creator-link{
     font-family:'JetBrains Mono',monospace;
