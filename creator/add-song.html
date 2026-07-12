@@ -290,10 +290,12 @@
   <div class="panel" id="constructionsPanel" style="display:none;">
     <h2>3.5 · Constructions (optional)</h2>
     <p class="note">
-      For grammar patterns split across non-adjacent words (like <b>在……之前</b>), click
-      <b>Link words</b>, then click each word that's part of the pattern in the review area above.
-      Save once you've picked them all. Linked words get an underline in the published reader,
-      color-coded per pattern.
+      For grammar patterns split across non-adjacent words (like <b>在……之前</b>), or a phrase that
+      just repeats verbatim elsewhere in the song (like <b>归零</b> showing up as the title hook),
+      click <b>Link words</b>, then click each word that's part of it in the review area above.
+      Save once you've picked them all — "find other occurrences" will then look for that exact
+      phrase (adjacent or split apart, whichever it is) anywhere else in the song. Linked words get
+      an underline in the published reader, color-coded per pattern.
     </p>
     <button class="btn secondary" id="btnLinkMode">Link words</button>
     <span id="selectStatus" class="status-line" style="display:inline-block; margin-left:10px;"></span>
@@ -628,17 +630,34 @@ function renderConstructionsList(){
   el.innerHTML = constructions.map((c, ci) => {
     const words = c.members.map(([li, ti]) => lineData[li]?.tokens[ti]?.h || '?').join(' + ');
     return `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--rule); gap:8px;">
-        <div>
-          <span style="font-family:'Noto Serif SC',serif; color:var(--accent);">${c.pattern}</span>
-          <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${c.gloss} · ${words}</span>
+      <div class="cons-row" data-cons-row="${ci}" style="padding:8px 0; border-bottom:1px solid var(--rule);">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+          <div>
+            <span style="font-family:'Noto Serif SC',serif; color:var(--accent);">${c.pattern}</span>
+            <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${c.gloss} · ${words}</span>
+          </div>
+          <div style="display:flex; gap:6px; flex-shrink:0;">
+            <button class="btn secondary small" data-edit-cons="${ci}">edit</button>
+            <button class="btn secondary small" data-find-cons="${ci}">find other occurrences</button>
+            <button class="btn secondary small" data-del-cons="${ci}">delete</button>
+          </div>
         </div>
-        <div style="display:flex; gap:6px; flex-shrink:0;">
-          <button class="btn secondary small" data-find-cons="${ci}">find other occurrences</button>
-          <button class="btn secondary small" data-del-cons="${ci}">delete</button>
+        <div data-edit-form="${ci}" style="display:none; margin-top:8px; padding:10px; background:var(--surface-raised); border-radius:4px;">
+          <input type="text" data-edit-field="pattern" value="${(c.pattern||'').replace(/"/g,'&quot;')}" placeholder="Pattern" style="margin-bottom:6px;">
+          <input type="text" data-edit-field="gloss" value="${(c.gloss||'').replace(/"/g,'&quot;')}" placeholder="Short gloss" style="margin-bottom:6px;">
+          <input type="text" data-edit-field="note" value="${(c.note||'').replace(/"/g,'&quot;')}" placeholder="Note (optional)" style="margin-bottom:8px;">
+          <div style="display:flex; gap:6px;">
+            <button class="btn secondary small" data-save-cons="${ci}">save</button>
+            <button class="btn secondary small" data-cancel-cons="${ci}">cancel</button>
+          </div>
+          <p class="note" style="margin-top:6px; margin-bottom:0;">
+            Saving updates every occurrence of this construction in the song, not just this one —
+            they're all treated as the same pattern.
+          </p>
         </div>
       </div>`;
   }).join('');
+
   el.querySelectorAll('[data-del-cons]').forEach(btn => {
     btn.addEventListener('click', () => {
       constructions.splice(parseInt(btn.dataset.delCons, 10), 1);
@@ -648,6 +667,36 @@ function renderConstructionsList(){
   el.querySelectorAll('[data-find-cons]').forEach(btn => {
     btn.addEventListener('click', () => findOtherOccurrences(parseInt(btn.dataset.findCons, 10)));
   });
+  el.querySelectorAll('[data-edit-cons]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ci = btn.dataset.editCons;
+      el.querySelector(`[data-edit-form="${ci}"]`).style.display = 'block';
+    });
+  });
+  el.querySelectorAll('[data-cancel-cons]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelector(`[data-edit-form="${btn.dataset.cancelCons}"]`).style.display = 'none';
+    });
+  });
+  el.querySelectorAll('[data-save-cons]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const ci = parseInt(btn.dataset.saveCons, 10);
+      const form = el.querySelector(`[data-edit-form="${ci}"]`);
+      const newPattern = form.querySelector('[data-edit-field="pattern"]').value.trim();
+      const newGloss = form.querySelector('[data-edit-field="gloss"]').value.trim();
+      const newNote = form.querySelector('[data-edit-field="note"]').value.trim();
+      if(!newPattern){ alert('Pattern can\u2019t be empty.'); return; }
+      const originalPattern = constructions[ci].pattern;
+      constructions.forEach(c => {
+        if(c.pattern === originalPattern){
+          c.pattern = newPattern;
+          c.gloss = newGloss;
+          c.note = newNote;
+        }
+      });
+      renderConstructionsList();
+    });
+  });
 }
 
 // Looks for other lines where every part of the same pattern (e.g. "在" and "之前"
@@ -655,32 +704,63 @@ function renderConstructionsList(){
 // finds as a new occurrence of the same construction. This only matches parts that
 // were segmented as standalone tokens — if a part like 之前 got split into 之 + 前
 // somewhere, merge it into one card first or that occurrence won't be found.
+function findContiguousMatch(tokens, patternText){
+  for(let start = 0; start < tokens.length; start++){
+    if(tokens[start].isPunct) continue;
+    let combined = '';
+    const indices = [];
+    for(let end = start; end < tokens.length; end++){
+      if(tokens[end].isPunct) break;
+      combined += tokens[end].h;
+      indices.push(end);
+      if(combined === patternText) return indices;
+      if(combined.length > patternText.length) break;
+    }
+  }
+  return null;
+}
+
 function findOtherOccurrences(consIndex){
   const cons = constructions[consIndex];
   const parts = cons.pattern.split(/\.{2,}|…+/).map(p => p.trim()).filter(Boolean);
-  if(parts.length < 2){
-    alert('This pattern doesn\u2019t use "..." between parts, so there\u2019s nothing to auto-match.');
-    return;
-  }
 
   const alreadyLinkedLines = new Set(
     constructions.filter(c => c.pattern === cons.pattern).flatMap(c => c.members.map(([li]) => li))
   );
 
   let added = 0;
-  lineData.forEach((line, li) => {
-    if(alreadyLinkedLines.has(li)) return;
-    const matchIndices = parts.map(part => line.tokens.findIndex(t => !t.isPunct && t.h === part));
-    if(matchIndices.every(idx => idx !== -1)){
-      constructions.push({
-        id: 'c' + Date.now() + Math.random().toString(36).slice(2),
-        pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
-        members: matchIndices.map(idx => [li, idx])
-      });
-      alreadyLinkedLines.add(li);
-      added++;
-    }
-  });
+
+  if(parts.length < 2){
+    // No "..." in the pattern — it's a plain contiguous phrase (like 归零), not a
+    // discontinuous one. Search for it as a run of adjacent tokens instead.
+    lineData.forEach((line, li) => {
+      if(alreadyLinkedLines.has(li)) return;
+      const match = findContiguousMatch(line.tokens, cons.pattern);
+      if(match){
+        constructions.push({
+          id: 'c' + Date.now() + Math.random().toString(36).slice(2),
+          pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
+          members: match.map(idx => [li, idx])
+        });
+        alreadyLinkedLines.add(li);
+        added++;
+      }
+    });
+  } else {
+    lineData.forEach((line, li) => {
+      if(alreadyLinkedLines.has(li)) return;
+      const matchIndices = parts.map(part => line.tokens.findIndex(t => !t.isPunct && t.h === part));
+      if(matchIndices.every(idx => idx !== -1)){
+        constructions.push({
+          id: 'c' + Date.now() + Math.random().toString(36).slice(2),
+          pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
+          members: matchIndices.map(idx => [li, idx])
+        });
+        alreadyLinkedLines.add(li);
+        added++;
+      }
+    });
+  }
 
   renderConstructionsList();
   renderLines();
@@ -941,7 +1021,10 @@ function renderTokenCard(line, li, ti){
       <span style="font-size:9px;color:var(--text-dim);">HSK</span>
       <input type="text" value="${tok.hsk}" data-field="hsk">
     </div>
-    <input type="text" value="${(tok.note||'').replace(/"/g,'&quot;')}" placeholder="note (optional)" data-field="note" style="font-size:9px;">
+    <div style="display:flex; gap:2px; width:100%;">
+      <input type="text" value="${(tok.note||'').replace(/"/g,'&quot;')}" placeholder="note (optional)" data-field="note" style="font-size:9px; flex:1;">
+      <button data-action="apply-note" title="Apply this note to every other occurrence of this word in this song" style="flex-shrink:0; font-size:9px; padding:2px 4px; border-radius:3px; border:1px solid var(--rule); background:transparent; color:var(--text-dim); cursor:pointer;">→all</button>
+    </div>
     <div class="token-btns">
       <button data-action="merge" ${ti === line.tokens.length - 1 ? 'disabled' : ''}>merge →</button>
       <button data-action="split" ${Array.from(tok.h).length < 2 ? 'disabled' : ''}>split</button>
@@ -1045,6 +1128,22 @@ function makeToken(hanzi){
     needsReadingPick: hasMultipleReadings
   });
 }
+
+const applyNoteBtn = card.querySelector('[data-action="apply-note"]');
+if(applyNoteBtn) applyNoteBtn.addEventListener('click', () => {
+  if(!tok.note){ alert('Type a note first, then apply it to other occurrences.'); return; }
+  let count = 0;
+  lineData.forEach(l => {
+    l.tokens.forEach(t => {
+      if(t !== tok && t.h === tok.h && t.note !== tok.note){
+        t.note = tok.note;
+        count++;
+      }
+    });
+  });
+  renderLines();
+  if(count === 0) alert('No other occurrences of this word found in this song.');
+});
 
 const resetShortBtn = card.querySelector('[data-action="reset-short"]');
 if(resetShortBtn) resetShortBtn.addEventListener('click', () => {

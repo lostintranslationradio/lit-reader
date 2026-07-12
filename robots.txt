@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /creator/
+
+Sitemap: https://lostintranslationradio.com/sitemap.xml

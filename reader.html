@@ -9,7 +9,8 @@
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Changa+One:ital@0;1&family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   @font-face{
   font-family:'KN Bobohei';
@@ -17,8 +18,14 @@
   font-weight:700;
   font-display:swap;
 }
+@font-face{
+  font-family:'Hanzi Pinyin Top';
+  src:url('assets/fonts/Hanzi-Pinyin-Font_top.ttf') format('truetype');
+  font-display:swap;
+}
 :root{
   --font-title:'KN Bobohei', var(--font-han, 'Noto Serif SC', serif);
+  --font-brand:'Changa One', var(--font-title);
     --font-han:'Noto Serif SC', serif;
     --font-en:'Inter', sans-serif;
     --font-scale:1;
@@ -92,9 +99,9 @@
     color:var(--accent);
   }
   .title{
-    font-family:'Noto Serif SC',serif;
+    font-family:var(--font-brand);
     font-size:22px;
-    font-weight:700;
+    font-weight:400;
   }
   .controls{
     display:flex;
@@ -219,6 +226,15 @@
     display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--rule);
   }
   .creator-note-item:last-child{ border-bottom:none; }
+  .note-jumpable{ cursor:pointer; border-radius:4px; transition:background .15s; }
+  .numbered-note{ padding:3px 4px; margin:1px -4px; }
+  .note-num{ color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:11px; }
+  .note-jumpable:hover{ background:var(--surface-raised); }
+  .word.note-flash{ animation:noteFlash 1.2s ease; }
+  @keyframes noteFlash{
+    0%, 100%{ background:transparent; }
+    20%{ background:rgba(184,134,58,.35); }
+  }
   .creator-note-item .cni-hanzi{
     font-family:var(--font-han); font-size:18px; flex-shrink:0; min-width:50px;
   }
@@ -390,6 +406,9 @@
     border-radius:8px;
     max-width:320px;
     width:100%;
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-touch-callout:none;
     padding:26px 22px 20px;
     position:relative;
   }
@@ -413,6 +432,22 @@
   }
   .popup-star.starred{ color:var(--accent); }
   .popup-star:active{ transform:scale(1.18); }
+  .popup-nav{
+    position:absolute; top:50%; transform:translateY(-50%);
+    background:var(--surface); border:1px solid var(--rule);
+    width:30px; height:30px; border-radius:50%;
+    font-size:18px; line-height:1; cursor:pointer;
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center;
+  }
+  .popup-nav:hover{ border-color:var(--accent); color:var(--accent); }
+  .popup-nav:disabled{ opacity:.3; cursor:not-allowed; }
+  .popup-nav:disabled:hover{ border-color:var(--rule); color:var(--text-dim); }
+  .popup-nav-prev{ left:-15px; }
+  .popup-nav-next{ right:-15px; }
+  @media (max-width:400px){
+    .popup-nav-prev{ left:4px; }
+    .popup-nav-next{ right:4px; }
+  }
   .popup-hanzi{
     font-family:'Noto Serif SC',serif;
     font-size:42px;
@@ -455,12 +490,23 @@
     font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
     text-transform:uppercase; color:var(--accent); margin-bottom:3px;
   }
+  .cons-note-box{
+    margin-bottom:10px; padding:10px 12px; text-align:left;
+    background:var(--surface); border-left:2px solid var(--accent);
+    border-radius:4px; font-size:12px; line-height:1.5;
+  }
+  .cons-note-box .note-label{
+    font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:3px;
+  }
   #popupUserNote{ margin-top:12px; border-top:1px solid var(--rule); padding-top:12px; }
   #popupUserNote .note-label{
     font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
     text-transform:uppercase; color:var(--text-dim); margin-bottom:6px;
   }
   #popupUserNoteInput{
+    -webkit-user-select:text;
+    user-select:text;
     width:100%; background:var(--surface-raised); border:1px solid var(--rule);
     border-radius:4px; padding:8px; color:var(--text); font-family:'Inter',sans-serif;
     font-size:12px; resize:vertical; outline:none; box-sizing:border-box;
@@ -511,11 +557,12 @@
     text-align:center;
   }
   .popup-construction .cons-pattern{
-    font-family:var(--font-han, 'Noto Serif SC', serif);
-    font-size:19px;
-    font-weight:600;
+    font-family:'Hanzi Pinyin Top', var(--font-han, 'Noto Serif SC', serif);
+    font-size:26px;
+    font-weight:400;
     color:var(--accent);
-    margin-bottom:4px;
+    margin-bottom:8px;
+    line-height:1.4;
   }
   .popup-construction .cons-gloss{
     font-family:'JetBrains Mono',monospace;
@@ -698,6 +745,9 @@
     align-items:center;
     padding:9px 0;
     border-bottom:1px solid var(--rule);
+    cursor:pointer;
+    -webkit-user-select:none;
+    user-select:none;
   }
   .vocab-item:last-child{border-bottom:none;}
   .vocab-info .vh{ font-family:'Noto Serif SC',serif; font-size:17px; }
@@ -855,8 +905,8 @@
         <div class="count" id="vocabCount">0</div>
       </div>
       <div id="vocabAuth" style="margin-bottom:12px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
-        <span id="vocabAuthStatus">Saving to this device only.</span>
-        <a href="#" id="vocabAuthLink" style="color:var(--accent);">Sign in to sync</a>
+        <div id="vocabAuthStatus">Saving to this device only.</div>
+        <a href="#" id="vocabAuthLink" style="color:var(--accent); display:block; margin-top:4px;">Sign in to sync</a>
       </div>
       <div id="vocabList"></div>
       <div class="hint">
@@ -884,6 +934,8 @@
   <div class="popup-card">
     <button class="popup-close" id="popupClose">✕ CLOSE</button>
     <button class="popup-star" id="popupStar">★</button>
+    <button class="popup-nav popup-nav-prev" id="popupPrev" title="Previous">‹</button>
+    <button class="popup-nav popup-nav-next" id="popupNext" title="Next">›</button>
     <div class="popup-hanzi" id="popupHanzi"></div>
     <div class="popup-pinyin" id="popupPinyin"></div>
     <div class="popup-sound">
@@ -973,42 +1025,80 @@ function indexConstructions(){
 
 function renderCreatorNotes(){
   const section = document.getElementById('creatorNotesSection');
-  const wordItems = [];
-  SONG.lines.forEach(entry => {
-    entry.words.forEach(tok => {
-      if(tok.note) wordItems.push(tok);
+
+  // Group by word: each word gets one heading, with its distinct notes listed
+  // and numbered underneath if there's more than one.
+  const wordGroups = new Map(); // hanzi -> { hsk, notes: [{note, lineIdx, wordIdx}] }
+  SONG.lines.forEach((entry, lineIdx) => {
+    entry.words.forEach((tok, wordIdx) => {
+      if(!tok.note) return;
+      if(!wordGroups.has(tok.h)) wordGroups.set(tok.h, { hsk: tok.hsk, notes: [] });
+      const group = wordGroups.get(tok.h);
+      if(!group.notes.some(n => n.note === tok.note)){
+        group.notes.push({ note: tok.note, lineIdx, wordIdx });
+      }
     });
   });
 
   const seenPatterns = new Set();
   const consItems = [];
   (SONG.constructions || []).forEach(c => {
-    if(c.note && !seenPatterns.has(c.pattern)){
+    if(!seenPatterns.has(c.pattern)){
       seenPatterns.add(c.pattern);
       consItems.push(c);
     }
   });
 
-  if(wordItems.length === 0 && consItems.length === 0){
+  if(wordGroups.size === 0 && consItems.length === 0){
     section.style.display = 'none';
     return;
   }
 
-  const wordHtml = wordItems.map(tok => `
-    <div class="creator-note-item">
-      <div class="cni-hanzi" style="color:var(${HSK_VAR[tok.hsk]})">${tok.h}</div>
-      <div class="cni-text">${tok.note}</div>
-    </div>
-  `).join('');
+  const wordHtml = [...wordGroups.entries()].map(([hanzi, group]) => {
+    const notesHtml = group.notes.length === 1
+      ? `<div class="note-jumpable" data-line="${group.notes[0].lineIdx}" data-word="${group.notes[0].wordIdx}">${group.notes[0].note}</div>`
+      : group.notes.map((n, i) => `
+          <div class="note-jumpable numbered-note" data-line="${n.lineIdx}" data-word="${n.wordIdx}">
+            <span class="note-num">${i + 1}.</span> ${n.note}
+          </div>
+        `).join('');
+    return `
+      <div class="creator-note-item">
+        <div class="cni-hanzi" style="color:var(${HSK_VAR[group.hsk]})">${hanzi}</div>
+        <div class="cni-text">${notesHtml}</div>
+      </div>
+    `;
+  }).join('');
 
-  const consHtml = consItems.map(c => `
+  const consHtml = consItems.map(c => {
+    const target = (c.members && c.members[0]) || null;
+    const jumpAttrs = target ? `class="note-jumpable" data-line="${target[0]}" data-word="${target[1]}"` : '';
+    return `
     <div class="creator-note-item">
       <div class="cni-hanzi" style="color:var(--accent); font-size:15px;">${c.pattern}</div>
-      <div class="cni-text">${c.note}</div>
+      <div class="cni-text">
+        <div ${jumpAttrs}>${c.gloss || ''}</div>
+        ${c.note ? `<div style="margin-top:2px; opacity:.85;">${c.note}</div>` : ''}
+      </div>
     </div>
-  `).join('');
+  `;}).join('');
 
   section.innerHTML = `<div class="notes-heading">Notes on this song</div>` + wordHtml + consHtml;
+
+  section.querySelectorAll('.note-jumpable').forEach(el => {
+    el.addEventListener('click', () => {
+      const lineIdx = parseInt(el.dataset.line, 10);
+      const wordIdx = parseInt(el.dataset.word, 10);
+      const blocks = document.querySelectorAll('.line-block');
+      const targetLine = blocks[lineIdx];
+      if(!targetLine) return;
+      const targetWord = targetLine.querySelectorAll('.word')[wordIdx];
+      if(!targetWord) return;
+      targetWord.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      targetWord.classList.add('note-flash');
+      setTimeout(() => targetWord.classList.remove('note-flash'), 1200);
+    });
+  });
   section.style.display = 'block';
 }
 
@@ -1123,8 +1213,8 @@ function hskBadgeLabel(hsk){
 }
 
 let currentPopup = null;
-function openPopup(tok, key, el){
-  currentPopup = { tok, key, el };
+function openPopup(tok, key, el, constructionOverride, vocabIdx){
+  currentPopup = { tok, key, el, vocabIdx };
   document.getElementById('popupHanzi').textContent = tok.h;
   document.getElementById('popupPinyin').textContent = tok.p;
   const badge = document.getElementById('popupHsk');
@@ -1163,13 +1253,13 @@ function openPopup(tok, key, el){
   }
 
   const consEl = document.getElementById('popupConstruction');
-  const cons = constructionForKey[key];
+  const cons = constructionOverride || constructionForKey[key];
   if(cons){
     const isConsSaved = saved.some(s => s.h === cons.construction.pattern && s.kind === 'construction');
     consEl.innerHTML = `
       <div class="cons-pattern">${cons.construction.pattern}</div>
       <div class="cons-gloss">${cons.construction.gloss}</div>
-      ${cons.construction.note ? `<div style="margin-bottom:8px;">${cons.construction.note}</div>` : ''}
+      ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
       <button id="popupConsSave" style="font-family:'JetBrains Mono',monospace; font-size:10px;
         padding:5px 10px; border-radius:12px; border:1px solid ${isConsSaved ? 'var(--accent)' : 'var(--rule)'};
         background:${isConsSaved ? 'rgba(184,134,58,.14)' : 'transparent'};
@@ -1194,8 +1284,61 @@ function openPopup(tok, key, el){
 
   const isSaved = saved.some(s=>s.h===tok.h);
   document.getElementById('popupStar').classList.toggle('starred', isSaved);
+  if(vocabIdx !== undefined && vocabIdx !== null){
+    document.getElementById('popupPrev').disabled = vocabIdx <= 0;
+    document.getElementById('popupNext').disabled = vocabIdx >= saved.length - 1;
+  } else {
+    const [lineIdx, wordIdx] = key.split('_').map(Number);
+    const flat = buildFlatWordList();
+    const curIdx = flat.findIndex(w => w.lineIdx === lineIdx && w.wordIdx === wordIdx);
+    document.getElementById('popupPrev').disabled = curIdx <= 0;
+    document.getElementById('popupNext').disabled = curIdx === -1 || curIdx >= flat.length - 1;
+  }
+
   document.getElementById('popupOverlay').classList.add('open');
 }
+function buildFlatWordList(){
+  const flat = [];
+  SONG.lines.forEach((entry, lineIdx) => {
+    entry.words.forEach((tok, wordIdx) => {
+      if(!tok.isPunct && !(tok.h.length===1 && /[。，！？]/.test(tok.h))){
+        flat.push({ tok, lineIdx, wordIdx });
+      }
+    });
+  });
+  return flat;
+}
+
+function navigatePopup(direction){
+  if(!currentPopup) return;
+
+  if(currentPopup.vocabIdx !== undefined && currentPopup.vocabIdx !== null){
+    const newIdx = currentPopup.vocabIdx + direction;
+    if(newIdx < 0 || newIdx >= saved.length) return;
+    const itemEl = document.querySelector(`.vocab-item[data-vocab-idx="${newIdx}"]`);
+    openVocabPopup(saved[newIdx], itemEl, newIdx);
+    if(itemEl) itemEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    return;
+  }
+
+  const [lineIdx, wordIdx] = currentPopup.key.split('_').map(Number);
+  const flat = buildFlatWordList();
+  const curIdx = flat.findIndex(w => w.lineIdx === lineIdx && w.wordIdx === wordIdx);
+  if(curIdx === -1) return;
+  const newIdx = curIdx + direction;
+  if(newIdx < 0 || newIdx >= flat.length) return;
+  const target = flat[newIdx];
+  const blocks = document.querySelectorAll('.line-block');
+  const targetLine = blocks[target.lineIdx];
+  const targetWord = targetLine ? targetLine.querySelectorAll('.word')[target.wordIdx] : null;
+  if(!targetWord) return;
+  openPopup(target.tok, target.lineIdx + '_' + target.wordIdx, targetWord);
+  targetWord.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+document.getElementById('popupPrev').addEventListener('click', () => navigatePopup(-1));
+document.getElementById('popupNext').addEventListener('click', () => navigatePopup(1));
+
 function closePopup(){
   document.getElementById('popupOverlay').classList.remove('open');
   currentPopup = null;
@@ -1263,15 +1406,15 @@ function renderVocab(){
     list.innerHTML = '<div class="empty">Nothing saved yet.</div>';
     return;
   }
-  list.innerHTML = saved.map(s=>{
+  list.innerHTML = saved.map((s, si)=>{
     const crossSong = s.sources.length > 1;
     const sourceNames = s.sources.map(id => SONG_TITLES[id] || id).join(' · ');
     const g0 = Array.isArray(s.g) ? (s.g[0]||'') : (s.g||'');
     const isCons = s.kind === 'construction';
     return `
-    <div class="vocab-item">
+    <div class="vocab-item" data-vocab-idx="${si}">
       <div class="vocab-info">
-        <div class="vh" style="${isCons ? '' : `color:var(${HSK_VAR[s.hsk]})`}">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}${isCons ? ' <span style="font-size:9px; color:var(--text-dim);">construction</span>' : ''}</div>
+        <div class="vh" style="${isCons ? '' : `color:var(${HSK_VAR[s.hsk]})`}">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}</div>
         ${s.p ? `<div class="vp">${s.p}</div>` : ''}
         <div class="vg">${g0}</div>
         <div class="vsrc">${sourceNames}</div>
@@ -1279,6 +1422,41 @@ function renderVocab(){
       <button class="remove" onclick="removeWord('${s.h.replace(/'/g,"\\'")}')">✕</button>
     </div>
   `;}).join('');
+
+  list.querySelectorAll('.vocab-item').forEach(itemEl => {
+    const s = saved[parseInt(itemEl.dataset.vocabIdx, 10)];
+    let timer = null, fired = false;
+    const HOLD_MS = 550;
+    const start = (e) => {
+      if(e.target.closest('.remove')) return;
+      fired = false;
+      timer = setTimeout(() => {
+        fired = true;
+        openVocabPopup(s, itemEl, parseInt(itemEl.dataset.vocabIdx, 10));
+      }, HOLD_MS);
+    };
+    const cancel = () => clearTimeout(timer);
+    itemEl.addEventListener('mousedown', start);
+    itemEl.addEventListener('mouseup', cancel);
+    itemEl.addEventListener('mouseleave', cancel);
+    itemEl.addEventListener('touchstart', start, { passive: true });
+    itemEl.addEventListener('touchend', cancel);
+    itemEl.addEventListener('touchcancel', cancel);
+  });
+}
+
+function openVocabPopup(s, el, vocabIdx){
+  if(s.kind === 'construction'){
+    const tok = { h: s.h, p: s.p || '', g: [], hsk: 0, note: '' };
+    const override = {
+      construction: { pattern: s.h, gloss: Array.isArray(s.g) ? (s.g[0]||'') : (s.g||''), note: s.note || '' }
+    };
+    openPopup(tok, 'vocab_' + s.h, el, override, vocabIdx);
+  } else {
+    const g = Array.isArray(s.g) ? s.g : (s.g ? [s.g] : []);
+    const tok = { h: s.h, p: s.p || '', g, short: g[0] || '', hsk: s.hsk || 0, note: s.note || '', pos: s.pos || null };
+    openPopup(tok, 'vocab_' + s.h, el, null, vocabIdx);
+  }
 }
 
 function flyToSavedTarget(fromEl, label){
