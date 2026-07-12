@@ -547,7 +547,49 @@
       font-size:14px; cursor:pointer; z-index:1;
     }
     .settings-box-body{ padding:36px 16px 16px; }
+
+    #mobileVocabFab{
+      display:flex; align-items:center; justify-content:center;
+      position:fixed; bottom:20px; right:20px; z-index:60;
+      width:52px; height:52px; border-radius:50%;
+      border:1px solid var(--accent); background:var(--accent);
+      color:var(--surface); font-size:20px; cursor:pointer;
+      box-shadow:0 4px 14px rgba(0,0,0,.25);
+      transition:bottom .2s;
+    }
+    #mobileVocabFab.shift-up{ bottom:150px; }
+    #mobileVocabBadge{
+      position:absolute; top:-4px; right:-4px;
+      background:var(--surface); color:var(--accent);
+      border:1px solid var(--accent);
+      border-radius:10px; min-width:18px; height:18px;
+      font-family:'JetBrains Mono',monospace; font-size:10px;
+      display:flex; align-items:center; justify-content:center;
+      padding:0 4px;
+    }
+    #mobileVocabFab.pulse{ animation:fabPulse .4s ease; }
+
+    .vocab-box{
+      display:none;
+      position:fixed;
+      top:16px; right:16px; left:16px; bottom:16px;
+      z-index:59;
+      background:var(--surface);
+      border:1px solid var(--rule);
+      border-radius:8px;
+      padding:40px 16px 16px;
+      overflow-y:auto;
+      box-shadow:0 10px 34px rgba(0,0,0,.25);
+    }
+    .vocab-box.mobile-open{ display:block; }
+    #mobileVocabClose{
+      display:block;
+      position:absolute; top:10px; right:12px;
+      background:none; border:none; color:var(--text-dim);
+      font-size:14px; cursor:pointer; z-index:1;
+    }
   }
+  #mobileVocabFab, #mobileVocabClose{ display:none; }
 
   aside{
     flex:0 0 260px;
@@ -573,7 +615,9 @@
     text-transform:uppercase;
     color:var(--text-dim);
   }
-  .count{ font-family:'Noto Serif SC',serif; font-size:20px; color:var(--accent); }
+  .count{ font-family:'Noto Serif SC',serif; font-size:20px; color:var(--accent); display:inline-block; }
+  .count.pulse{ animation:fabPulse .4s ease; }
+  @keyframes fabPulse{ 0%{transform:scale(1);} 40%{transform:scale(1.3);} 100%{transform:scale(1);} }
   .vocab-item{
     display:flex;
     justify-content:space-between;
@@ -605,6 +649,8 @@
     .controls{ gap:12px 14px; font-size:11px; }
     .level-control input[type=range]{ width:70px; }
     .hanzi{ font-size:23px; }
+    .library-btn-text{ display:none; }
+    .library-btn{ padding:9px 12px; }
   }
   @media (max-width: 400px){ .level-pct{ display:none; } }
   .remove{ background:none;border:none; color:var(--text-dim); font-size:14px; cursor:pointer; padding:4px; }
@@ -634,7 +680,7 @@
 
 <header>
   <div class="header-inner">
-    <a href="index.html" class="library-btn">← Library</a>
+    <a href="index.html" class="library-btn">← <span class="library-btn-text">Library</span></a>
     <div class="brand">
       <div class="title" id="pageTitle">Lost In Translation Radio</div>
       <div class="eyebrow">Annotated Reader</div>
@@ -720,30 +766,37 @@
       </div>
     </div>
 
-    <div class="aside-head">
-      <div class="aside-title">Saved words</div>
-      <div class="count" id="vocabCount">0</div>
-    </div>
-    <div id="vocabAuth" style="margin-bottom:12px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
-      <span id="vocabAuthStatus">Saving to this device only.</span>
-      <a href="#" id="vocabAuthLink" style="color:var(--accent);">Sign in to sync</a>
-    </div>
-    <div id="vocabList"></div>
-    <div class="hint">
-      Tap a word to show/hide its pinyin and gloss. Press and hold to open its definition, then tap the star to save it. Tap the ✕ in the list to remove.
-      <div class="key">
-        <span><i class="dot" style="background:var(--hsk1)"></i>HSK1</span>
-        <span><i class="dot" style="background:var(--hsk2)"></i>HSK2</span>
-        <span><i class="dot" style="background:var(--hsk3)"></i>HSK3</span>
-        <span><i class="dot" style="background:var(--hsk4)"></i>HSK4</span>
-        <span><i class="dot" style="background:var(--hsk5)"></i>HSK5</span>
-        <span><i class="dot" style="background:var(--hsk6)"></i>HSK6</span>
-        <span><i class="dot" style="background:var(--hsk79)"></i>HSK 7–9</span>
-        <span><i class="dot" style="background:var(--beyond)"></i>Beyond</span>
+    <div class="vocab-box" id="vocabBox">
+      <button id="mobileVocabClose" title="Close">✕</button>
+      <div class="aside-head">
+        <div class="aside-title">Saved words</div>
+        <div class="count" id="vocabCount">0</div>
+      </div>
+      <div id="vocabAuth" style="margin-bottom:12px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
+        <span id="vocabAuthStatus">Saving to this device only.</span>
+        <a href="#" id="vocabAuthLink" style="color:var(--accent);">Sign in to sync</a>
+      </div>
+      <div id="vocabList"></div>
+      <div class="hint">
+        Tap a word to show/hide its pinyin and gloss. Press and hold to open its definition, then tap the star to save it. Tap the ✕ in the list to remove.
+        <div class="key">
+          <span><i class="dot" style="background:var(--hsk1)"></i>HSK1</span>
+          <span><i class="dot" style="background:var(--hsk2)"></i>HSK2</span>
+          <span><i class="dot" style="background:var(--hsk3)"></i>HSK3</span>
+          <span><i class="dot" style="background:var(--hsk4)"></i>HSK4</span>
+          <span><i class="dot" style="background:var(--hsk5)"></i>HSK5</span>
+          <span><i class="dot" style="background:var(--hsk6)"></i>HSK6</span>
+          <span><i class="dot" style="background:var(--hsk79)"></i>HSK 7–9</span>
+          <span><i class="dot" style="background:var(--beyond)"></i>Beyond</span>
+        </div>
       </div>
     </div>
   </aside>
 </main>
+
+<button id="mobileVocabFab" title="Saved words">
+  ★<span id="mobileVocabBadge" style="display:none;">0</span>
+</button>
 
 <div class="popup-overlay" id="popupOverlay">
   <div class="popup-card">
@@ -978,9 +1031,14 @@ function openPopup(tok, key, el){
     `;
     consEl.style.display = 'block';
     document.getElementById('popupConsSave').addEventListener('click', async () => {
-      if(isConsSaved) await removeConstruction(cons.construction.pattern);
-      else await saveConstruction(cons.construction);
-      openPopup(tok, key, el); // re-render popup to reflect new saved state
+      if(isConsSaved){
+        await removeConstruction(cons.construction.pattern);
+        openPopup(tok, key, el);
+      } else {
+        await saveConstruction(cons.construction);
+        closePopup();
+        flyToSavedTarget(el, cons.construction.pattern);
+      }
     });
   } else {
     consEl.style.display = 'none';
@@ -1049,6 +1107,9 @@ async function removeConstruction(pattern){
 function renderVocab(){
   const list = document.getElementById('vocabList');
   document.getElementById('vocabCount').textContent = saved.length;
+  const badge = document.getElementById('mobileVocabBadge');
+  badge.textContent = saved.length;
+  badge.style.display = saved.length > 0 ? 'flex' : 'none';
   if(saved.length===0){
     list.innerHTML = '<div class="empty">Nothing saved yet.</div>';
     return;
@@ -1071,12 +1132,51 @@ function renderVocab(){
   `;}).join('');
 }
 
+function flyToSavedTarget(fromEl, label){
+  const isMobile = window.innerWidth <= 760;
+  const target = isMobile
+    ? document.getElementById('mobileVocabFab')
+    : document.getElementById('vocabCount');
+  if(!fromEl || !target) return;
+  const startRect = fromEl.getBoundingClientRect();
+  const endRect = target.getBoundingClientRect();
+  const clone = document.createElement('div');
+  clone.textContent = label;
+  clone.style.cssText = `
+    position:fixed; z-index:200; pointer-events:none;
+    left:${startRect.left + startRect.width/2}px; top:${startRect.top + startRect.height/2}px;
+    transform:translate(-50%,-50%) scale(1);
+    font-family:var(--font-title); font-size:20px; font-weight:600; color:var(--accent);
+    opacity:1; transition:left .6s cubic-bezier(.3,.7,.3,1), top .6s cubic-bezier(.3,.7,.3,1),
+      transform .6s cubic-bezier(.3,.7,.3,1), opacity .6s ease;
+  `;
+  document.body.appendChild(clone);
+  requestAnimationFrame(() => {
+    clone.style.left = (endRect.left + endRect.width/2) + 'px';
+    clone.style.top = (endRect.top + endRect.height/2) + 'px';
+    clone.style.transform = 'translate(-50%,-50%) scale(.25)';
+    clone.style.opacity = '0.15';
+  });
+  setTimeout(() => {
+    clone.remove();
+    target.classList.add('pulse');
+    setTimeout(() => target.classList.remove('pulse'), 400);
+  }, 600);
+}
+
 document.getElementById('popupStar').addEventListener('click', function(){
   if(!currentPopup) return;
   const { tok, el } = currentPopup;
   const isSaved = saved.some(s=>s.h===tok.h);
-  if(isSaved){ removeWord(tok.h); el.classList.remove('saved'); }
-  else { saveWord(tok, el); }
+  if(isSaved){
+    removeWord(tok.h);
+    el.classList.remove('saved');
+  } else {
+    saveWord(tok, el);
+    closePopup();
+    flyToSavedTarget(el, tok.h);
+    return;
+  }
   this.classList.toggle('starred', !isSaved);
 });
 document.getElementById('popupClose').addEventListener('click', closePopup);
@@ -1091,6 +1191,12 @@ document.getElementById('mobileSettingsFab').addEventListener('click', () => {
 });
 document.getElementById('mobileSettingsClose').addEventListener('click', () => {
   document.getElementById('settingsBox').classList.remove('mobile-open');
+});
+document.getElementById('mobileVocabFab').addEventListener('click', () => {
+  document.getElementById('vocabBox').classList.add('mobile-open');
+});
+document.getElementById('mobileVocabClose').addEventListener('click', () => {
+  document.getElementById('vocabBox').classList.remove('mobile-open');
 });
 
 const FONT_PAIRS = {
@@ -1180,14 +1286,17 @@ function setupMiniPlayer(){
   miniObserver = new IntersectionObserver((entries) => {
     const entry = entries[0];
     const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+    const fab = document.getElementById('mobileVocabFab');
     if(scrolledPast && !miniPlayerDismissed){
       if(!outer.classList.contains('mini')){
         spacer.style.height = outer.getBoundingClientRect().height + 'px';
         outer.classList.add('mini');
+        fab.classList.add('shift-up');
       }
     } else if(!scrolledPast){
       outer.classList.remove('mini');
       spacer.style.height = '0';
+      fab.classList.remove('shift-up');
       miniPlayerDismissed = false; // scrolling back up re-enables mini mode next time
     }
   }, { threshold: 0 });
@@ -1200,6 +1309,7 @@ document.getElementById('videoMiniClose').addEventListener('click', () => {
   const spacer = document.getElementById('videoMiniSpacer');
   outer.classList.remove('mini');
   spacer.style.height = '0';
+  document.getElementById('mobileVocabFab').classList.remove('shift-up');
   miniPlayerDismissed = true;
 });
 

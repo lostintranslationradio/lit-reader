@@ -31,6 +31,9 @@
   .title{ font-family:'Noto Serif SC',serif; font-size:24px; font-weight:700; }
   header a{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); text-decoration:none; }
   main{ max-width:840px; margin:0 auto; padding:30px 24px 100px; }
+  @media (max-width:760px){
+    .library-btn-text{ display:none; }
+  }
   .panel{
     background:var(--surface); border:1px solid var(--rule); border-radius:6px;
     padding:22px 24px; margin-bottom:22px;
@@ -46,6 +49,27 @@
   }
   input[type=text]:focus, textarea:focus, select:focus{ border-color:var(--accent); }
   textarea{ resize:vertical; font-family:'Noto Serif SC',serif; line-height:1.7; }
+  .tag-input-box{
+    display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+    width:100%; background:var(--surface-raised); border:1px solid var(--rule); border-radius:4px;
+    padding:8px 10px; min-height:42px;
+  }
+  .tag-input-box:focus-within{ border-color:var(--accent); }
+  .tag-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+  .tag-chip{
+    display:inline-flex; align-items:center; gap:6px;
+    padding:5px 10px; border-radius:14px;
+    background:rgba(184,134,58,.14); border:1px solid var(--accent);
+    color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:11px;
+  }
+  .tag-chip button{
+    background:none; border:none; color:var(--accent); cursor:pointer;
+    font-size:12px; line-height:1; padding:0;
+  }
+  #tagTextInput{
+    flex:1 1 120px; min-width:120px; border:none; background:none; outline:none;
+    color:var(--text); font-family:'Inter',sans-serif; font-size:13px; padding:4px 2px;
+  }
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   .field{ margin-bottom:14px; }
   .field:last-child{ margin-bottom:0; }
@@ -120,7 +144,7 @@
       <div class="eyebrow">creator tool</div>
       <div class="title">Add a Song</div>
     </div>
-    <a href="../index.html">← Library</a>
+    <a href="../index.html" class="library-btn">← <span class="library-btn-text">Library</span></a>
   </div>
 </header>
 
@@ -155,7 +179,8 @@
       </div>
       <div class="field">
         <label>Artist</label>
-        <input type="text" id="fArtist" placeholder="Faye Wong">
+        <input type="text" id="fArtist" placeholder="Faye Wong" list="artistSuggestions" autocomplete="off">
+        <datalist id="artistSuggestions"></datalist>
       </div>
     </div>
     <div class="row2">
@@ -177,16 +202,18 @@
         <input type="text" id="fId" placeholder="song-5">
       </div>
       <div class="field">
-        <label>Tags (comma separated — genre, mood, etc; year has its own field above)</label>
-        <input type="text" id="fTags" placeholder="art pop, introspective">
-      </div>
-    </div>
-    <div class="row2">
-      <div class="field">
         <label>YouTube link or video ID</label>
         <input type="text" id="fYoutube" placeholder="https://youtube.com/watch?v=...">
       </div>
-      <div class="field"></div>
+    </div>
+    <div class="field">
+      <label>Tags (genre, mood, etc — type one, then press comma or Enter to add it; year has its own field above)</label>
+      <div class="tag-input-box" id="tagInputBox">
+        <div class="tag-chips" id="tagChips"></div>
+        <input type="text" id="tagTextInput" list="tagSuggestions" autocomplete="off" placeholder="art pop, introspective...">
+      </div>
+      <datalist id="tagSuggestions"></datalist>
+      <input type="hidden" id="fTags">
     </div>
     <div class="field">
       <label>About this song (optional — shown collapsed above the lyrics)</label>
@@ -235,6 +262,13 @@
       a word into its first character and the rest. Anything outlined in pink wasn't found in the
       dictionary — fill in pinyin/gloss by hand, or leave it: it'll just render as a Beyond-tier word
       with no gloss until you do. The translation field is the only thing that was never automatic.
+    </p>
+    <button class="btn secondary" id="btnRestoreDefs">Restore full definitions from dictionary</button>
+    <div class="status-line" id="restoreDefsStatus" style="margin-top:6px;"></div>
+    <p class="note" style="margin-top:6px;">
+      Fixes an earlier bug where editing a word's gloss deleted its other dictionary definitions.
+      Safe to run any time — it keeps whatever you've typed as the main gloss and re-adds the
+      additional senses underneath it, without touching pinyin, HSK, or translations.
     </p>
     <div id="linesContainer"></div>
   </div>
@@ -297,7 +331,10 @@ async function checkCreatorAccess(){
   const isCreator = profile ? !!profile.is_creator : false;
   document.getElementById('lockedMain').style.display = isCreator ? 'none' : 'block';
   document.getElementById('unlockedMain').style.display = isCreator ? 'block' : 'none';
-  if(isCreator) populateExistingSongs();
+  if(isCreator){
+    populateExistingSongs();
+    populateSuggestions();
+  }
   if(user && !isCreator){
     const name = (profile && profile.username) ? profile.username : user.email;
     document.querySelector('#lockedMain .note').textContent =
@@ -309,6 +346,17 @@ document.getElementById('lockedSignIn').addEventListener('click', () => openAuth
 window.onAuthSuccess = () => checkCreatorAccess();
 authOnChange(() => checkCreatorAccess());
 checkCreatorAccess();
+
+async function populateSuggestions(){
+  const { data, error } = await sb.from('songs').select('artist, tags');
+  if(error || !data) return;
+  const artists = [...new Set(data.map(s => s.artist).filter(Boolean))].sort();
+  const tags = [...new Set(data.flatMap(s => s.tags || []))].sort();
+  document.getElementById('artistSuggestions').innerHTML =
+    artists.map(a => `<option value="${a.replace(/"/g,'&quot;')}">`).join('');
+  document.getElementById('tagSuggestions').innerHTML =
+    tags.map(t => `<option value="${t.replace(/"/g,'&quot;')}">`).join('');
+}
 
 async function populateExistingSongs(){
   const { data, error } = await sb.from('songs').select('id, zh, en, status').order('added', { ascending: false });
@@ -338,7 +386,8 @@ document.getElementById('btnLoadExisting').addEventListener('click', async () =>
   document.getElementById('fId').value = song.id;
   document.getElementById('fId').dataset.touched = '1'; // don't let the slug auto-fill overwrite it
   document.getElementById('fStatus').value = song.status || 'draft';
-  document.getElementById('fTags').value = (song.tags || []).join(', ');
+  tagList = [...(song.tags || [])];
+  renderTagChips();
   document.getElementById('fYoutube').value = song.youtube_id || '';
   document.getElementById('fContext').value = song.context || '';
 
@@ -645,6 +694,44 @@ function mergeLines(li){
 }
 
 let copiedLine = null;
+let tagList = [];
+
+function renderTagChips(){
+  document.getElementById('tagChips').innerHTML = tagList.map((t, i) =>
+    `<span class="tag-chip">${t}<button type="button" data-idx="${i}">×</button></span>`
+  ).join('');
+  document.getElementById('fTags').value = tagList.join(', ');
+  document.querySelectorAll('#tagChips [data-idx]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tagList.splice(parseInt(btn.dataset.idx, 10), 1);
+      renderTagChips();
+    });
+  });
+}
+
+function commitTagInput(){
+  const inp = document.getElementById('tagTextInput');
+  const val = inp.value.replace(/,$/, '').trim();
+  if(val && !tagList.includes(val)){
+    tagList.push(val);
+    renderTagChips();
+  }
+  inp.value = '';
+}
+
+document.getElementById('tagTextInput').addEventListener('keydown', (e) => {
+  if(e.key === ',' || e.key === 'Enter'){
+    e.preventDefault();
+    commitTagInput();
+  } else if(e.key === 'Backspace' && e.target.value === '' && tagList.length){
+    tagList.pop();
+    renderTagChips();
+  }
+});
+document.getElementById('tagTextInput').addEventListener('blur', commitTagInput);
+document.getElementById('tagInputBox').addEventListener('click', (e) => {
+  if(e.target.id === 'tagInputBox') document.getElementById('tagTextInput').focus();
+});
 let copiedLineIndex = null;
 
 // Copy an entire line's word tags and translation, then paste it onto whichever
@@ -804,12 +891,39 @@ function renderTokenCard(line, li, ti){
     inp.addEventListener('input', () => {
       const field = inp.dataset.field;
       if(field === 'p') tok.p = inp.value;
-      if(field === 'g') tok.g = [inp.value];
+      if(field === 'g'){
+        if(!Array.isArray(tok.g)) tok.g = [];
+        tok.g[0] = inp.value;
+      }
       if(field === 'hsk') tok.hsk = parseInt(inp.value, 10) || 0;
       tok.unresolved = false;
       card.classList.remove('unresolved');
     });
   });
+
+document.getElementById('btnRestoreDefs').addEventListener('click', () => {
+  if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
+  let restored = 0;
+  lineData.forEach(line => {
+    line.tokens.forEach(tok => {
+      if(tok.isPunct) return;
+      const entry = lookup(tok.h);
+      if(!entry || !entry.g || entry.g.length <= 1) return;
+      const currentPrimary = (tok.g && tok.g[0]) ? tok.g[0] : entry.g[0];
+      const restoredDefs = [currentPrimary, ...entry.g.filter(d => d !== currentPrimary)];
+      if(JSON.stringify(restoredDefs) !== JSON.stringify(tok.g)){
+        tok.g = restoredDefs;
+        restored++;
+      }
+    });
+  });
+  renderLines();
+  const statusEl = document.getElementById('restoreDefsStatus');
+  statusEl.textContent = restored > 0
+    ? `Restored additional definitions on ${restored} word${restored===1?'':'s'}.`
+    : 'Nothing to restore — every word already has its full definitions.';
+  statusEl.classList.add('ok');
+});
 
 function makeToken(hanzi){
   const entry = lookup(hanzi) || fallbackLookup(hanzi);

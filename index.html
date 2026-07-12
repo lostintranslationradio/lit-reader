@@ -464,7 +464,7 @@
     <div class="search">
       <input type="text" id="searchInput" placeholder="Search title, artist, or tag…">
     </div>
-    <div class="chips" id="statusChips">
+    <div class="chips" id="statusChips" style="display:none;">
       <button class="chip active" data-status="all">All</button>
       <button class="chip" data-status="published">Published</button>
       <button class="chip" data-status="draft" id="draftChip" style="display:none;">Draft</button>
@@ -630,6 +630,7 @@ function render(){
   else renderList(filtered);
 
   document.getElementById('draftChip').style.display = creatorMode ? 'inline-block' : 'none';
+  document.getElementById('statusChips').style.display = creatorMode ? 'flex' : 'none';
   document.getElementById('addSongLink').style.display = creatorMode ? 'inline-block' : 'none';
 }
 
