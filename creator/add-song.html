@@ -211,6 +211,17 @@
     </div>
     <div class="row2">
       <div class="field">
+        <label>Schedule release (optional — leave blank for a normal draft)</label>
+        <input type="datetime-local" id="fPublishAt">
+        <p class="note" style="margin-top:6px; margin-bottom:0;">
+          Stays a draft, but goes live on its own at this time — no need to come back and publish it.
+          Ignored if Status above is already set to Published.
+        </p>
+      </div>
+      <div class="field"></div>
+    </div>
+    <div class="row2">
+      <div class="field">
         <label>Song ID (used in the URL — auto-filled, editable)</label>
         <input type="text" id="fId" placeholder="song-5">
       </div>
@@ -319,6 +330,8 @@
       <button class="btn secondary" id="btnCancelConstruction">Cancel</button>
     </div>
 
+    <div id="suggestedConstructions" style="margin-top:14px;"></div>
+
     <div id="constructionsList" style="margin-top:14px;"></div>
   </div>
 
@@ -350,6 +363,7 @@ async function checkCreatorAccess(){
   if(isCreator){
     populateExistingSongs();
     populateSuggestions();
+    fetchKnownConstructions();
   }
   if(user && !isCreator){
     const name = (profile && profile.username) ? profile.username : user.email;
@@ -374,12 +388,94 @@ async function populateSuggestions(){
     tags.map(t => `<option value="${t.replace(/"/g,'&quot;')}">`).join('');
 }
 
+let knownConstructions = [];
+let dismissedSuggestions = new Set();
+
+async function fetchKnownConstructions(){
+  const { data, error } = await sb.from('songs').select('constructions');
+  if(error || !data) return;
+  const seen = new Map();
+  data.forEach(song => {
+    (song.constructions || []).forEach(c => {
+      if(!seen.has(c.pattern)) seen.set(c.pattern, { pattern: c.pattern, gloss: c.gloss, note: c.note || '' });
+    });
+  });
+  knownConstructions = [...seen.values()];
+}
+
+function scanForSuggestedConstructions(){
+  const el = document.getElementById('suggestedConstructions');
+  if(!el) return;
+  const currentPatterns = new Set(constructions.map(c => c.pattern));
+  const suggestions = [];
+
+  knownConstructions.forEach(known => {
+    if(currentPatterns.has(known.pattern)) return;
+    if(dismissedSuggestions.has(known.pattern)) return;
+    const parts = known.pattern.split(/\.{2,}|…+/).map(p => p.trim()).filter(Boolean);
+    let foundMembers = null;
+    for(let li = 0; li < lineData.length && !foundMembers; li++){
+      const line = lineData[li];
+      if(parts.length < 2){
+        const match = findContiguousMatch(line.tokens, known.pattern);
+        if(match) foundMembers = match.map(idx => [li, idx]);
+      } else {
+        const matchIndices = parts.map(part => line.tokens.findIndex(t => !t.isPunct && t.h === part));
+        if(matchIndices.every(idx => idx !== -1)) foundMembers = matchIndices.map(idx => [li, idx]);
+      }
+    }
+    if(foundMembers) suggestions.push({ ...known, members: foundMembers });
+  });
+
+  if(suggestions.length === 0){ el.innerHTML = ''; return; }
+
+  el.innerHTML = `<p class="note" style="margin-bottom:8px;">
+    Found ${suggestions.length} construction${suggestions.length===1?'':'s'} you've used in other songs — link it here too?
+  </p>` + suggestions.map((s, i) => `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;
+      padding:8px 10px; margin-bottom:6px; background:rgba(184,134,58,.08); border:1px solid var(--accent); border-radius:4px;">
+      <div>
+        <span style="font-family:'Noto Serif SC',serif; color:var(--accent);">${s.pattern}</span>
+        <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${s.gloss}</span>
+      </div>
+      <div style="display:flex; gap:6px; flex-shrink:0;">
+        <button class="btn secondary small" data-link-suggestion="${i}">link</button>
+        <button class="btn secondary small" data-dismiss-suggestion="${i}">dismiss</button>
+      </div>
+    </div>
+  `).join('');
+
+  el.querySelectorAll('[data-link-suggestion]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = suggestions[parseInt(btn.dataset.linkSuggestion, 10)];
+      constructions.push({
+        id: 'c' + Date.now() + Math.random().toString(36).slice(2),
+        pattern: s.pattern, gloss: s.gloss, note: s.note, members: s.members
+      });
+      renderConstructionsList();
+      renderLines();
+      scanForSuggestedConstructions();
+    });
+  });
+  el.querySelectorAll('[data-dismiss-suggestion]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = suggestions[parseInt(btn.dataset.dismissSuggestion, 10)];
+      dismissedSuggestions.add(s.pattern);
+      scanForSuggestedConstructions();
+    });
+  });
+}
+
 async function populateExistingSongs(){
-  const { data, error } = await sb.from('songs').select('id, zh, en, status').order('added', { ascending: false });
+  const { data, error } = await sb.from('songs').select('id, zh, en, status, publish_at').order('added', { ascending: false });
   if(error || !data) return;
   const select = document.getElementById('fExistingSong');
   select.innerHTML = '<option value="">— new song —</option>' +
-    data.map(s => `<option value="${s.id}">${s.zh} · ${s.en || s.id} (${s.status})</option>`).join('');
+    data.map(s => {
+      const scheduled = s.status === 'draft' && s.publish_at && new Date(s.publish_at) > new Date();
+      const label = scheduled ? `scheduled for ${new Date(s.publish_at).toLocaleDateString()}` : s.status;
+      return `<option value="${s.id}">${s.zh} · ${s.en || s.id} (${label})</option>`;
+    }).join('');
 }
 
 document.getElementById('btnLoadExisting').addEventListener('click', async () => {
@@ -402,6 +498,14 @@ document.getElementById('btnLoadExisting').addEventListener('click', async () =>
   document.getElementById('fId').value = song.id;
   document.getElementById('fId').dataset.touched = '1'; // don't let the slug auto-fill overwrite it
   document.getElementById('fStatus').value = song.status || 'draft';
+  if(song.publish_at){
+    const d = new Date(song.publish_at);
+    const pad = n => String(n).padStart(2, '0');
+    document.getElementById('fPublishAt').value =
+      `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    document.getElementById('fPublishAt').value = '';
+  }
   tagList = [...(song.tags || [])];
   renderTagChips();
   document.getElementById('fYoutube').value = song.youtube_id || '';
@@ -429,6 +533,7 @@ document.getElementById('btnLoadExisting').addEventListener('click', async () =>
   document.getElementById('bulkTranslationBox').style.display = 'block';
   renderLines();
   renderConstructionsList();
+  scanForSuggestedConstructions();
 
   statusEl.textContent = `Loaded "${song.zh}" — editing in place. Publishing will overwrite it.`;
   statusEl.classList.add('ok');
@@ -1239,6 +1344,7 @@ document.getElementById('btnSegment').addEventListener('click', () => {
   document.getElementById('reviewPanel').style.display = 'block';
   document.getElementById('bulkTranslationBox').style.display = 'block';
   renderLines();
+  scanForSuggestedConstructions();
 });
 
 function buildSongObject(){
@@ -1250,6 +1356,9 @@ function buildSongObject(){
     artist: document.getElementById('fArtist').value.trim(),
     year: document.getElementById('fYear').value ? parseInt(document.getElementById('fYear').value, 10) : null,
     status: document.getElementById('fStatus').value,
+    publishAt: document.getElementById('fPublishAt').value
+      ? new Date(document.getElementById('fPublishAt').value).toISOString()
+      : null,
     tags: document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean),
     youtubeId: extractYoutubeId(document.getElementById('fYoutube').value),
     context: document.getElementById('fContext').value.trim(),
@@ -1285,7 +1394,7 @@ document.getElementById('btnPublish').addEventListener('click', async () => {
 
   const { error } = await sb.from('songs').upsert({
     id: song.id, zh: song.zh, en: song.en, artist: song.artist,
-    status: song.status, tags: song.tags, year: song.year, youtube_id: song.youtubeId,
+    status: song.status, tags: song.tags, year: song.year, publish_at: song.publishAt, youtube_id: song.youtubeId,
     context: song.context, lines: song.lines, constructions: song.constructions, cover_url: song.coverUrl
   }, { onConflict: 'id' });
 

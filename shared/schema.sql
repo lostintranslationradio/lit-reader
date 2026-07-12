@@ -81,14 +81,33 @@ create table songs (
   lines jsonb default '[]'::jsonb,
   constructions jsonb default '[]'::jsonb,
   cover_url text default '',
+  publish_at timestamptz,
   added timestamptz default now()
 );
 
 alter table songs enable row level security;
 
+-- A song is publicly visible if it's marked published outright, OR if it's a
+-- draft with a scheduled release time that has already passed. This means
+-- scheduled songs go live automatically the moment anyone's query runs after
+-- that time — no cron job or background process needed to "flip" anything.
 create policy "Anyone can read published songs"
   on songs for select
-  using (status = 'published');
+  using (status = 'published' or (status = 'draft' and publish_at is not null and publish_at <= now()));
+
+-- Deliberately minimal: exposes only that a scheduled release exists and when
+-- it's coming, so the library can show a "something's coming" teaser without
+-- leaking the title, lyrics, cover art, or anything else about a song before
+-- its scheduled time. This view has its own grants, independent of the songs
+-- table's RLS above, so it can be safely public even though the underlying
+-- draft rows themselves stay hidden.
+create view upcoming_releases as
+  select publish_at
+  from songs
+  where status = 'draft' and publish_at is not null and publish_at > now()
+  order by publish_at asc;
+
+grant select on upcoming_releases to anon, authenticated;
 
 create policy "Creator can read all songs"
   on songs for select
@@ -138,6 +157,26 @@ alter table word_notes enable row level security;
 
 create policy "Users manage their own notes"
   on word_notes for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- Words a user already knows, so their pinyin/gloss can be hidden by default
+-- regardless of HSK level. Deliberately separate from saved_words — saving a
+-- word means "help me learn this," known_words means the opposite. Global
+-- per-user, not per-song, since knowing a word isn't tied to which song you
+-- met it in.
+create table known_words (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users not null,
+  hanzi text not null,
+  created_at timestamptz default now(),
+  unique (user_id, hanzi)
+);
+
+alter table known_words enable row level security;
+
+create policy "Users manage their own known words"
+  on known_words for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 

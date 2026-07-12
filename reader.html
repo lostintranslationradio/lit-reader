@@ -435,6 +435,14 @@
     transition:color .15s, transform .1s;
   }
   .popup-star.starred{ color:var(--accent); }
+  .popup-known{
+    position:absolute; top:42px; right:12px;
+    font-family:'JetBrains Mono',monospace; font-size:9px;
+    padding:4px 8px; border-radius:10px;
+    border:1px solid var(--rule); background:transparent;
+    color:var(--text-dim); cursor:pointer; white-space:nowrap;
+  }
+  .popup-known.known{ border-color:var(--accent); color:var(--accent); background:rgba(184,134,58,.1); }
   .popup-star:active{ transform:scale(1.18); }
   .popup-nav{
     position:absolute; top:50%; transform:translateY(-50%);
@@ -617,6 +625,11 @@
     stroke-dashoffset:0;
   }
   .word.holding{ background:var(--surface-raised); }
+  .vocab-item.holding .ring{ opacity:1; }
+  .vocab-item.holding .ring circle{
+    transition:stroke-dashoffset .6s linear;
+    stroke-dashoffset:0;
+  }
   .settings-box{
     border:1px solid var(--rule);
     border-radius:4px;
@@ -752,7 +765,9 @@
     cursor:pointer;
     -webkit-user-select:none;
     user-select:none;
+    transition:background .15s;
   }
+  .vocab-item.holding{ background:var(--surface-raised); }
   .vocab-item:last-child{border-bottom:none;}
   .vocab-info .vh{ font-family:'Noto Serif SC',serif; font-size:17px; }
   .vocab-info .vp{ font-family:'Inter',sans-serif; font-size:10px; color:var(--text-dim); }
@@ -902,6 +917,24 @@
           </select>
         </div>
 
+        <div style="border-top:1px solid var(--rule); padding-top:12px; margin-top:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="color:var(--text-dim);">Words you already know</span>
+            <span id="knownWordsCount" style="color:var(--text-dim); font-size:11px;">0</span>
+          </div>
+          <p class="note" style="margin:0 0 8px; font-size:11px; line-height:1.5; color:var(--text-dim);">
+            These get hidden by default across every song, regardless of the Glosses slider above.
+          </p>
+          <textarea id="knownWordsInput" placeholder="Paste words, one per line or separated by commas..."
+            rows="3" style="width:100%; background:var(--surface-raised); border:1px solid var(--rule);
+            border-radius:4px; padding:7px 8px; color:var(--text); font-family:'Inter',sans-serif;
+            font-size:12px; resize:vertical; box-sizing:border-box;"></textarea>
+          <button type="button" id="knownWordsAdd" style="margin-top:6px; font-family:'JetBrains Mono',monospace; font-size:10px;
+            padding:5px 12px; border-radius:12px; border:1px solid var(--accent); background:rgba(184,134,58,.12);
+            color:var(--accent); cursor:pointer;">Add to known words</button>
+          <div id="knownWordsStatus" style="font-size:10px; color:var(--text-dim); margin-top:4px;"></div>
+        </div>
+
       </div>
     </div>
 
@@ -941,6 +974,7 @@
   <div class="popup-card">
     <button class="popup-close" id="popupClose">✕ CLOSE</button>
     <button class="popup-star" id="popupStar">★</button>
+    <button class="popup-known" id="popupKnown" title="Mark as already known">✓ I know this</button>
     <button class="popup-nav popup-nav-prev" id="popupPrev" title="Previous">‹</button>
     <button class="popup-nav popup-nav-next" id="popupNext" title="Next">›</button>
     <div class="popup-hanzi" id="popupHanzi"></div>
@@ -973,6 +1007,7 @@ const linesEl = document.getElementById('lines');
 let saved = JSON.parse(localStorage.getItem('lyricVocab') || '[]');
 saved = saved.map(s => ({...s, sources: s.sources || []}));
 let userNotes = JSON.parse(localStorage.getItem('notes_' + SONG_ID) || '{}');
+let knownWords = new Set(JSON.parse(localStorage.getItem('knownWords') || '[]'));
 let currentUser = null; // when signed in, `saved` is backed by Supabase instead of localStorage
 let currentProfile = null; // { username, email, is_creator }
 let currentLevel = 0;
@@ -981,6 +1016,7 @@ let overrides = {};
 function rank(tok){ return tok.hsk === 0 ? 10 : Math.min(tok.hsk, 7); }
 
 function defaultHidden(tok){
+  if(knownWords.has(tok.h)) return true;
   if(currentLevel === 0) return false;
   if(currentLevel === 8) return true;
   return rank(tok) < currentLevel;
@@ -1299,6 +1335,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
 
   const isSaved = saved.some(s=>s.h===tok.h);
   document.getElementById('popupStar').classList.toggle('starred', isSaved);
+  document.getElementById('popupKnown').classList.toggle('known', knownWords.has(tok.h));
   if(vocabIdx !== undefined && vocabIdx !== null){
     document.getElementById('popupPrev').disabled = vocabIdx <= 0;
     document.getElementById('popupNext').disabled = vocabIdx >= saved.length - 1;
@@ -1429,7 +1466,10 @@ function renderVocab(){
     return `
     <div class="vocab-item" data-vocab-idx="${si}">
       <div class="vocab-info">
-        <div class="vh" style="${isCons ? '' : `color:var(${HSK_VAR[s.hsk]})`}">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}</div>
+        <div class="vh-wrap" style="position:relative; display:inline-block;">
+          <div class="vh" style="${isCons ? '' : `color:var(${HSK_VAR[s.hsk]})`}">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}</div>
+          <svg class="ring" viewBox="0 0 34 34" style="left:50%; top:50%;"><circle cx="17" cy="17" r="14"></circle></svg>
+        </div>
         ${s.p ? `<div class="vp">${s.p}</div>` : ''}
         <div class="vg">${g0}</div>
         <div class="vsrc">${sourceNames}</div>
@@ -1445,12 +1485,14 @@ function renderVocab(){
     const start = (e) => {
       if(e.target.closest('.remove')) return;
       fired = false;
+      itemEl.classList.add('holding');
       timer = setTimeout(() => {
         fired = true;
+        itemEl.classList.remove('holding');
         openVocabPopup(s, itemEl, parseInt(itemEl.dataset.vocabIdx, 10));
       }, HOLD_MS);
     };
-    const cancel = () => clearTimeout(timer);
+    const cancel = () => { clearTimeout(timer); itemEl.classList.remove('holding'); };
     itemEl.addEventListener('mousedown', start);
     itemEl.addEventListener('mouseup', cancel);
     itemEl.addEventListener('mouseleave', cancel);
@@ -1513,6 +1555,19 @@ document.getElementById('popupUserNoteSave').addEventListener('click', async fun
   if(!currentPopup) return;
   await saveUserNote(currentPopup.tok.h, document.getElementById('popupUserNoteInput').value);
   this.style.display = 'none';
+});
+
+document.getElementById('popupKnown').addEventListener('click', async function(){
+  if(!currentPopup) return;
+  const { tok } = currentPopup;
+  if(knownWords.has(tok.h)){
+    await removeKnownWord(tok.h);
+    this.classList.remove('known');
+  } else {
+    await addKnownWords([tok.h]);
+    this.classList.add('known');
+  }
+  updateKnownWordsCount();
 });
 
 document.getElementById('popupStar').addEventListener('click', function(){
@@ -1630,6 +1685,22 @@ document.getElementById('wordGlossToggle').addEventListener('click', function(){
   localStorage.setItem('showWordGloss', nowHidden ? 'off' : 'on');
 });
 applyStoredVisibility();
+
+function updateKnownWordsCount(){
+  document.getElementById('knownWordsCount').textContent = knownWords.size;
+}
+updateKnownWordsCount();
+
+document.getElementById('knownWordsAdd').addEventListener('click', async () => {
+  const raw = document.getElementById('knownWordsInput').value;
+  const words = raw.split(/[\n,]/).map(w => w.trim()).filter(Boolean);
+  if(words.length === 0) return;
+  const count = await addKnownWords(words);
+  updateKnownWordsCount();
+  document.getElementById('knownWordsInput').value = '';
+  document.getElementById('knownWordsStatus').textContent =
+    count > 0 ? `Added ${count} word${count===1?'':'s'}.` : 'Nothing new to add — already known.';
+});
 
 let ytPlayer = null;
 let followVideo = false;
@@ -1857,6 +1928,53 @@ async function loadUserNotesFromSupabase(){
   userNotes = remote;
 }
 
+async function loadKnownWordsFromSupabase(){
+  const { data, error } = await sb.from('known_words').select('hanzi').eq('user_id', currentUser.id);
+  if(error){ console.error(error); return; }
+  const remote = new Set((data || []).map(r => r.hanzi));
+  // merge: anything marked known locally as a guest but not yet synced gets uploaded once
+  const localOnly = [...knownWords].filter(h => !remote.has(h));
+  for(const hanzi of localOnly){
+    await sb.from('known_words').upsert({ user_id: currentUser.id, hanzi }, { onConflict: 'user_id,hanzi' });
+    remote.add(hanzi);
+  }
+  knownWords = remote;
+  render();
+  updateKnownWordsCount();
+}
+
+async function addKnownWords(hanziList){
+  const added = [];
+  hanziList.forEach(h => {
+    const trimmed = h.trim();
+    if(trimmed && !knownWords.has(trimmed)){
+      knownWords.add(trimmed);
+      added.push(trimmed);
+    }
+  });
+  if(added.length === 0) return 0;
+  if(currentUser){
+    await sb.from('known_words').upsert(
+      added.map(hanzi => ({ user_id: currentUser.id, hanzi })),
+      { onConflict: 'user_id,hanzi' }
+    );
+  } else {
+    localStorage.setItem('knownWords', JSON.stringify([...knownWords]));
+  }
+  render();
+  return added.length;
+}
+
+async function removeKnownWord(hanzi){
+  knownWords.delete(hanzi);
+  if(currentUser){
+    await sb.from('known_words').delete().eq('user_id', currentUser.id).eq('hanzi', hanzi);
+  } else {
+    localStorage.setItem('knownWords', JSON.stringify([...knownWords]));
+  }
+  render();
+}
+
 async function saveUserNote(hanzi, text){
   if(text.trim()){
     userNotes[hanzi] = text.trim();
@@ -1882,6 +2000,7 @@ window.onAuthSuccess = async function(user){
   refreshVocabAuthUI();
   await loadVocabFromSupabase();
   await loadUserNotesFromSupabase();
+  await loadKnownWordsFromSupabase();
 };
 
 document.getElementById('vocabAuthLink').addEventListener('click', async (e) => {
@@ -1891,6 +2010,8 @@ document.getElementById('vocabAuthLink').addEventListener('click', async (e) => 
     currentUser = null;
     currentProfile = null;
     saved = JSON.parse(localStorage.getItem('lyricVocab') || '[]').map(s => ({...s, sources: s.sources || []}));
+    knownWords = new Set(JSON.parse(localStorage.getItem('knownWords') || '[]'));
+    updateKnownWordsCount();
     refreshVocabAuthUI();
     renderVocab();
     render();
@@ -1906,6 +2027,7 @@ authOnChange(async (user) => {
   if(user){
     await loadVocabFromSupabase();
     await loadUserNotesFromSupabase();
+    await loadKnownWordsFromSupabase();
   }
 });
 

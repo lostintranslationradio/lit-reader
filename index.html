@@ -235,6 +235,28 @@
     transform:translateY(-3px);
     border-color:var(--accent);
   }
+  .teaser-card{
+    cursor:default;
+    pointer-events:none;
+    opacity:.6;
+  }
+  .teaser-card:hover{ transform:none; border-color:var(--rule); }
+  .teaser-cover{
+    height:110px;
+    background:repeating-linear-gradient(45deg, var(--surface-raised), var(--surface-raised) 10px, var(--rule) 10px, var(--rule) 11px);
+    border-bottom:1px solid var(--rule);
+  }
+  .teaser-blur{
+    filter:blur(4px);
+    user-select:none;
+  }
+  .teaser-date{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    color:var(--accent);
+    letter-spacing:.04em;
+    margin-top:2px;
+  }
   .cover{
     height:100px;
     display:flex;
@@ -344,6 +366,11 @@
   }
   .row:last-child{ border-bottom:none; }
   .row:hover{ background:var(--surface-raised); }
+  .teaser-row{
+    display:flex; align-items:center; gap:14px; padding:11px 16px;
+    background:var(--surface); border-bottom:1px solid var(--rule);
+    cursor:default; opacity:.6;
+  }
   .row-index{
     font-family:'JetBrains Mono',monospace;
     font-size:11px;
@@ -589,11 +616,26 @@ function hskBarHTML(hsk){
   ).join('');
 }
 
+function teaserCardHTML(){
+  if(!nextRelease || creatorMode) return '';
+  const date = new Date(nextRelease).toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+  return `
+    <div class="card teaser-card" title="A new song is coming">
+      <div class="cover teaser-cover"></div>
+      <div class="card-body">
+        <div class="zh-title teaser-blur">下一首歌</div>
+        <div class="en-title teaser-blur">Coming soon</div>
+        <div class="teaser-date">New song — ${date}</div>
+      </div>
+    </div>
+  `;
+}
+
 function renderGrid(list){
   document.getElementById('grid').innerHTML = list.map(song => `
     <a class="card" href="reader.html?song=${song.id}">
       <div class="cover" style="background:${coverColor(song.id)}22; border-bottom:1px solid var(--rule); ${song.coverUrl ? `background-image:url('${song.coverUrl}'); background-size:cover; background-position:center;` : ''}">
-        ${creatorMode ? `<span class="status-pill">${song.status}</span>` : ''}
+        ${creatorMode ? `<span class="status-pill">${song.status === 'draft' && song.publishAt && new Date(song.publishAt) > new Date() ? 'scheduled' : song.status}</span>` : ''}
         ${song.coverUrl ? '' : `<div class="zh" style="color:${coverColor(song.id)}">${song.zh.slice(0,2)}</div>`}
       </div>
       <div class="card-body">
@@ -604,8 +646,26 @@ function renderGrid(list){
         <div class="hsk-bar">${hskBarHTML(song.hsk)}</div>
       </div>
     </a>
-  `).join('');
+  `).join('') + teaserCardHTML();
   wireFilterClicks();
+}
+
+function teaserRowHTML(){
+  if(!nextRelease || creatorMode) return '';
+  const date = new Date(nextRelease).toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
+  return `
+    <div class="row teaser-row" title="A new song is coming">
+      <span class="row-index">·</span>
+      <div class="row-swatch teaser-cover"></div>
+      <div class="row-main">
+        <div class="row-title-line">
+          <span class="row-zh teaser-blur">下一首歌</span>
+          <span class="row-en teaser-blur">Coming soon</span>
+        </div>
+        <div class="teaser-date">New song — ${date}</div>
+      </div>
+    </div>
+  `;
 }
 
 function renderList(list){
@@ -626,7 +686,7 @@ function renderList(list){
       <div class="row-hsk">${hskBarHTML(song.hsk)}</div>
       ${creatorMode ? `<span class="row-status">${song.status}</span>` : ''}
     </a>
-  `).join('');
+  `).join('') + teaserRowHTML();
   wireFilterClicks();
 }
 
@@ -722,6 +782,8 @@ authOnChange(async (user) => {
   render();
 });
 
+let nextRelease = null;
+
 sb.from('songs').select('*').then(({ data, error }) => {
   if(error){
     document.getElementById('grid').innerHTML =
@@ -733,10 +795,16 @@ sb.from('songs').select('*').then(({ data, error }) => {
     const stats = computeStats(s.lines);
     return {
       id: s.id, zh: s.zh, en: s.en, artist: s.artist, status: s.status,
-      tags: s.tags || [], year: s.year || null, hsk: stats.hsk, avgDifficulty: stats.avgDifficulty,
+      tags: s.tags || [], year: s.year || null, publishAt: s.publish_at || null, hsk: stats.hsk, avgDifficulty: stats.avgDifficulty,
       added: new Date(s.added).getTime(), coverUrl: s.cover_url || ''
     };
   });
+  render();
+});
+
+sb.from('upcoming_releases').select('publish_at').limit(1).then(({ data, error }) => {
+  if(error || !data || data.length === 0) return;
+  nextRelease = data[0].publish_at;
   render();
 });
 </script>
