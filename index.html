@@ -11,7 +11,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{
+@font-face{
+  font-family:'KN Bobohei';
+  src:url('assets/fonts/KNBobohei-Bold.ttf') format('truetype');
+  font-weight:700;
+  font-display:swap;
+}
+:root{
     --bg:#faf8f3;
     --surface:#ffffff;
     --surface-raised:#f1efe6;
@@ -224,7 +230,7 @@
     overflow:hidden;
   }
   .cover .zh{
-    font-family:'Noto Serif SC',serif;
+    font-family:'KN Bobohei', 'Noto Serif SC', serif;
     font-size:32px;
     font-weight:700;
     color:rgba(0,0,0,.55);
@@ -251,7 +257,7 @@
     flex:1;
   }
   .zh-title{
-    font-family:'Noto Serif SC',serif;
+    font-family:'KN Bobohei', 'Noto Serif SC', serif;
     font-size:16px;
     font-weight:600;
   }
@@ -347,7 +353,7 @@
     text-overflow:ellipsis;
   }
   .row-zh{
-    font-family:'Noto Serif SC',serif;
+    font-family:'KN Bobohei', 'Noto Serif SC', serif;
     font-size:15px;
     font-weight:600;
   }

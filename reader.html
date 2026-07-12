@@ -9,9 +9,18 @@
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{
+  @font-face{
+  font-family:'KN Bobohei';
+  src:url('assets/fonts/KNBobohei-Bold.ttf') format('truetype');
+  font-weight:700;
+  font-display:swap;
+}
+:root{
+  --font-title:'KN Bobohei', var(--font-han, 'Noto Serif SC', serif);
+    --font-han:'Noto Serif SC', serif;
+    --font-en:'Inter', sans-serif;
     --font-scale:1;
     --bg:#faf8f3;
     --surface:#ffffff;
@@ -40,13 +49,14 @@
   header{
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:center;
     padding:22px 28px;
     border-bottom:1px solid var(--rule);
     flex-wrap:wrap;
     gap:14px;
+    text-align:center;
   }
-  .brand{display:flex;flex-direction:column;gap:2px;}
+  .brand{display:flex;flex-direction:column;gap:2px;align-items:center;}
   .eyebrow{
     font-family:'JetBrains Mono',monospace;
     font-size:11px;
@@ -203,7 +213,7 @@
     opacity:.9;
   }
   .reader-heading{
-    font-family:'Noto Serif SC',serif;
+    font-family:var(--font-title);
     font-size:26px;
     font-weight:600;
     margin:0 0 6px;
@@ -213,9 +223,7 @@
     font-size:11px;
     color:var(--text-dim);
     letter-spacing:.08em;
-    margin-bottom:28px;
-    padding-bottom:24px;
-    border-bottom:1px solid var(--rule);
+    margin-bottom:16px;
   }
   .line-block{ margin-bottom:26px; scroll-margin:100px; transition:background .3s; }
   .line-block.active-line{
@@ -232,16 +240,16 @@
     line-height:1.2;
   }
   .original-english-line{
-    font-family:'Inter',sans-serif;
-    font-size:calc(20px * var(--font-scale));
-    font-weight:600;
+    font-family:var(--font-en);
+    font-size:calc(19px * var(--font-scale));
+    font-weight:500;
     text-align:left;
     color:var(--text);
     padding:4px 0;
   }
   .translation{
     margin-top:8px;
-    font-family:'Inter',sans-serif;
+    font-family:var(--font-en);
     font-style:italic;
     font-size:calc(14px * var(--font-scale));
     color:var(--text);
@@ -275,7 +283,7 @@
     white-space:nowrap;
   }
   .hanzi{
-    font-family:'Noto Serif SC',serif;
+    font-family:var(--font-han);
     font-size:calc(26px * var(--font-scale));
     font-weight:500;
     white-space:nowrap;
@@ -402,16 +410,20 @@
     background:rgba(184,134,58,.1);
   }
   .popup-construction{
-    margin-top:12px;
-    border-top:1px solid var(--rule);
-    padding-top:12px;
+    margin:10px 0 14px;
+    padding:12px 14px;
+    background:rgba(184,134,58,.1);
+    border:1px solid var(--accent);
+    border-radius:8px;
     font-family:'Inter',sans-serif;
     font-size:12px;
     line-height:1.5;
+    text-align:center;
   }
   .popup-construction .cons-pattern{
-    font-family:'Noto Serif SC',serif;
-    font-size:16px;
+    font-family:var(--font-han, 'Noto Serif SC', serif);
+    font-size:19px;
+    font-weight:600;
     color:var(--accent);
     margin-bottom:4px;
   }
@@ -544,12 +556,25 @@
 </header>
 
 <button id="settingsToggle" title="Settings" style="position:fixed; top:18px; right:18px; z-index:60;
-  width:38px; height:38px; border-radius:50%; border:1px solid var(--rule); background:var(--surface);
-  color:var(--text-dim); font-size:16px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08);">⚙</button>
+  display:flex; align-items:center; gap:7px;
+  height:40px; padding:0 14px 0 12px; border-radius:20px;
+  border:1px solid var(--accent); background:rgba(184,134,58,.12);
+  color:var(--accent); font-size:16px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08);">
+  <span>⚙</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.04em;">Settings</span>
+</button>
 
-<div id="settingsPanel" style="display:none; position:fixed; top:62px; right:18px; z-index:60;
-  width:220px; background:var(--surface); border:1px solid var(--rule); border-radius:8px;
-  padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.15); font-family:'JetBrains Mono',monospace; font-size:12px;">
+<div id="settingsPanel" style="display:block; position:fixed; top:66px; right:18px; z-index:60;
+  width:250px; background:var(--surface); border:1px solid var(--rule); border-radius:8px;
+  padding:0; box-shadow:0 10px 30px rgba(0,0,0,.15); font-family:'JetBrains Mono',monospace; font-size:12px;
+  max-height:calc(100vh - 90px); overflow-y:auto;">
+
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 16px;
+    border-bottom:1px solid var(--rule); position:sticky; top:0; background:var(--surface);">
+    <span style="letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-size:11px;">Reading Settings</span>
+    <button id="settingsClose" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:14px;">✕</button>
+  </div>
+
+  <div style="padding:16px;">
 
   <div style="margin-bottom:14px;">
     <div style="display:flex; justify-content:space-between; margin-bottom:6px; color:var(--text-dim);">
@@ -584,24 +609,36 @@
       </div>
     </div>
   </div>
+
+  <div style="border-top:1px solid var(--rule); padding-top:12px; margin-top:12px;">
+    <div style="color:var(--text-dim); margin-bottom:6px;">Font style</div>
+    <select id="fontPicker" style="width:100%; background:var(--surface-raised); border:1px solid var(--rule);
+      border-radius:4px; padding:7px 8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:11px;">
+      <option value="serif-inter">Serif hanzi + Inter</option>
+      <option value="sans-inter">Sans hanzi + Inter</option>
+      <option value="serif-lora">Serif hanzi + Lora</option>
+    </select>
+  </div>
+
+  </div>
 </div>
 
 <div class="load-state" id="loadState">Loading song…</div>
 
 <main id="mainArea" style="display:none;">
   <div class="reader">
+    <div class="reader-heading" id="readerHeading"></div>
+    <div class="reader-sub" id="readerSub"></div>
     <div id="videoSentinel" style="height:1px;"></div>
     <div class="video-wrap" id="videoOuter">
       <div id="videoWrap" style="position:absolute; inset:0;"></div>
       <button class="video-mini-close" id="videoMiniClose" title="Close mini player">✕</button>
     </div>
     <div class="video-mini-spacer" id="videoMiniSpacer"></div>
-    <div class="reader-heading" id="readerHeading"></div>
     <details class="context-block" id="contextBlock">
       <summary>About this song</summary>
       <div class="context-body" id="contextBody"></div>
     </details>
-    <div class="reader-sub" id="readerSub"></div>
     <div id="lines"></div>
   </div>
 
@@ -637,10 +674,10 @@
     <button class="popup-star" id="popupStar">★</button>
     <div class="popup-hanzi" id="popupHanzi"></div>
     <div class="popup-pinyin" id="popupPinyin"></div>
+    <div id="popupConstruction" style="display:none;"></div>
     <div class="popup-hsk-badge" id="popupHsk"></div>
     <div class="popup-defs" id="popupDefs"></div>
     <div id="popupReadings" style="display:none;"></div>
-    <div id="popupConstruction" style="display:none;"></div>
     <div class="popup-hint">tap the star to save · tap outside to close</div>
   </div>
 </div>
@@ -974,11 +1011,33 @@ document.getElementById('settingsToggle').addEventListener('click', (e) => {
   const panel = document.getElementById('settingsPanel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 });
+document.getElementById('settingsClose').addEventListener('click', () => {
+  document.getElementById('settingsPanel').style.display = 'none';
+});
+document.getElementById('settingsPanel').addEventListener('click', (e) => e.stopPropagation());
 document.addEventListener('click', (e) => {
   const panel = document.getElementById('settingsPanel');
   if(panel.style.display === 'block' && !panel.contains(e.target) && e.target.id !== 'settingsToggle'){
     panel.style.display = 'none';
   }
+});
+
+const FONT_PAIRS = {
+  'serif-inter': { han: "'Noto Serif SC', serif", en: "'Inter', sans-serif" },
+  'sans-inter': { han: "'Noto Sans SC', sans-serif", en: "'Inter', sans-serif" },
+  'serif-lora': { han: "'Noto Serif SC', serif", en: "'Lora', serif" }
+};
+function applyFontChoice(choice){
+  const pair = FONT_PAIRS[choice] || FONT_PAIRS['serif-inter'];
+  document.documentElement.style.setProperty('--font-han', pair.han);
+  document.documentElement.style.setProperty('--font-en', pair.en);
+  localStorage.setItem('fontChoice', choice);
+}
+const savedFontChoice = localStorage.getItem('fontChoice') || 'serif-inter';
+document.getElementById('fontPicker').value = savedFontChoice;
+applyFontChoice(savedFontChoice);
+document.getElementById('fontPicker').addEventListener('change', function(){
+  applyFontChoice(this.value);
 });
 
 document.getElementById('levelSlider').addEventListener('input', function(){
@@ -1242,7 +1301,6 @@ async function init(){
     (titlesRes.data || []).forEach(s => { SONG_TITLES[s.id] = s.zh; });
 
     document.title = SONG.zh + ' — Lyric Reader';
-    document.getElementById('pageTitle').textContent = SONG.zh + ' · Lyric Reader';
     document.getElementById('readerHeading').textContent = SONG.zh;
     document.getElementById('readerSub').textContent =
       (SONG.artist || '') + (SONG.tags && SONG.tags.length ? ' · ' + SONG.tags.join(', ') : '');
