@@ -554,6 +554,7 @@ function wireFilterClicks(){
       const val = el.dataset.filter;
       state.q = val;
       document.getElementById('searchInput').value = val;
+      syncUrl();
       render();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -647,8 +648,17 @@ function render(){
   document.getElementById('addSongLink').style.display = creatorMode ? 'inline-block' : 'none';
 }
 
+function syncUrl(){
+  const params = new URLSearchParams();
+  if(state.q.trim()) params.set('q', state.q.trim());
+  const qs = params.toString();
+  const newUrl = location.pathname + (qs ? '?' + qs : '');
+  history.replaceState(null, '', newUrl);
+}
+
 document.getElementById('searchInput').addEventListener('input', e=>{
   state.q = e.target.value;
+  syncUrl();
   render();
 });
 document.getElementById('sortSelect').addEventListener('change', e=>{
@@ -756,19 +766,31 @@ sb.from('songs').select('*').then(({ data, error }) => {
 const aboutLink = document.getElementById('aboutLink');
 const aboutOverlay = document.getElementById('aboutModalOverlay');
 const aboutFrame = document.getElementById('aboutModalFrame');
-aboutLink.addEventListener('click', (e) => {
-  e.preventDefault();
+
+function openAboutModal(pushHistory){
   aboutFrame.src = 'about.html?embed=1';
   aboutOverlay.style.display = 'flex';
-});
-document.getElementById('aboutModalClose').addEventListener('click', () => {
+  if(pushHistory) history.pushState({ about: true }, '', '/about');
+}
+function closeAboutModal(fromPopstate){
   aboutOverlay.style.display = 'none';
   aboutFrame.src = '';
+  if(!fromPopstate) history.back();
+}
+
+aboutLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  openAboutModal(true);
 });
+document.getElementById('aboutModalClose').addEventListener('click', () => closeAboutModal(false));
 aboutOverlay.addEventListener('click', (e) => {
-  if(e.target === aboutOverlay){
-    aboutOverlay.style.display = 'none';
-    aboutFrame.src = '';
+  if(e.target === aboutOverlay) closeAboutModal(false);
+});
+window.addEventListener('popstate', () => {
+  if(location.pathname === '/about'){
+    openAboutModal(false);
+  } else if(aboutOverlay.style.display === 'flex'){
+    closeAboutModal(true);
   }
 });
 </script>

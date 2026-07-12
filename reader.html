@@ -1994,19 +1994,31 @@ init();
 const aboutLink2 = document.getElementById('aboutLink');
 const aboutOverlay2 = document.getElementById('aboutModalOverlay');
 const aboutFrame2 = document.getElementById('aboutModalFrame');
-aboutLink2.addEventListener('click', (e) => {
-  e.preventDefault();
+
+function openAboutModal2(pushHistory){
   aboutFrame2.src = 'about.html?embed=1';
   aboutOverlay2.style.display = 'flex';
-});
-document.getElementById('aboutModalClose').addEventListener('click', () => {
+  if(pushHistory) history.pushState({ about: true }, '', '/about');
+}
+function closeAboutModal2(fromPopstate){
   aboutOverlay2.style.display = 'none';
   aboutFrame2.src = '';
+  if(!fromPopstate) history.back();
+}
+
+aboutLink2.addEventListener('click', (e) => {
+  e.preventDefault();
+  openAboutModal2(true);
 });
+document.getElementById('aboutModalClose').addEventListener('click', () => closeAboutModal2(false));
 aboutOverlay2.addEventListener('click', (e) => {
-  if(e.target === aboutOverlay2){
-    aboutOverlay2.style.display = 'none';
-    aboutFrame2.src = '';
+  if(e.target === aboutOverlay2) closeAboutModal2(false);
+});
+window.addEventListener('popstate', () => {
+  if(location.pathname === '/about'){
+    openAboutModal2(false);
+  } else if(aboutOverlay2.style.display === 'flex'){
+    closeAboutModal2(true);
   }
 });
 </script>

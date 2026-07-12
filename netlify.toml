@@ -2,3 +2,8 @@
   from = "/sitemap.xml"
   to = "/.netlify/functions/sitemap"
   status = 200
+
+[[redirects]]
+  from = "/about"
+  to = "/about.html"
+  status = 200
