@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>About — Lost In Translation Radio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Changa+One:ital@0;1&family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@font-face{
+  font-family:'KN Bobohei';
+  src:url('assets/fonts/KNBobohei-Bold.ttf') format('truetype');
+  font-weight:700;
+  font-display:swap;
+}
+:root{
+  --font-title:'KN Bobohei', 'Noto Serif SC', serif;
+  --font-brand:'Changa One', var(--font-title);
+  --bg:#faf8f3; --surface:#ffffff; --surface-raised:#f1efe6; --rule:#ddd7c8;
+  --text:#262420; --text-dim:#79766c; --accent:#b8863a;
+}
+*{box-sizing:border-box;}
+body{ margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
+header{ padding:22px 28px; border-bottom:1px solid var(--rule); }
+.header-inner{ max-width:700px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.library-btn{
+  display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:20px;
+  border:1px solid var(--rule); background:var(--surface); color:var(--text-dim); text-decoration:none;
+  font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.04em;
+}
+.library-btn:hover{ border-color:var(--accent); color:var(--accent); }
+.eyebrow{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); text-align:center; }
+.title{ font-family:var(--font-brand); font-size:22px; font-weight:400; text-align:center; }
+
+main{ max-width:700px; margin:0 auto; padding:40px 24px 90px; }
+
+.mission{
+  font-family:var(--font-title); font-size:22px; line-height:1.6; font-weight:600;
+  text-align:center; margin-bottom:8px;
+}
+.mission-flag{
+  text-align:center; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);
+  letter-spacing:.05em; margin-bottom:44px;
+}
+
+.section{ margin-bottom:40px; }
+.section h2{
+  font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:12px;
+}
+.section p{ font-size:15px; line-height:1.75; margin:0 0 14px; }
+.section p:last-child{ margin-bottom:0; }
+.section a{ color:var(--accent); }
+
+.link-row{ display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; }
+.link-btn{
+  display:inline-flex; align-items:center; gap:8px; padding:12px 20px; border-radius:24px;
+  text-decoration:none; font-family:'JetBrains Mono',monospace; font-size:13px;
+  border:1px solid var(--rule); color:var(--text);
+}
+.link-btn.youtube{ border-color:#ff0000; color:#c53030; }
+.link-btn.youtube:hover{ background:rgba(197,48,48,.08); }
+.link-btn.kofi{ border-color:var(--accent); color:var(--accent); }
+.link-btn.kofi:hover{ background:rgba(184,134,58,.08); }
+
+.credits{
+  border-top:1px solid var(--rule); padding-top:24px; margin-top:44px;
+  font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); line-height:1.9;
+}
+.credits a{ color:var(--text-dim); }
+</style>
+</head>
+<body>
+
+<header id="aboutHeader">
+  <div class="header-inner">
+    <a href="index.html" class="library-btn">← <span>Library</span></a>
+    <div>
+      <div class="eyebrow">About</div>
+      <div class="title">Lost In Translation Radio</div>
+    </div>
+    <div style="width:90px;"></div>
+  </div>
+</header>
+
+<main>
+  <div class="mission">
+    Music knows no border, but the words still need someone to carry them across.
+  </div>
+
+  <div class="section">
+    <h2>What this is</h2>
+    <p>
+      Lost In Translation Radio is two things built together: a YouTube channel making annotated,
+      line-by-line translations of Mandopop songs, and this reader — a place to actually
+      read those translations word by word, with pinyin, HSK-leveled vocabulary, grammar patterns,
+      and your own saved words and notes along the way.
+    </p>
+    <p>
+      Every translation on this site is done by hand, by me — no machine translation, no shortcuts.
+    </p>
+    <p>
+      Translations here aim for semantic precision over easy fluency — preserving what a line
+      actually says, even when that means the English reads a little less smooth than a
+      polished, singable version would.
+    </p>
+  </div>
+
+  <div class="section">
+    <h2>Watch &amp; support</h2>
+    <p>New translations and annotated lyric videos post on YouTube first.</p>
+    <p>If this project's been useful to you, consider supporting it on Ko-fi — it goes straight back into making more of these.</p>
+    <div class="link-row">
+      <a class="link-btn youtube" href="https://www.youtube.com/@LostInTranslationRadio" target="_blank" rel="noopener">▶ YouTube</a>
+      <a class="link-btn kofi" href="https://ko-fi.com/lostintranslationradio" target="_blank" rel="noopener">☕ Ko-fi</a>
+    </div>
+  </div>
+
+  <div class="credits">
+    Reading layout and HSK-leveled annotation approach inspired by
+    <a href="https://wubli.app" target="_blank" rel="noopener">Wubli</a>.<br>
+    Definitions from <a href="https://cc-cedict.org/" target="_blank" rel="noopener">CC-CEDICT</a>.
+  </div>
+</main>
+
+<script>
+if(new URLSearchParams(location.search).get('embed') === '1'){
+  document.getElementById('aboutHeader').style.display = 'none';
+  document.querySelector('main').style.padding = '24px 24px 40px';
+}
+</script>
+</body>
+</html>

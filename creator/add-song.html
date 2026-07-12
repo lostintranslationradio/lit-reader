@@ -312,7 +312,7 @@
         </div>
         <div class="field">
           <label>Note (optional)</label>
-          <input type="text" id="consNote" placeholder="Discontinuous — other words may sit between them.">
+          <textarea id="consNote" placeholder="Discontinuous — other words may sit between them." rows="2" style="resize:vertical;"></textarea>
         </div>
       </div>
       <button class="btn" id="btnSaveConstruction">Save construction</button>
@@ -573,7 +573,7 @@ function segmentLine(text){
   const seg = new Intl.Segmenter('zh', { granularity: 'word' });
   const tokens = [];
   for(const { segment } of seg.segment(text)){
-    if(!segment) continue;
+    if(!segment || !segment.trim()) continue;
     if(PUNCT_RE.test(segment)){
       tokens.push({ h: segment, p: '', g: [], hsk: 0, isPunct: true });
       continue;
@@ -645,7 +645,7 @@ function renderConstructionsList(){
         <div data-edit-form="${ci}" style="display:none; margin-top:8px; padding:10px; background:var(--surface-raised); border-radius:4px;">
           <input type="text" data-edit-field="pattern" value="${(c.pattern||'').replace(/"/g,'&quot;')}" placeholder="Pattern" style="margin-bottom:6px;">
           <input type="text" data-edit-field="gloss" value="${(c.gloss||'').replace(/"/g,'&quot;')}" placeholder="Short gloss" style="margin-bottom:6px;">
-          <input type="text" data-edit-field="note" value="${(c.note||'').replace(/"/g,'&quot;')}" placeholder="Note (optional)" style="margin-bottom:8px;">
+          <textarea data-edit-field="note" placeholder="Note (optional)" rows="3" style="margin-bottom:8px; resize:vertical;">${(c.note||'').replace(/</g,'&lt;')}</textarea>
           <div style="display:flex; gap:6px;">
             <button class="btn secondary small" data-save-cons="${ci}">save</button>
             <button class="btn secondary small" data-cancel-cons="${ci}">cancel</button>

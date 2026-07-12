@@ -456,6 +456,7 @@
       <div class="eyebrow">song library</div>
       <div class="title">Lost in Translation Radio</div>
     </div>
+    <a class="creator-link" id="aboutLink" href="about.html" style="text-decoration:none;">About</a>
     <button class="creator-link" id="creatorLink">Sign In</button>
   </div>
 </header>
@@ -721,6 +722,35 @@ sb.from('songs').select('*').then(({ data, error }) => {
 </script>
 <footer style="text-align:center; padding:20px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
   Definitions powered by <a href="https://cc-cedict.org/" target="_blank" rel="noopener" style="color:var(--text-dim);">CC-CEDICT</a>
+  · Reading layout inspired by <a href="https://wubli.app" target="_blank" rel="noopener" style="color:var(--text-dim);">Wubli</a>
 </footer>
+
+<div id="aboutModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:var(--surface); border-radius:10px; width:100%; max-width:720px; max-height:88vh; position:relative; overflow:hidden; display:flex; flex-direction:column;">
+    <button id="aboutModalClose" style="position:absolute; top:12px; right:14px; z-index:1; background:var(--surface); border:1px solid var(--rule); border-radius:50%; width:30px; height:30px; cursor:pointer; color:var(--text-dim); font-size:14px;">✕</button>
+    <iframe id="aboutModalFrame" style="border:none; width:100%; height:80vh;" title="About"></iframe>
+  </div>
+</div>
+
+<script>
+const aboutLink = document.getElementById('aboutLink');
+const aboutOverlay = document.getElementById('aboutModalOverlay');
+const aboutFrame = document.getElementById('aboutModalFrame');
+aboutLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  aboutFrame.src = 'about.html?embed=1';
+  aboutOverlay.style.display = 'flex';
+});
+document.getElementById('aboutModalClose').addEventListener('click', () => {
+  aboutOverlay.style.display = 'none';
+  aboutFrame.src = '';
+});
+aboutOverlay.addEventListener('click', (e) => {
+  if(e.target === aboutOverlay){
+    aboutOverlay.style.display = 'none';
+    aboutFrame.src = '';
+  }
+});
+</script>
 </body>
 </html>

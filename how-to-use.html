@@ -76,6 +76,21 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
 .word.holding .ring circle{ transition:stroke-dashoffset .6s linear; stroke-dashoffset:0; }
 .word.holding{ background:var(--surface-raised); }
 
+.vocab-demo-list{ display:flex; flex-direction:column; gap:2px; }
+.vocab-demo-item{
+  position:relative; display:flex; align-items:center; gap:12px;
+  padding:10px 14px; border-radius:6px; cursor:pointer;
+  -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
+  transition:background .15s;
+}
+.vocab-demo-item:hover, .vocab-demo-item.holding{ background:var(--surface-raised); }
+.vocab-demo-item .vdi-hanzi-wrap{ position:relative; width:38px; height:38px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.vocab-demo-item .vdi-hanzi{ font-family:var(--font-han); font-size:20px; position:relative; z-index:1; }
+.vocab-demo-item .ring{ top:50%; left:50%; width:36px; height:36px; }
+.vocab-demo-item .vdi-info{ display:flex; flex-direction:column; }
+.vocab-demo-item .vdi-pinyin{ font-size:11px; color:var(--text-dim); }
+.vocab-demo-item .vdi-gloss{ font-size:13px; }
+
 .translation{ margin-top:10px; font-family:var(--font-en); font-style:italic; font-size:14px; color:var(--text); opacity:.75; border-left:2px solid var(--rule); padding-left:12px; text-align:left; }
 
 .level-control{ display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-dim); }
@@ -161,6 +176,14 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
 
   <div class="lesson">
     <div class="lesson-num">04</div>
+    <h2>Your saved list opens the same popup</h2>
+    <p>This part's easy to miss: your saved words aren't just a flat list to glance at — press and hold any entry in it, same as you would a word in the lyrics, and the exact same popup opens back up. Full definition, pronunciation, your personal note, all of it, right from your saved list. Try holding down either entry below.</p>
+    <div class="demo-box"><div class="vocab-demo-list" id="demoVocabList"></div></div>
+    <div class="demo-caption">Works the same way in your real saved-words sidebar.</div>
+  </div>
+
+  <div class="lesson">
+    <div class="lesson-num">05</div>
     <h2>Control how much shows automatically</h2>
     <p>The Glosses slider in Settings sets a threshold — words at or below that HSK level stay hidden by default, since you're assumed to already know them; anything above it shows automatically. Drag it and watch the line below react. There are also two separate switches in Settings — <b>pinyin</b> and <b>word translation</b> — if you'd rather turn one of them off entirely regardless of level, for example hiding pinyin once you don't need it anymore while keeping the word-by-word glosses on.</p>
     <div class="demo-box">
@@ -175,7 +198,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   </div>
 
   <div class="lesson">
-    <div class="lesson-num">05</div>
+    <div class="lesson-num">06</div>
     <h2>Colors show difficulty</h2>
     <p>Every word is colored by its HSK level — the further right on this key, the more advanced. "Beyond" means it's outside the official 9-level system entirely (slang, proper nouns, very literary vocabulary).</p>
     <div class="demo-box">
@@ -193,7 +216,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   </div>
 
   <div class="lesson">
-    <div class="lesson-num">06</div>
+    <div class="lesson-num">07</div>
     <h2>The translation is always underneath</h2>
     <p>Below every line sits the actual line-by-line translation — the real, singable rendering, distinct from the word-by-word glosses above it. You can turn it off with the "lyrics translation" switch in Settings if you'd rather work it out yourself first. On a real song page, if that song has timestamps, clicking the translation jumps the video straight to that moment — a quick way to hear exactly how a line sounds.</p>
     <div class="demo-box">
@@ -203,14 +226,14 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   </div>
 
   <div class="lesson">
-    <div class="lesson-num">07</div>
+    <div class="lesson-num">08</div>
     <h2>Connected words get underlined</h2>
     <p>Some grammar patterns split across words that aren't next to each other — like <b>在……之前</b> ("before"), where other words sit in between. Those get a matching colored underline. Press and hold either one to see how they connect.</p>
     <div class="demo-box"><div class="line" id="demo7"></div></div>
   </div>
 
   <div class="lesson">
-    <div class="lesson-num">08</div>
+    <div class="lesson-num">09</div>
     <h2>Finding songs</h2>
     <p>Back in the <a href="index.html">library</a>, every artist, year, and tag is clickable — tap one and the library filters to everything matching it. Sort by newest, alphabetical, year, or difficulty using the dropdown up top.</p>
   </div>
@@ -401,10 +424,57 @@ document.getElementById('popupSpeakSlow').addEventListener('click', () => {
 });
 
 let demoLevel = 3;
+const demoVocabItems = [
+  { h: '长按', p: 'cháng àn', g: ['long-press'], hsk: 0 },
+  { h: '生词', p: 'shēngcí', g: ['new word'], hsk: 4 }
+];
+
+function renderDemoVocabList(){
+  const container = document.getElementById('demoVocabList');
+  container.innerHTML = '';
+  demoVocabItems.forEach(tok => {
+    const el = document.createElement('div');
+    el.className = 'vocab-demo-item';
+    el.innerHTML = `
+      <div class="vdi-hanzi-wrap">
+        <div class="vdi-hanzi" style="color:var(${HSK_VAR[tok.hsk]})">${tok.h}</div>
+        <svg class="ring" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14"></circle></svg>
+      </div>
+      <div class="vdi-info">
+        <div class="vdi-pinyin">${tok.p}</div>
+        <div class="vdi-gloss">${tok.g[0]}</div>
+      </div>
+    `;
+    attachVocabDemoPress(el, tok);
+    container.appendChild(el);
+  });
+}
+
+function attachVocabDemoPress(el, tok){
+  let timer = null;
+  const HOLD_MS = 550;
+  const start = (e) => {
+    e.preventDefault();
+    el.classList.add('holding');
+    timer = setTimeout(() => {
+      el.classList.remove('holding');
+      openDemoPopup(tok, null, null, null);
+    }, HOLD_MS);
+  };
+  const cancel = () => { clearTimeout(timer); el.classList.remove('holding'); };
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', cancel);
+  el.addEventListener('mouseleave', cancel);
+  el.addEventListener('touchstart', start, { passive:false });
+  el.addEventListener('touchend', cancel);
+  el.addEventListener('touchcancel', cancel);
+}
+
 function renderAll(){
   renderDemoLine('demo1', demo1Words, {});
   renderDemoLine('demo2', demo2Words, {});
   renderDemoLine('demo3', demo3Words, {});
+  renderDemoVocabList();
   renderDemoLine('demo4', demo4Words, { level: demoLevel });
   renderDemoLine('demo6', demo6Words, {});
   renderDemoLine('demo7', demo7Words, {});

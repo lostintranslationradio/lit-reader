@@ -351,6 +351,10 @@
     -webkit-tap-highlight-color:transparent;
     transition:background .15s, padding .15s;
   }
+  .word-space{
+    width:14px;
+    flex-shrink:0;
+  }
   body.glosses-full .word{ padding:3px 4px 2px; }
   body.glosses-hidden-all .word{ padding:3px 4px 2px; }
   .word:hover{background:var(--surface-raised);}
@@ -809,7 +813,10 @@
       <div class="eyebrow">Annotated Reader</div>
       <div class="title" id="pageTitle">Lost In Translation Radio</div>
     </div>
-    <a href="how-to-use.html" id="howToUseLink" class="library-btn" style="justify-self:end;">How to Use</a>
+    <div style="justify-self:end; display:flex; gap:8px;">
+      <a href="about.html" id="aboutLink" class="library-btn">About</a>
+      <a href="how-to-use.html" id="howToUseLink" class="library-btn">How to Use</a>
+    </div>
   </div>
 </header>
 
@@ -1132,6 +1139,14 @@ function render(){
 
     lineEl.className = 'line';
     entry.words.forEach((tok, wordIdx)=>{
+      if(!tok.h || !tok.h.trim()){
+        // A space in the original lyrics often marks an informal pause — keep it
+        // visually present as a gap, just not clickable like a real word.
+        const spacer = document.createElement('div');
+        spacer.className = 'word-space';
+        lineEl.appendChild(spacer);
+        return;
+      }
       const w = document.createElement('div');
       w.className = 'word';
       const isPunct = tok.h.length===1 && /[。，！？]/.test(tok.h);
@@ -1955,6 +1970,35 @@ init();
 </script>
 <footer style="text-align:center; padding:20px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
   Definitions powered by <a href="https://cc-cedict.org/" target="_blank" rel="noopener" style="color:var(--text-dim);">CC-CEDICT</a>
+  · Reading layout inspired by <a href="https://wubli.app" target="_blank" rel="noopener" style="color:var(--text-dim);">Wubli</a>
 </footer>
+
+<div id="aboutModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:var(--surface); border-radius:10px; width:100%; max-width:720px; max-height:88vh; position:relative; overflow:hidden; display:flex; flex-direction:column;">
+    <button id="aboutModalClose" style="position:absolute; top:12px; right:14px; z-index:1; background:var(--surface); border:1px solid var(--rule); border-radius:50%; width:30px; height:30px; cursor:pointer; color:var(--text-dim); font-size:14px;">✕</button>
+    <iframe id="aboutModalFrame" style="border:none; width:100%; height:80vh;" title="About"></iframe>
+  </div>
+</div>
+
+<script>
+const aboutLink2 = document.getElementById('aboutLink');
+const aboutOverlay2 = document.getElementById('aboutModalOverlay');
+const aboutFrame2 = document.getElementById('aboutModalFrame');
+aboutLink2.addEventListener('click', (e) => {
+  e.preventDefault();
+  aboutFrame2.src = 'about.html?embed=1';
+  aboutOverlay2.style.display = 'flex';
+});
+document.getElementById('aboutModalClose').addEventListener('click', () => {
+  aboutOverlay2.style.display = 'none';
+  aboutFrame2.src = '';
+});
+aboutOverlay2.addEventListener('click', (e) => {
+  if(e.target === aboutOverlay2){
+    aboutOverlay2.style.display = 'none';
+    aboutFrame2.src = '';
+  }
+});
+</script>
 </body>
 </html>
