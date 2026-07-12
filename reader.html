@@ -47,16 +47,36 @@
     min-height:100vh;
   }
   header{
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:22px 28px;
+    padding:20px 28px;
     border-bottom:1px solid var(--rule);
-    flex-wrap:wrap;
-    gap:14px;
-    text-align:center;
   }
-  .brand{display:flex;flex-direction:column;gap:2px;align-items:center;}
+  .header-inner{
+    max-width:1180px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
+    align-items:center;
+    gap:14px;
+  }
+  .library-btn{
+    justify-self:start;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:9px 16px;
+    border-radius:20px;
+    border:1px solid var(--rule);
+    background:var(--surface);
+    color:var(--text-dim);
+    text-decoration:none;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.04em;
+    white-space:nowrap;
+    transition:border-color .15s, color .15s;
+  }
+  .library-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .brand{display:flex;flex-direction:column;gap:2px;align-items:center;text-align:center;}
   .eyebrow{
     font-family:'JetBrains Mono',monospace;
     font-size:11px;
@@ -218,6 +238,11 @@
     font-weight:600;
     margin:0 0 6px;
   }
+  #readerHeadingEn{
+    font-size:17px;
+    font-weight:500;
+    color:var(--text-dim);
+  }
   .reader-sub{
     font-family:'JetBrains Mono',monospace;
     font-size:11px;
@@ -225,6 +250,11 @@
     letter-spacing:.08em;
     margin-bottom:16px;
   }
+  .reader-sub .sub-link{
+    color:var(--text-dim);
+    text-decoration:none;
+  }
+  .reader-sub .sub-link:hover{ color:var(--accent); text-decoration:underline; }
   .line-block{ margin-bottom:26px; scroll-margin:100px; transition:background .3s; }
   .line-block.active-line{
     background:rgba(184,134,58,.08);
@@ -464,6 +494,61 @@
     stroke-dashoffset:0;
   }
   .word.holding{ background:var(--surface-raised); }
+  .settings-box{
+    border:1px solid var(--rule);
+    border-radius:4px;
+    background:var(--surface);
+    margin-bottom:16px;
+    position:relative;
+  }
+  .settings-box-header{
+    width:100%;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 14px;
+    background:none; border:none; cursor:pointer;
+    font-family:'JetBrains Mono',monospace; font-size:11px;
+    letter-spacing:.06em; text-transform:uppercase;
+    color:var(--accent);
+  }
+  #settingsCaret{ transition:transform .15s; }
+  .settings-box.collapsed #settingsCaret{ transform:rotate(-90deg); }
+  .settings-box.collapsed .settings-box-body{ display:none; }
+  .settings-box-body{
+    padding:0 14px 14px;
+    font-family:'JetBrains Mono',monospace; font-size:12px;
+  }
+  #mobileSettingsFab, #mobileSettingsClose{ display:none; }
+
+  @media (max-width:760px){
+    #mobileSettingsFab{
+      display:flex; align-items:center; justify-content:center;
+      position:fixed; top:18px; right:18px; z-index:60;
+      width:46px; height:46px; border-radius:50%;
+      border:1px solid var(--accent); background:rgba(184,134,58,.15);
+      color:var(--accent); font-size:19px; cursor:pointer;
+      box-shadow:0 2px 10px rgba(0,0,0,.15);
+    }
+    .settings-box{
+      display:none;
+      position:fixed;
+      top:16px; right:16px; left:16px;
+      z-index:59;
+      max-height:calc(100vh - 32px);
+      overflow-y:auto;
+      box-shadow:0 10px 34px rgba(0,0,0,.25);
+    }
+    .settings-box.mobile-open{ display:block; }
+    .settings-box.collapsed .settings-box-body{ display:block; } /* mobile ignores desktop collapse state */
+    .settings-box-header{ display:none; }
+    #mobileSettingsClose{
+      display:block;
+      position:absolute; top:10px; right:12px;
+      background:none; border:none; color:var(--text-dim);
+      font-size:14px; cursor:pointer; z-index:1;
+    }
+    .settings-box-body{ padding:36px 16px 16px; }
+  }
+
   aside{
     flex:0 0 260px;
     position:sticky;
@@ -548,86 +633,23 @@
 <body>
 
 <header>
-  <div class="brand">
-    <a href="index.html" style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-dim);text-decoration:none;letter-spacing:.08em;">← LIBRARY</a>
-    <div class="eyebrow">annotated reader</div>
-    <div class="title" id="pageTitle">歌词读本 · Lyric Reader</div>
+  <div class="header-inner">
+    <a href="index.html" class="library-btn">← Library</a>
+    <div class="brand">
+      <div class="title" id="pageTitle">Lost In Translation Radio</div>
+      <div class="eyebrow">Annotated Reader</div>
+    </div>
+    <div></div>
   </div>
 </header>
 
-<button id="settingsToggle" title="Settings" style="position:fixed; top:18px; right:18px; z-index:60;
-  display:flex; align-items:center; gap:7px;
-  height:40px; padding:0 14px 0 12px; border-radius:20px;
-  border:1px solid var(--accent); background:rgba(184,134,58,.12);
-  color:var(--accent); font-size:16px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.08);">
-  <span>⚙</span><span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.04em;">Settings</span>
-</button>
-
-<div id="settingsPanel" style="display:block; position:fixed; top:66px; right:18px; z-index:60;
-  width:250px; background:var(--surface); border:1px solid var(--rule); border-radius:8px;
-  padding:0; box-shadow:0 10px 30px rgba(0,0,0,.15); font-family:'JetBrains Mono',monospace; font-size:12px;
-  max-height:calc(100vh - 90px); overflow-y:auto;">
-
-  <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 16px;
-    border-bottom:1px solid var(--rule); position:sticky; top:0; background:var(--surface);">
-    <span style="letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-size:11px;">Reading Settings</span>
-    <button id="settingsClose" style="background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:14px;">✕</button>
-  </div>
-
-  <div style="padding:16px;">
-
-  <div style="margin-bottom:14px;">
-    <div style="display:flex; justify-content:space-between; margin-bottom:6px; color:var(--text-dim);">
-      <span>Glosses</span>
-      <span id="levelValue">HSK 3</span>
-    </div>
-    <input type="range" id="levelSlider" min="0" max="8" step="1" value="3" style="width:100%;">
-    <div id="levelPct" style="color:var(--text-dim); font-size:11px; margin-top:2px;">—% hidden</div>
-  </div>
-
-  <div class="toggle" id="hskToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
-    hsk colors <div class="switch on"></div>
-  </div>
-  <div class="toggle" id="translationToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
-    translation <div class="switch on"></div>
-  </div>
-  <div class="toggle" id="followToggle" style="display:none; margin-bottom:10px; justify-content:space-between; width:100%;">
-    follow video <div class="switch"></div>
-  </div>
-
-  <div style="border-top:1px solid var(--rule); padding-top:12px; margin-top:4px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; color:var(--text-dim);">
-      <span>Text size</span>
-      <div style="display:flex; align-items:center; gap:6px;">
-        <button type="button" id="textSizeDown" style="font-family:'JetBrains Mono',monospace; font-size:12px;
-          width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
-          color:var(--text-dim); cursor:pointer; line-height:1;">−</button>
-        <span id="textSizeLabel">100%</span>
-        <button type="button" id="textSizeUp" style="font-family:'JetBrains Mono',monospace; font-size:12px;
-          width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
-          color:var(--text-dim); cursor:pointer; line-height:1;">+</button>
-      </div>
-    </div>
-  </div>
-
-  <div style="border-top:1px solid var(--rule); padding-top:12px; margin-top:12px;">
-    <div style="color:var(--text-dim); margin-bottom:6px;">Font style</div>
-    <select id="fontPicker" style="width:100%; background:var(--surface-raised); border:1px solid var(--rule);
-      border-radius:4px; padding:7px 8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:11px;">
-      <option value="serif-inter">Serif hanzi + Inter</option>
-      <option value="sans-inter">Sans hanzi + Inter</option>
-      <option value="serif-lora">Serif hanzi + Lora</option>
-    </select>
-  </div>
-
-  </div>
-</div>
+<button id="mobileSettingsFab" title="Settings">⚙</button>
 
 <div class="load-state" id="loadState">Loading song…</div>
 
 <main id="mainArea" style="display:none;">
   <div class="reader">
-    <div class="reader-heading" id="readerHeading"></div>
+    <div class="reader-heading" id="readerHeading"><span id="readerHeadingZh"></span><span id="readerHeadingEn"></span></div>
     <div class="reader-sub" id="readerSub"></div>
     <div id="videoSentinel" style="height:1px;"></div>
     <div class="video-wrap" id="videoOuter">
@@ -643,6 +665,61 @@
   </div>
 
   <aside>
+    <div class="settings-box" id="settingsBox">
+      <button class="settings-box-header" id="settingsBoxToggle">
+        <span>⚙ Reading Settings</span>
+        <span id="settingsCaret">▾</span>
+      </button>
+      <button id="mobileSettingsClose" title="Close">✕</button>
+      <div class="settings-box-body" id="settingsBoxBody">
+
+        <div style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px; color:var(--text-dim);">
+            <span>Glosses</span>
+            <span id="levelValue">HSK 3</span>
+          </div>
+          <input type="range" id="levelSlider" min="0" max="8" step="1" value="3" style="width:100%;">
+          <div id="levelPct" style="color:var(--text-dim); font-size:11px; margin-top:2px;">—% hidden</div>
+        </div>
+
+        <div class="toggle" id="hskToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
+          hsk colors <div class="switch on"></div>
+        </div>
+        <div class="toggle" id="translationToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
+          translation <div class="switch on"></div>
+        </div>
+        <div class="toggle" id="followToggle" style="display:none; margin-bottom:10px; justify-content:space-between; width:100%;">
+          follow video <div class="switch"></div>
+        </div>
+
+        <div style="border-top:1px solid var(--rule); padding-top:12px; margin-top:4px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; color:var(--text-dim);">
+            <span>Text size</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <button type="button" id="textSizeDown" style="font-family:'JetBrains Mono',monospace; font-size:12px;
+                width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
+                color:var(--text-dim); cursor:pointer; line-height:1;">−</button>
+              <span id="textSizeLabel">100%</span>
+              <button type="button" id="textSizeUp" style="font-family:'JetBrains Mono',monospace; font-size:12px;
+                width:20px; height:20px; border-radius:4px; border:1px solid var(--rule); background:transparent;
+                color:var(--text-dim); cursor:pointer; line-height:1;">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--rule); padding-top:12px; margin-top:12px;">
+          <div style="color:var(--text-dim); margin-bottom:6px;">Font style</div>
+          <select id="fontPicker" style="width:100%; background:var(--surface-raised); border:1px solid var(--rule);
+            border-radius:4px; padding:7px 8px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:11px;">
+            <option value="serif-inter">Serif hanzi + Inter</option>
+            <option value="sans-inter">Sans hanzi + Inter</option>
+            <option value="serif-lora">Serif hanzi + Lora</option>
+          </select>
+        </div>
+
+      </div>
+    </div>
+
     <div class="aside-head">
       <div class="aside-title">Saved words</div>
       <div class="count" id="vocabCount">0</div>
@@ -1006,20 +1083,14 @@ document.getElementById('popupClose').addEventListener('click', closePopup);
 document.getElementById('popupOverlay').addEventListener('click', function(e){
   if(e.target.id === 'popupOverlay') closePopup();
 });
-document.getElementById('settingsToggle').addEventListener('click', (e) => {
-  e.stopPropagation();
-  const panel = document.getElementById('settingsPanel');
-  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+document.getElementById('settingsBoxToggle').addEventListener('click', () => {
+  document.getElementById('settingsBox').classList.toggle('collapsed');
 });
-document.getElementById('settingsClose').addEventListener('click', () => {
-  document.getElementById('settingsPanel').style.display = 'none';
+document.getElementById('mobileSettingsFab').addEventListener('click', () => {
+  document.getElementById('settingsBox').classList.add('mobile-open');
 });
-document.getElementById('settingsPanel').addEventListener('click', (e) => e.stopPropagation());
-document.addEventListener('click', (e) => {
-  const panel = document.getElementById('settingsPanel');
-  if(panel.style.display === 'block' && !panel.contains(e.target) && e.target.id !== 'settingsToggle'){
-    panel.style.display = 'none';
-  }
+document.getElementById('mobileSettingsClose').addEventListener('click', () => {
+  document.getElementById('settingsBox').classList.remove('mobile-open');
 });
 
 const FONT_PAIRS = {
@@ -1301,9 +1372,33 @@ async function init(){
     (titlesRes.data || []).forEach(s => { SONG_TITLES[s.id] = s.zh; });
 
     document.title = SONG.zh + ' — Lyric Reader';
-    document.getElementById('readerHeading').textContent = SONG.zh;
-    document.getElementById('readerSub').textContent =
-      (SONG.artist || '') + (SONG.tags && SONG.tags.length ? ' · ' + SONG.tags.join(', ') : '');
+    document.getElementById('readerHeadingZh').textContent = SONG.zh;
+    document.getElementById('readerHeadingEn').textContent = SONG.en ? ' ' + SONG.en : '';
+    const subEl = document.getElementById('readerSub');
+    subEl.innerHTML = '';
+    if(SONG.artist){
+      const a = document.createElement('a');
+      a.href = 'index.html?q=' + encodeURIComponent(SONG.artist);
+      a.className = 'sub-link';
+      a.textContent = SONG.artist;
+      subEl.appendChild(a);
+    }
+    if(SONG.year){
+      if(subEl.children.length > 0) subEl.append(' · ');
+      const a = document.createElement('a');
+      a.href = 'index.html?q=' + encodeURIComponent(SONG.year);
+      a.className = 'sub-link';
+      a.textContent = SONG.year;
+      subEl.appendChild(a);
+    }
+    (SONG.tags || []).forEach(tag => {
+      if(subEl.children.length > 0) subEl.append(' · ');
+      const a = document.createElement('a');
+      a.href = 'index.html?q=' + encodeURIComponent(tag);
+      a.className = 'sub-link';
+      a.textContent = tag;
+      subEl.appendChild(a);
+    });
     document.getElementById('contextBody').textContent = SONG.context || '';
     if(!SONG.context) document.getElementById('contextBlock').style.display = 'none';
 

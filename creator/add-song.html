@@ -22,6 +22,9 @@
   body{ margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
   header{
     padding:24px 28px; border-bottom:1px solid var(--rule);
+  }
+  .header-inner{
+    max-width:840px; margin:0 auto;
     display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
   }
   .eyebrow{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
@@ -112,11 +115,13 @@
 <body>
 
 <header>
-  <div>
-    <div class="eyebrow">creator tool</div>
-    <div class="title">Add a Song</div>
+  <div class="header-inner">
+    <div>
+      <div class="eyebrow">creator tool</div>
+      <div class="title">Add a Song</div>
+    </div>
+    <a href="../index.html">← Library</a>
   </div>
-  <a href="../index.html">← Library</a>
 </header>
 
 <main id="lockedMain" style="text-align:center; padding-top:60px;">
@@ -155,8 +160,8 @@
     </div>
     <div class="row2">
       <div class="field">
-        <label>Song ID (used in the URL — auto-filled, editable)</label>
-        <input type="text" id="fId" placeholder="song-5">
+        <label>Year</label>
+        <input type="number" id="fYear" placeholder="2018" min="1900" max="2100">
       </div>
       <div class="field">
         <label>Status</label>
@@ -168,13 +173,20 @@
     </div>
     <div class="row2">
       <div class="field">
+        <label>Song ID (used in the URL — auto-filled, editable)</label>
+        <input type="text" id="fId" placeholder="song-5">
+      </div>
+      <div class="field">
+        <label>Tags (comma separated — genre, mood, etc; year has its own field above)</label>
+        <input type="text" id="fTags" placeholder="art pop, introspective">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
         <label>YouTube link or video ID</label>
         <input type="text" id="fYoutube" placeholder="https://youtube.com/watch?v=...">
       </div>
-      <div class="field">
-        <label>Tags (comma separated)</label>
-        <input type="text" id="fTags" placeholder="pop, 90s">
-      </div>
+      <div class="field"></div>
     </div>
     <div class="field">
       <label>About this song (optional — shown collapsed above the lyrics)</label>
@@ -322,6 +334,7 @@ document.getElementById('btnLoadExisting').addEventListener('click', async () =>
   document.getElementById('fZh').value = song.zh || '';
   document.getElementById('fEn').value = song.en || '';
   document.getElementById('fArtist').value = song.artist || '';
+  document.getElementById('fYear').value = song.year || '';
   document.getElementById('fId').value = song.id;
   document.getElementById('fId').dataset.touched = '1'; // don't let the slug auto-fill overwrite it
   document.getElementById('fStatus').value = song.status || 'draft';
@@ -911,6 +924,7 @@ function buildSongObject(){
     zh: document.getElementById('fZh').value.trim(),
     en: document.getElementById('fEn').value.trim(),
     artist: document.getElementById('fArtist').value.trim(),
+    year: document.getElementById('fYear').value ? parseInt(document.getElementById('fYear').value, 10) : null,
     status: document.getElementById('fStatus').value,
     tags: document.getElementById('fTags').value.split(',').map(t=>t.trim()).filter(Boolean),
     youtubeId: extractYoutubeId(document.getElementById('fYoutube').value),
@@ -947,7 +961,7 @@ document.getElementById('btnPublish').addEventListener('click', async () => {
 
   const { error } = await sb.from('songs').upsert({
     id: song.id, zh: song.zh, en: song.en, artist: song.artist,
-    status: song.status, tags: song.tags, youtube_id: song.youtubeId,
+    status: song.status, tags: song.tags, year: song.year, youtube_id: song.youtubeId,
     context: song.context, lines: song.lines, constructions: song.constructions, cover_url: song.coverUrl
   }, { onConflict: 'id' });
 

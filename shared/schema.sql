@@ -65,6 +65,7 @@ create table songs (
   artist text,
   status text default 'draft',
   tags jsonb default '[]'::jsonb,
+  year int,
   youtube_id text default '',
   context text default '',
   lines jsonb default '[]'::jsonb,
