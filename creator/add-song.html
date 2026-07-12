@@ -1083,8 +1083,14 @@ document.getElementById('btnPublish').addEventListener('click', async () => {
     statusEl.textContent = 'Failed: ' + error.message;
     console.error(error);
   } else {
+    const link = document.createElement('a');
+    link.href = `../reader.html?song=${song.id}`;
+    link.target = '_blank';
+    link.textContent = 'View the page →';
+    link.style.marginLeft = '8px';
     statusEl.textContent = `Saved as "${song.status}". ` +
-      (song.status === 'published' ? 'It\u2019s live now.' : 'Only your creator account can see it.');
+      (song.status === 'published' ? 'It\u2019s live now. ' : 'Only your creator account can see it. ');
+    statusEl.appendChild(link);
     statusEl.classList.add('ok');
   }
 });

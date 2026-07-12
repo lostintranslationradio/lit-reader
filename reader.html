@@ -304,6 +304,7 @@
     transition:background .15s, padding .15s;
   }
   body.glosses-full .word{ padding:3px 4px 2px; }
+  body.glosses-hidden-all .word{ padding:3px 4px 2px; }
   .word:hover{background:var(--surface-raised);}
   .pinyin{
     font-family:'Inter',sans-serif;
@@ -328,6 +329,8 @@
   }
   .word.g-hidden .gloss,
   .word.g-hidden .pinyin{ visibility:hidden; }
+  body.glosses-hidden-all .word.g-hidden .gloss,
+  body.glosses-hidden-all .word.g-hidden .pinyin{ display:none; }
   body.hide-hsk .hanzi{ color:var(--text) !important; }
   .level-control{ display:flex; align-items:center; gap:10px; }
   .level-control input[type=range]{ width:110px; accent-color:var(--accent); }
@@ -522,12 +525,12 @@
 
   @media (max-width:760px){
     #mobileSettingsFab{
-      display:flex; align-items:center; justify-content:center;
-      position:fixed; top:18px; right:18px; z-index:60;
-      width:46px; height:46px; border-radius:50%;
+      display:inline-flex; align-items:center; justify-content:center;
+      position:static;
+      width:34px; height:34px; border-radius:50%;
       border:1px solid var(--accent); background:rgba(184,134,58,.15);
-      color:var(--accent); font-size:19px; cursor:pointer;
-      box-shadow:0 2px 10px rgba(0,0,0,.15);
+      color:var(--accent); font-size:16px; cursor:pointer;
+      vertical-align:middle; margin-left:8px;
     }
     .settings-box{
       display:none;
@@ -595,6 +598,8 @@
     flex:0 0 260px;
     position:sticky;
     top:24px;
+    max-height:calc(100vh - 48px);
+    overflow-y:auto;
     background:var(--surface);
     border:1px solid var(--rule);
     border-radius:4px;
@@ -682,20 +687,21 @@
   <div class="header-inner">
     <a href="index.html" class="library-btn">← <span class="library-btn-text">Library</span></a>
     <div class="brand">
-      <div class="title" id="pageTitle">Lost In Translation Radio</div>
       <div class="eyebrow">Annotated Reader</div>
+      <div class="title" id="pageTitle">Lost In Translation Radio</div>
     </div>
     <div></div>
   </div>
 </header>
 
-<button id="mobileSettingsFab" title="Settings">⚙</button>
-
 <div class="load-state" id="loadState">Loading song…</div>
 
 <main id="mainArea" style="display:none;">
   <div class="reader">
-    <div class="reader-heading" id="readerHeading"><span id="readerHeadingZh"></span><span id="readerHeadingEn"></span></div>
+    <div class="reader-heading" id="readerHeading">
+      <span id="readerHeadingZh"></span><span id="readerHeadingEn"></span>
+      <button id="mobileSettingsFab" title="Settings">⚙️</button>
+    </div>
     <div class="reader-sub" id="readerSub"></div>
     <div id="videoSentinel" style="height:1px;"></div>
     <div class="video-wrap" id="videoOuter">
@@ -856,6 +862,7 @@ function updateLevelLabels(){
   document.getElementById('levelValue').textContent = levelLabel();
   document.getElementById('levelPct').textContent = pct + '% hidden';
   document.body.classList.toggle('glosses-full', currentLevel === 0);
+  document.body.classList.toggle('glosses-hidden-all', currentLevel === 8);
 }
 
 const CONSTRUCTION_COLORS = ['--hsk3', '--hsk4', '--hsk79', '--hsk6', '--hsk2'];
@@ -1122,7 +1129,7 @@ function renderVocab(){
     return `
     <div class="vocab-item">
       <div class="vocab-info">
-        <div class="vh" style="${isCons ? 'font-style:italic; color:var(--accent);' : `color:var(${HSK_VAR[s.hsk]})`}">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}${isCons ? ' <span style="font-size:9px; color:var(--text-dim);">construction</span>' : ''}</div>
+        <div class="vh" style="${isCons ? '' : `color:var(${HSK_VAR[s.hsk]})`}">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}${isCons ? ' <span style="font-size:9px; color:var(--text-dim);">construction</span>' : ''}</div>
         ${s.p ? `<div class="vp">${s.p}</div>` : ''}
         <div class="vg">${g0}</div>
         <div class="vsrc">${sourceNames}</div>
