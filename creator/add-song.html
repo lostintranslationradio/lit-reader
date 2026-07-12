@@ -399,7 +399,7 @@ document.getElementById('btnLoadExisting').addEventListener('click', async () =>
 
   lineData = (song.lines || []).map(line => ({
     tokens: line.words.map(w => ({
-      h: w.h, p: w.p, g: w.g, hsk: w.hsk, pos: w.pos || null,
+      h: w.h, p: w.p, g: w.g, short: w.short || (w.g && w.g[0]) || '', hsk: w.hsk, pos: w.pos || null, note: w.note || '',
       isPunct: PUNCT_RE.test(w.h), unresolved: false,
       reading_options: null, selected_reading: null, needsReadingPick: false
     })),
@@ -487,6 +487,7 @@ const PARTICLE_OVERRIDE = new Set(['的','地','得','吗','呢','吧','呀','�
 function applyParticleOverride(tok){
   if(PARTICLE_OVERRIDE.has(tok.h)){
     tok.g = ['(particle)'];
+    tok.short = '(particle)';
     tok.unresolved = false;
   }
   return tok;
@@ -507,6 +508,7 @@ function segmentLine(text){
       h: segment,
       p: entry ? entry.p : '',
       g: entry ? entry.g : [],
+      short: entry && entry.g && entry.g[0] ? entry.g[0] : '',
       hsk: entry ? entry.hsk : 0,
       pos: entry ? entry.pos : null,
       isPunct: false,
@@ -857,11 +859,12 @@ function renderTokenCard(line, li, ti){
     ${tok.needsReadingPick && !tok.readingConfirmed ? '<div style="font-size:8px; color:var(--accent); margin-bottom:3px;">pick reading ↓</div>' : ''}
     ${readingPicker}
     <input type="text" value="${(tok.p||'').replace(/"/g,'&quot;')}" placeholder="pinyin" data-field="p">
-    <input type="text" value="${(tok.g && tok.g[0] ? tok.g[0] : '').replace(/"/g,'&quot;')}" placeholder="gloss" data-field="g">
+    <input type="text" value="${(tok.short||'').replace(/"/g,'&quot;')}" placeholder="short gloss" data-field="short">
     <div class="token-hsk-row">
       <span style="font-size:9px;color:var(--text-dim);">HSK</span>
       <input type="text" value="${tok.hsk}" data-field="hsk">
     </div>
+    <input type="text" value="${(tok.note||'').replace(/"/g,'&quot;')}" placeholder="note (optional)" data-field="note" style="font-size:9px;">
     <div class="token-btns">
       <button data-action="merge" ${ti === line.tokens.length - 1 ? 'disabled' : ''}>merge →</button>
       <button data-action="split" ${Array.from(tok.h).length < 2 ? 'disabled' : ''}>split</button>
@@ -891,10 +894,8 @@ function renderTokenCard(line, li, ti){
     inp.addEventListener('input', () => {
       const field = inp.dataset.field;
       if(field === 'p') tok.p = inp.value;
-      if(field === 'g'){
-        if(!Array.isArray(tok.g)) tok.g = [];
-        tok.g[0] = inp.value;
-      }
+      if(field === 'short') tok.short = inp.value;
+      if(field === 'note') tok.note = inp.value;
       if(field === 'hsk') tok.hsk = parseInt(inp.value, 10) || 0;
       tok.unresolved = false;
       card.classList.remove('unresolved');
@@ -907,12 +908,14 @@ document.getElementById('btnRestoreDefs').addEventListener('click', () => {
   lineData.forEach(line => {
     line.tokens.forEach(tok => {
       if(tok.isPunct) return;
+      // Migrate older data: if there's no separate short label yet, whatever was
+      // in g[0] before is preserved there first, so nothing gets lost.
+      if(!tok.short && tok.g && tok.g[0]) tok.short = tok.g[0];
       const entry = lookup(tok.h);
-      if(!entry || !entry.g || entry.g.length <= 1) return;
-      const currentPrimary = (tok.g && tok.g[0]) ? tok.g[0] : entry.g[0];
-      const restoredDefs = [currentPrimary, ...entry.g.filter(d => d !== currentPrimary)];
-      if(JSON.stringify(restoredDefs) !== JSON.stringify(tok.g)){
-        tok.g = restoredDefs;
+      if(!entry || !entry.g || entry.g.length === 0) return;
+      if(JSON.stringify(entry.g) !== JSON.stringify(tok.g)){
+        tok.g = entry.g;
+        if(!tok.short) tok.short = entry.g[0];
         restored++;
       }
     });
@@ -920,7 +923,7 @@ document.getElementById('btnRestoreDefs').addEventListener('click', () => {
   renderLines();
   const statusEl = document.getElementById('restoreDefsStatus');
   statusEl.textContent = restored > 0
-    ? `Restored additional definitions on ${restored} word${restored===1?'':'s'}.`
+    ? `Restored full dictionary definitions on ${restored} word${restored===1?'':'s'}, separate from your short gloss.`
     : 'Nothing to restore — every word already has its full definitions.';
   statusEl.classList.add('ok');
 });
@@ -932,6 +935,7 @@ function makeToken(hanzi){
     h: hanzi,
     p: entry ? entry.p : '',
     g: entry ? entry.g : [],
+    short: entry && entry.g && entry.g[0] ? entry.g[0] : '',
     hsk: entry ? entry.hsk : 0,
     pos: entry ? entry.pos : null,
     isPunct: false,
@@ -1045,7 +1049,7 @@ function buildSongObject(){
     context: document.getElementById('fContext').value.trim(),
     coverUrl,
     lines: lineData.map(l => ({
-      words: l.tokens.map(t => ({ h: t.h, p: t.p, g: t.g, hsk: t.hsk, pos: t.pos || null })),
+      words: l.tokens.map(t => ({ h: t.h, p: t.p, g: t.g, short: t.short || (t.g && t.g[0]) || '', hsk: t.hsk, pos: t.pos || null, note: t.note || '' })),
       translation: l.translation,
       start: l.start != null ? l.start : null,
       end: l.end != null ? l.end : null

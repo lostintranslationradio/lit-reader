@@ -76,6 +76,13 @@
     transition:border-color .15s, color .15s;
   }
   .library-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .library-btn.glow{
+    animation:howToGlow 1.8s ease-in-out infinite;
+  }
+  @keyframes howToGlow{
+    0%, 100%{ box-shadow:0 0 0 0 rgba(184,134,58,.5); border-color:var(--accent); }
+    50%{ box-shadow:0 0 0 6px rgba(184,134,58,0); border-color:var(--accent); }
+  }
   .brand{display:flex;flex-direction:column;gap:2px;align-items:center;text-align:center;}
   .eyebrow{
     font-family:'JetBrains Mono',monospace;
@@ -199,6 +206,24 @@
     font-size:11px;
     line-height:1.6;
   }
+  #creatorNotesSection{
+    margin-top:32px;
+    padding-top:24px;
+    border-top:1px solid var(--rule);
+  }
+  #creatorNotesSection .notes-heading{
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:14px;
+  }
+  .creator-note-item{
+    display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--rule);
+  }
+  .creator-note-item:last-child{ border-bottom:none; }
+  .creator-note-item .cni-hanzi{
+    font-family:var(--font-han); font-size:18px; flex-shrink:0; min-width:50px;
+  }
+  .creator-note-item .cni-text{ font-size:13px; line-height:1.6; color:var(--text); opacity:.9; }
+
   .context-block{
     margin-bottom:24px;
     border:1px solid var(--rule);
@@ -421,6 +446,31 @@
     line-height:1.6;
   }
   .popup-defs ol{ margin:0; padding-left:18px; }
+  #popupCreatorNote{
+    margin-top:12px; padding:10px 12px;
+    background:var(--surface-raised); border-left:2px solid var(--accent);
+    border-radius:4px; font-size:12px; line-height:1.5;
+  }
+  #popupCreatorNote .note-label{
+    font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--accent); margin-bottom:3px;
+  }
+  #popupUserNote{ margin-top:12px; border-top:1px solid var(--rule); padding-top:12px; }
+  #popupUserNote .note-label{
+    font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--text-dim); margin-bottom:6px;
+  }
+  #popupUserNoteInput{
+    width:100%; background:var(--surface-raised); border:1px solid var(--rule);
+    border-radius:4px; padding:8px; color:var(--text); font-family:'Inter',sans-serif;
+    font-size:12px; resize:vertical; outline:none; box-sizing:border-box;
+  }
+  #popupUserNoteInput:focus{ border-color:var(--accent); }
+  #popupUserNoteSave{
+    margin-top:6px; font-family:'JetBrains Mono',monospace; font-size:10px;
+    padding:5px 12px; border-radius:12px; border:1px solid var(--accent);
+    background:rgba(184,134,58,.12); color:var(--accent); cursor:pointer;
+  }
   .popup-readings{
     margin-top:12px;
     border-top:1px solid var(--rule);
@@ -733,6 +783,7 @@
       <div class="context-body" id="contextBody"></div>
     </details>
     <div id="lines"></div>
+    <div id="creatorNotesSection" style="display:none;"></div>
   </div>
 
   <aside>
@@ -756,14 +807,14 @@
         <div class="toggle" id="hskToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
           hsk colors <div class="switch on"></div>
         </div>
-        <div class="toggle" id="translationToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
-          translation <div class="switch on"></div>
-        </div>
         <div class="toggle" id="pinyinVisToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
           pinyin <div class="switch on"></div>
         </div>
         <div class="toggle" id="wordGlossToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
           word translation <div class="switch on"></div>
+        </div>
+        <div class="toggle" id="translationToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
+          lyrics translation <div class="switch on"></div>
         </div>
         <div class="toggle" id="followToggle" style="display:none; margin-bottom:10px; justify-content:space-between; width:100%;">
           follow video <div class="switch"></div>
@@ -842,6 +893,12 @@
     <div id="popupConstruction" style="display:none;"></div>
     <div class="popup-hsk-badge" id="popupHsk"></div>
     <div class="popup-defs" id="popupDefs"></div>
+    <div id="popupCreatorNote" style="display:none;"></div>
+    <div id="popupUserNote">
+      <div class="note-label">Your note (private to your account)</div>
+      <textarea id="popupUserNoteInput" placeholder="Add a personal note about this word..." rows="2"></textarea>
+      <button id="popupUserNoteSave" style="display:none;">Save note</button>
+    </div>
     <div id="popupReadings" style="display:none;"></div>
     <div class="popup-hint">tap the star to save · tap outside to close</div>
   </div>
@@ -856,6 +913,7 @@ const HSK_VAR = {0:'--beyond',1:'--hsk1',2:'--hsk2',3:'--hsk3',4:'--hsk4',5:'--h
 const linesEl = document.getElementById('lines');
 let saved = JSON.parse(localStorage.getItem('lyricVocab') || '[]');
 saved = saved.map(s => ({...s, sources: s.sources || []}));
+let userNotes = JSON.parse(localStorage.getItem('notes_' + SONG_ID) || '{}');
 let currentUser = null; // when signed in, `saved` is backed by Supabase instead of localStorage
 let currentProfile = null; // { username, email, is_creator }
 let currentLevel = 0;
@@ -913,6 +971,28 @@ function indexConstructions(){
   });
 }
 
+function renderCreatorNotes(){
+  const section = document.getElementById('creatorNotesSection');
+  const items = [];
+  SONG.lines.forEach(entry => {
+    entry.words.forEach(tok => {
+      if(tok.note) items.push(tok);
+    });
+  });
+  if(items.length === 0){
+    section.style.display = 'none';
+    return;
+  }
+  section.innerHTML = `<div class="notes-heading">Notes on this song</div>` +
+    items.map(tok => `
+      <div class="creator-note-item">
+        <div class="cni-hanzi" style="color:var(${HSK_VAR[tok.hsk]})">${tok.h}</div>
+        <div class="cni-text">${tok.note}</div>
+      </div>
+    `).join('');
+  section.style.display = 'block';
+}
+
 function render(){
   linesEl.innerHTML = '';
   const CJK_RE = /[\u4e00-\u9fff]/;
@@ -955,7 +1035,7 @@ function render(){
       const isSavedAlready = saved.some(s=>s.h===tok.h);
       if(isSavedAlready) w.classList.add('saved');
       if(isHidden(tok, key)) w.classList.add('g-hidden');
-      const glossFirst = Array.isArray(tok.g) ? (tok.g[0] || '') : (tok.g || '');
+      const glossFirst = tok.short || (Array.isArray(tok.g) ? (tok.g[0] || '') : (tok.g || ''));
       const cons = constructionForKey[key];
       const hanziStyle = `color:var(${HSK_VAR[tok.hsk]});` +
         (cons ? `box-shadow:0 2px 0 0 var(${cons.colorVar});` : '');
@@ -1032,12 +1112,25 @@ function openPopup(tok, key, el){
   badge.textContent = hskBadgeLabel(tok.hsk);
   badge.style.color = `var(${HSK_VAR[tok.hsk]})`;
   badge.style.borderColor = `var(${HSK_VAR[tok.hsk]})`;
-  const defs = (Array.isArray(tok.g) ? tok.g : [tok.g]).filter(Boolean);
+  const rawDefs = Array.isArray(tok.g) ? tok.g : (tok.g ? [tok.g] : []);
+  const defs = rawDefs.filter(Boolean).length ? rawDefs.filter(Boolean) : [tok.short].filter(Boolean);
   const posLabel = tok.pos ? `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim);
     text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">${tok.pos}</div>` : '';
   document.getElementById('popupDefs').innerHTML = posLabel + (defs.length
     ? '<ol>' + defs.map(d=>`<li>${d}</li>`).join('') + '</ol>'
     : '<div style="opacity:.6">(no definition yet)</div>');
+
+  const creatorNoteEl = document.getElementById('popupCreatorNote');
+  if(tok.note){
+    creatorNoteEl.innerHTML = `<div class="note-label">Note</div><div>${tok.note}</div>`;
+    creatorNoteEl.style.display = 'block';
+  } else {
+    creatorNoteEl.style.display = 'none';
+  }
+
+  const userNoteInput = document.getElementById('popupUserNoteInput');
+  userNoteInput.value = userNotes[tok.h] || '';
+  document.getElementById('popupUserNoteSave').style.display = 'none';
 
   const readingsEl = document.getElementById('popupReadings');
   if(tok.reading_options && tok.reading_options.length > 1){
@@ -1201,6 +1294,15 @@ function flyToSavedTarget(fromEl, label){
   }, 600);
 }
 
+document.getElementById('popupUserNoteInput').addEventListener('input', function(){
+  document.getElementById('popupUserNoteSave').style.display = 'inline-block';
+});
+document.getElementById('popupUserNoteSave').addEventListener('click', async function(){
+  if(!currentPopup) return;
+  await saveUserNote(currentPopup.tok.h, document.getElementById('popupUserNoteInput').value);
+  this.style.display = 'none';
+});
+
 document.getElementById('popupStar').addEventListener('click', function(){
   if(!currentPopup) return;
   const { tok, el } = currentPopup;
@@ -1272,6 +1374,13 @@ function applyFontChoice(choice){
 const savedFontChoice = localStorage.getItem('fontChoice') || 'sans-inter';
 document.getElementById('fontPicker').value = savedFontChoice;
 applyFontChoice(savedFontChoice);
+
+if(!localStorage.getItem('hasSeenHowToUse')){
+  document.getElementById('howToUseLink').classList.add('glow');
+}
+document.getElementById('howToUseLink').addEventListener('click', () => {
+  localStorage.setItem('hasSeenHowToUse', '1');
+});
 document.getElementById('fontPicker').addEventListener('change', function(){
   applyFontChoice(this.value);
 });
@@ -1519,11 +1628,48 @@ async function loadVocabFromSupabase(){
   render();
 }
 
+async function loadUserNotesFromSupabase(){
+  const { data, error } = await sb.from('word_notes').select('*').eq('user_id', currentUser.id).eq('song_id', SONG_ID);
+  if(error){ console.error(error); return; }
+  const remote = {};
+  (data || []).forEach(r => { remote[r.hanzi] = r.note; });
+  // merge: any note written locally as a guest but not yet synced gets uploaded once
+  for(const [hanzi, note] of Object.entries(userNotes)){
+    if(!(hanzi in remote)){
+      await sb.from('word_notes').upsert({
+        user_id: currentUser.id, song_id: SONG_ID, hanzi, note
+      }, { onConflict: 'user_id,song_id,hanzi' });
+      remote[hanzi] = note;
+    }
+  }
+  userNotes = remote;
+}
+
+async function saveUserNote(hanzi, text){
+  if(text.trim()){
+    userNotes[hanzi] = text.trim();
+  } else {
+    delete userNotes[hanzi];
+  }
+  if(currentUser){
+    if(text.trim()){
+      await sb.from('word_notes').upsert({
+        user_id: currentUser.id, song_id: SONG_ID, hanzi, note: text.trim()
+      }, { onConflict: 'user_id,song_id,hanzi' });
+    } else {
+      await sb.from('word_notes').delete().eq('user_id', currentUser.id).eq('song_id', SONG_ID).eq('hanzi', hanzi);
+    }
+  } else {
+    localStorage.setItem('notes_' + SONG_ID, JSON.stringify(userNotes));
+  }
+}
+
 window.onAuthSuccess = async function(user){
   currentUser = user;
   currentProfile = await authGetProfile(user.id);
   refreshVocabAuthUI();
   await loadVocabFromSupabase();
+  await loadUserNotesFromSupabase();
 };
 
 document.getElementById('vocabAuthLink').addEventListener('click', async (e) => {
@@ -1545,7 +1691,10 @@ authOnChange(async (user) => {
   currentUser = user;
   currentProfile = user ? await authGetProfile(user.id) : null;
   refreshVocabAuthUI();
-  if(user) await loadVocabFromSupabase();
+  if(user){
+    await loadVocabFromSupabase();
+    await loadUserNotesFromSupabase();
+  }
 });
 
 async function init(){
@@ -1598,6 +1747,7 @@ async function init(){
     render();
     renderVocab();
     renderVideo();
+    renderCreatorNotes();
   } catch(err){
     document.getElementById('loadState').textContent =
       `Couldn't load "${SONG_ID}". It may not exist, or it's a draft you don't have creator access to.`;

@@ -193,7 +193,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   <div class="lesson">
     <div class="lesson-num">06</div>
     <h2>The translation is always underneath</h2>
-    <p>Below every line sits the actual line-by-line translation — the real, singable rendering, distinct from the word-by-word glosses above it. You can turn it off in Settings if you'd rather work it out yourself first. On a real song page, if that song has timestamps, clicking the translation jumps the video straight to that moment — a quick way to hear exactly how a line sounds.</p>
+    <p>Below every line sits the actual line-by-line translation — the real, singable rendering, distinct from the word-by-word glosses above it. You can turn it off with the "lyrics translation" switch in Settings if you'd rather work it out yourself first. On a real song page, if that song has timestamps, clicking the translation jumps the video straight to that moment — a quick way to hear exactly how a line sounds.</p>
     <div class="demo-box">
       <div class="line" id="demo6"></div>
       <div class="translation" id="demo6t"></div>
@@ -424,6 +424,7 @@ if(fromSong){
   backLink.textContent = '← Back to song';
 }
 
+localStorage.setItem('hasSeenHowToUse', '1');
 renderAll();
 </script>
 </body>

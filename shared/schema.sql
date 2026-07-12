@@ -121,6 +121,26 @@ $$;
 
 grant execute on function public.get_login_email(text) to anon, authenticated;
 
+-- Private notes any signed-in user can leave on a word, visible only to them.
+-- The creator's own notes are different — those live inside songs.lines itself
+-- (public, part of the song content), not in this table.
+create table word_notes (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users not null,
+  song_id text references songs not null,
+  hanzi text not null,
+  note text not null,
+  created_at timestamptz default now(),
+  unique (user_id, song_id, hanzi)
+);
+
+alter table word_notes enable row level security;
+
+create policy "Users manage their own notes"
+  on word_notes for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 -- Cover art storage: a public bucket, but only the creator can upload to it.
 insert into storage.buckets (id, name, public)
 values ('covers', 'covers', true)
