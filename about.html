@@ -23,7 +23,7 @@
 }
 *{box-sizing:border-box;}
 body{ margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; }
-header{ padding:22px 28px; border-bottom:1px solid var(--rule); }
+header{ padding:32px 28px; border-bottom:1px solid var(--rule); }
 .header-inner{ max-width:700px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
 .library-btn{
   display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:20px;
@@ -34,12 +34,17 @@ header{ padding:22px 28px; border-bottom:1px solid var(--rule); }
 .eyebrow{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); text-align:center; }
 .title{ font-family:var(--font-brand); font-size:28px; font-weight:400; text-align:center; }
 
-main{ max-width:700px; margin:0 auto; padding:40px 24px 90px; }
+main{ max-width:700px; margin:0 auto; padding:40px 24px 110px; }
 
 .mission{
   font-family:var(--font-brand); font-size:22px; line-height:1.6; font-weight:400;
-  text-align:center; margin-bottom:8px;
+  text-align:center; margin-bottom:20px;
 }
+.mission-rule{
+  width:60px; height:2px; background:var(--rule); margin:0 auto 40px;
+}
+.mission-break{ display:block; }
+@media (max-width:600px){ .mission-break{ display:inline; } }
 .mission-flag{
   text-align:center; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);
   letter-spacing:.05em; margin-bottom:44px;
@@ -87,8 +92,9 @@ main{ max-width:700px; margin:0 auto; padding:40px 24px 90px; }
 
 <main>
   <div class="mission">
-    Music knows no border<span style="font-family:'Inter',sans-serif;">,</span> but the words still<br>need someone to carry them across<span style="font-family:'Inter',sans-serif;">.</span>
+    Music knows no border<span style="font-family:'Inter',sans-serif;">,</span> but the words still<span class="mission-break"></span>need someone to carry them across<span style="font-family:'Inter',sans-serif;">.</span>
   </div>
+  <div class="mission-rule"></div>
 
   <div class="section">
     <h2>What this is</h2>
@@ -126,7 +132,7 @@ main{ max-width:700px; margin:0 auto; padding:40px 24px 90px; }
 if(new URLSearchParams(location.search).get('embed') === '1'){
   document.getElementById('aboutBackLink').style.visibility = 'hidden';
   document.getElementById('aboutHeaderSpacer').style.visibility = 'hidden';
-  document.querySelector('main').style.padding = '24px 48px 40px';
+  document.querySelector('main').style.padding = '24px 48px 56px';
 }
 </script>
 </body>

@@ -18,7 +18,7 @@ exports.handler = async function () {
   const urls = [
     { loc: `${SITE_URL}/`, changefreq: 'weekly', priority: '1.0' },
     { loc: `${SITE_URL}/how-to-use.html`, changefreq: 'monthly', priority: '0.5' },
-    { loc: `${SITE_URL}/about.html`, changefreq: 'monthly', priority: '0.5' },
+    { loc: `${SITE_URL}/about`, changefreq: 'monthly', priority: '0.5' },
     ...songs.map((s) => ({
       loc: `${SITE_URL}/reader.html?song=${encodeURIComponent(s.id)}`,
       changefreq: 'monthly',
