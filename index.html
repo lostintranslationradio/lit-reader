@@ -454,7 +454,7 @@
       <div class="eyebrow">song library — concept</div>
       <div class="title">Lost in Translation Radio</div>
     </div>
-    <button class="creator-link" id="creatorLink">Sign in</button>
+    <button class="creator-link" id="creatorLink">Sign In</button>
     <a class="creator-link" id="addSongLink" href="creator/add-song.html" style="display:none; text-decoration:none;">+ Add Song</a>
   </div>
 </header>
@@ -630,9 +630,6 @@ function render(){
   else renderList(filtered);
 
   document.getElementById('draftChip').style.display = creatorMode ? 'inline-block' : 'none';
-  const creatorLink = document.getElementById('creatorLink');
-  creatorLink.textContent = creatorMode ? 'Exit creator view' : 'Creator sign-in';
-  creatorLink.classList.toggle('active', creatorMode);
   document.getElementById('addSongLink').style.display = creatorMode ? 'inline-block' : 'none';
 }
 
@@ -666,10 +663,10 @@ injectAuthModal();
 function refreshCreatorUI(){
   const creatorLink = document.getElementById('creatorLink');
   if(currentUser){
-    creatorLink.textContent = creatorMode ? 'Sign out (creator)' : 'Sign out';
+    creatorLink.textContent = 'Sign Out';
     creatorLink.classList.toggle('active', creatorMode);
   } else {
-    creatorLink.textContent = 'Sign in';
+    creatorLink.textContent = 'Sign In';
     creatorLink.classList.remove('active');
   }
   document.getElementById('addSongLink').style.display = creatorMode ? 'inline-block' : 'none';
