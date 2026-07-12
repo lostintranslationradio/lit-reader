@@ -290,12 +290,10 @@
   <div class="panel" id="constructionsPanel" style="display:none;">
     <h2>3.5 · Constructions (optional)</h2>
     <p class="note">
-      For grammar patterns split across non-adjacent words (like <b>在……之前</b>), or a phrase that
-      just repeats verbatim elsewhere in the song (like <b>归零</b> showing up as the title hook),
-      click <b>Link words</b>, then click each word that's part of it in the review area above.
-      Save once you've picked them all — "find other occurrences" will then look for that exact
-      phrase (adjacent or split apart, whichever it is) anywhere else in the song. Linked words get
-      an underline in the published reader, color-coded per pattern.
+      For grammar patterns split across non-adjacent words (like <b>在……之前</b>), click
+      <b>Link words</b>, then click each word that's part of the pattern in the review area above.
+      Save once you've picked them all. Linked words get an underline in the published reader,
+      color-coded per pattern.
     </p>
     <button class="btn secondary" id="btnLinkMode">Link words</button>
     <span id="selectStatus" class="status-line" style="display:inline-block; margin-left:10px;"></span>
@@ -657,63 +655,32 @@ function renderConstructionsList(){
 // finds as a new occurrence of the same construction. This only matches parts that
 // were segmented as standalone tokens — if a part like 之前 got split into 之 + 前
 // somewhere, merge it into one card first or that occurrence won't be found.
-function findContiguousMatch(tokens, patternText){
-  for(let start = 0; start < tokens.length; start++){
-    if(tokens[start].isPunct) continue;
-    let combined = '';
-    const indices = [];
-    for(let end = start; end < tokens.length; end++){
-      if(tokens[end].isPunct) break;
-      combined += tokens[end].h;
-      indices.push(end);
-      if(combined === patternText) return indices;
-      if(combined.length > patternText.length) break;
-    }
-  }
-  return null;
-}
-
 function findOtherOccurrences(consIndex){
   const cons = constructions[consIndex];
   const parts = cons.pattern.split(/\.{2,}|…+/).map(p => p.trim()).filter(Boolean);
+  if(parts.length < 2){
+    alert('This pattern doesn\u2019t use "..." between parts, so there\u2019s nothing to auto-match.');
+    return;
+  }
 
   const alreadyLinkedLines = new Set(
     constructions.filter(c => c.pattern === cons.pattern).flatMap(c => c.members.map(([li]) => li))
   );
 
   let added = 0;
-
-  if(parts.length < 2){
-    // No "..." in the pattern — it's a plain contiguous phrase (like 归零), not a
-    // discontinuous one. Search for it as a run of adjacent tokens instead.
-    lineData.forEach((line, li) => {
-      if(alreadyLinkedLines.has(li)) return;
-      const match = findContiguousMatch(line.tokens, cons.pattern);
-      if(match){
-        constructions.push({
-          id: 'c' + Date.now() + Math.random().toString(36).slice(2),
-          pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
-          members: match.map(idx => [li, idx])
-        });
-        alreadyLinkedLines.add(li);
-        added++;
-      }
-    });
-  } else {
-    lineData.forEach((line, li) => {
-      if(alreadyLinkedLines.has(li)) return;
-      const matchIndices = parts.map(part => line.tokens.findIndex(t => !t.isPunct && t.h === part));
-      if(matchIndices.every(idx => idx !== -1)){
-        constructions.push({
-          id: 'c' + Date.now() + Math.random().toString(36).slice(2),
-          pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
-          members: matchIndices.map(idx => [li, idx])
-        });
-        alreadyLinkedLines.add(li);
-        added++;
-      }
-    });
-  }
+  lineData.forEach((line, li) => {
+    if(alreadyLinkedLines.has(li)) return;
+    const matchIndices = parts.map(part => line.tokens.findIndex(t => !t.isPunct && t.h === part));
+    if(matchIndices.every(idx => idx !== -1)){
+      constructions.push({
+        id: 'c' + Date.now() + Math.random().toString(36).slice(2),
+        pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
+        members: matchIndices.map(idx => [li, idx])
+      });
+      alreadyLinkedLines.add(li);
+      added++;
+    }
+  });
 
   renderConstructionsList();
   renderLines();
@@ -974,10 +941,7 @@ function renderTokenCard(line, li, ti){
       <span style="font-size:9px;color:var(--text-dim);">HSK</span>
       <input type="text" value="${tok.hsk}" data-field="hsk">
     </div>
-    <div style="display:flex; gap:2px; width:100%;">
-      <input type="text" value="${(tok.note||'').replace(/"/g,'&quot;')}" placeholder="note (optional)" data-field="note" style="font-size:9px; flex:1;">
-      <button data-action="apply-note" title="Apply this note to every other occurrence of this word in this song" style="flex-shrink:0; font-size:9px; padding:2px 4px; border-radius:3px; border:1px solid var(--rule); background:transparent; color:var(--text-dim); cursor:pointer;">→all</button>
-    </div>
+    <input type="text" value="${(tok.note||'').replace(/"/g,'&quot;')}" placeholder="note (optional)" data-field="note" style="font-size:9px;">
     <div class="token-btns">
       <button data-action="merge" ${ti === line.tokens.length - 1 ? 'disabled' : ''}>merge →</button>
       <button data-action="split" ${Array.from(tok.h).length < 2 ? 'disabled' : ''}>split</button>
@@ -1081,22 +1045,6 @@ function makeToken(hanzi){
     needsReadingPick: hasMultipleReadings
   });
 }
-
-const applyNoteBtn = card.querySelector('[data-action="apply-note"]');
-if(applyNoteBtn) applyNoteBtn.addEventListener('click', () => {
-  if(!tok.note){ alert('Type a note first, then apply it to other occurrences.'); return; }
-  let count = 0;
-  lineData.forEach(l => {
-    l.tokens.forEach(t => {
-      if(t !== tok && t.h === tok.h && t.note !== tok.note){
-        t.note = tok.note;
-        count++;
-      }
-    });
-  });
-  renderLines();
-  if(count === 0) alert('No other occurrences of this word found in this song.');
-});
 
 const resetShortBtn = card.querySelector('[data-action="reset-short"]');
 if(resetShortBtn) resetShortBtn.addEventListener('click', () => {

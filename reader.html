@@ -9,8 +9,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="assets/favicon-192.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Changa+One:ital@0;1&family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   @font-face{
   font-family:'KN Bobohei';
@@ -18,14 +17,8 @@
   font-weight:700;
   font-display:swap;
 }
-@font-face{
-  font-family:'Hanzi Pinyin Top';
-  src:url('assets/fonts/Hanzi-Pinyin-Font_top.ttf') format('truetype');
-  font-display:swap;
-}
 :root{
   --font-title:'KN Bobohei', var(--font-han, 'Noto Serif SC', serif);
-  --font-brand:'Changa One', var(--font-title);
     --font-han:'Noto Serif SC', serif;
     --font-en:'Inter', sans-serif;
     --font-scale:1;
@@ -99,9 +92,9 @@
     color:var(--accent);
   }
   .title{
-    font-family:var(--font-brand);
+    font-family:'Noto Serif SC',serif;
     font-size:22px;
-    font-weight:400;
+    font-weight:700;
   }
   .controls{
     display:flex;
@@ -226,15 +219,6 @@
     display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--rule);
   }
   .creator-note-item:last-child{ border-bottom:none; }
-  .note-jumpable{ cursor:pointer; border-radius:4px; transition:background .15s; }
-  .numbered-note{ padding:3px 4px; margin:1px -4px; }
-  .note-num{ color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:11px; }
-  .note-jumpable:hover{ background:var(--surface-raised); }
-  .word.note-flash{ animation:noteFlash 1.2s ease; }
-  @keyframes noteFlash{
-    0%, 100%{ background:transparent; }
-    20%{ background:rgba(184,134,58,.35); }
-  }
   .creator-note-item .cni-hanzi{
     font-family:var(--font-han); font-size:18px; flex-shrink:0; min-width:50px;
   }
@@ -471,15 +455,6 @@
     font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
     text-transform:uppercase; color:var(--accent); margin-bottom:3px;
   }
-  .cons-note-box{
-    margin-bottom:10px; padding:10px 12px; text-align:left;
-    background:var(--surface); border-left:2px solid var(--accent);
-    border-radius:4px; font-size:12px; line-height:1.5;
-  }
-  .cons-note-box .note-label{
-    font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
-    text-transform:uppercase; color:var(--accent); margin-bottom:3px;
-  }
   #popupUserNote{ margin-top:12px; border-top:1px solid var(--rule); padding-top:12px; }
   #popupUserNote .note-label{
     font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
@@ -536,12 +511,11 @@
     text-align:center;
   }
   .popup-construction .cons-pattern{
-    font-family:'Hanzi Pinyin Top', var(--font-han, 'Noto Serif SC', serif);
-    font-size:26px;
-    font-weight:400;
+    font-family:var(--font-han, 'Noto Serif SC', serif);
+    font-size:19px;
+    font-weight:600;
     color:var(--accent);
-    margin-bottom:8px;
-    line-height:1.4;
+    margin-bottom:4px;
   }
   .popup-construction .cons-gloss{
     font-family:'JetBrains Mono',monospace;
@@ -999,80 +973,42 @@ function indexConstructions(){
 
 function renderCreatorNotes(){
   const section = document.getElementById('creatorNotesSection');
-
-  // Group by word: each word gets one heading, with its distinct notes listed
-  // and numbered underneath if there's more than one.
-  const wordGroups = new Map(); // hanzi -> { hsk, notes: [{note, lineIdx, wordIdx}] }
-  SONG.lines.forEach((entry, lineIdx) => {
-    entry.words.forEach((tok, wordIdx) => {
-      if(!tok.note) return;
-      if(!wordGroups.has(tok.h)) wordGroups.set(tok.h, { hsk: tok.hsk, notes: [] });
-      const group = wordGroups.get(tok.h);
-      if(!group.notes.some(n => n.note === tok.note)){
-        group.notes.push({ note: tok.note, lineIdx, wordIdx });
-      }
+  const wordItems = [];
+  SONG.lines.forEach(entry => {
+    entry.words.forEach(tok => {
+      if(tok.note) wordItems.push(tok);
     });
   });
 
   const seenPatterns = new Set();
   const consItems = [];
   (SONG.constructions || []).forEach(c => {
-    if(!seenPatterns.has(c.pattern)){
+    if(c.note && !seenPatterns.has(c.pattern)){
       seenPatterns.add(c.pattern);
       consItems.push(c);
     }
   });
 
-  if(wordGroups.size === 0 && consItems.length === 0){
+  if(wordItems.length === 0 && consItems.length === 0){
     section.style.display = 'none';
     return;
   }
 
-  const wordHtml = [...wordGroups.entries()].map(([hanzi, group]) => {
-    const notesHtml = group.notes.length === 1
-      ? `<div class="note-jumpable" data-line="${group.notes[0].lineIdx}" data-word="${group.notes[0].wordIdx}">${group.notes[0].note}</div>`
-      : group.notes.map((n, i) => `
-          <div class="note-jumpable numbered-note" data-line="${n.lineIdx}" data-word="${n.wordIdx}">
-            <span class="note-num">${i + 1}.</span> ${n.note}
-          </div>
-        `).join('');
-    return `
-      <div class="creator-note-item">
-        <div class="cni-hanzi" style="color:var(${HSK_VAR[group.hsk]})">${hanzi}</div>
-        <div class="cni-text">${notesHtml}</div>
-      </div>
-    `;
-  }).join('');
+  const wordHtml = wordItems.map(tok => `
+    <div class="creator-note-item">
+      <div class="cni-hanzi" style="color:var(${HSK_VAR[tok.hsk]})">${tok.h}</div>
+      <div class="cni-text">${tok.note}</div>
+    </div>
+  `).join('');
 
-  const consHtml = consItems.map(c => {
-    const target = (c.members && c.members[0]) || null;
-    const jumpAttrs = target ? `class="note-jumpable" data-line="${target[0]}" data-word="${target[1]}"` : '';
-    return `
+  const consHtml = consItems.map(c => `
     <div class="creator-note-item">
       <div class="cni-hanzi" style="color:var(--accent); font-size:15px;">${c.pattern}</div>
-      <div class="cni-text">
-        <div ${jumpAttrs}>${c.gloss || ''}</div>
-        ${c.note ? `<div style="margin-top:2px; opacity:.85;">${c.note}</div>` : ''}
-      </div>
+      <div class="cni-text">${c.note}</div>
     </div>
-  `;}).join('');
+  `).join('');
 
   section.innerHTML = `<div class="notes-heading">Notes on this song</div>` + wordHtml + consHtml;
-
-  section.querySelectorAll('.note-jumpable').forEach(el => {
-    el.addEventListener('click', () => {
-      const lineIdx = parseInt(el.dataset.line, 10);
-      const wordIdx = parseInt(el.dataset.word, 10);
-      const blocks = document.querySelectorAll('.line-block');
-      const targetLine = blocks[lineIdx];
-      if(!targetLine) return;
-      const targetWord = targetLine.querySelectorAll('.word')[wordIdx];
-      if(!targetWord) return;
-      targetWord.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      targetWord.classList.add('note-flash');
-      setTimeout(() => targetWord.classList.remove('note-flash'), 1200);
-    });
-  });
   section.style.display = 'block';
 }
 
@@ -1233,7 +1169,7 @@ function openPopup(tok, key, el){
     consEl.innerHTML = `
       <div class="cons-pattern">${cons.construction.pattern}</div>
       <div class="cons-gloss">${cons.construction.gloss}</div>
-      ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
+      ${cons.construction.note ? `<div style="margin-bottom:8px;">${cons.construction.note}</div>` : ''}
       <button id="popupConsSave" style="font-family:'JetBrains Mono',monospace; font-size:10px;
         padding:5px 10px; border-radius:12px; border:1px solid ${isConsSaved ? 'var(--accent)' : 'var(--rule)'};
         background:${isConsSaved ? 'rgba(184,134,58,.14)' : 'transparent'};
