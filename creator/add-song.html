@@ -412,6 +412,20 @@ function fallbackLookup(word){
 
 const PUNCT_RE = /^[。，！？、；：""''…—·\s]+$/;
 
+// Structural/grammatical particles where the dictionary's literal definition is
+// usually more confusing than helpful in a glance-gloss — always shown as "(particle)"
+// instead. Deliberately excludes 了/着/过, which double as real aspect-marking verbs
+// with meaningful content depending on context, so those still go through normal lookup.
+const PARTICLE_OVERRIDE = new Set(['的','地','得','吗','呢','吧','呀','啊','嘛','哦','哟']);
+
+function applyParticleOverride(tok){
+  if(PARTICLE_OVERRIDE.has(tok.h)){
+    tok.g = ['(particle)'];
+    tok.unresolved = false;
+  }
+  return tok;
+}
+
 function segmentLine(text){
   const seg = new Intl.Segmenter('zh', { granularity: 'word' });
   const tokens = [];
@@ -423,7 +437,7 @@ function segmentLine(text){
     }
     let entry = lookup(segment) || fallbackLookup(segment);
     const hasMultipleReadings = entry && entry.readings && entry.readings.length > 1;
-    tokens.push({
+    tokens.push(applyParticleOverride({
       h: segment,
       p: entry ? entry.p : '',
       g: entry ? entry.g : [],
@@ -434,7 +448,7 @@ function segmentLine(text){
       reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: r.g[0] || '' })) : null,
       selected_reading: hasMultipleReadings ? entry.p : null,
       needsReadingPick: hasMultipleReadings
-    });
+    }));
   }
   return tokens;
 }
@@ -472,12 +486,15 @@ function renderConstructionsList(){
   el.innerHTML = constructions.map((c, ci) => {
     const words = c.members.map(([li, ti]) => lineData[li]?.tokens[ti]?.h || '?').join(' + ');
     return `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--rule);">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--rule); gap:8px;">
         <div>
           <span style="font-family:'Noto Serif SC',serif; color:var(--accent);">${c.pattern}</span>
           <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${c.gloss} · ${words}</span>
         </div>
-        <button class="btn secondary small" data-del-cons="${ci}">delete</button>
+        <div style="display:flex; gap:6px; flex-shrink:0;">
+          <button class="btn secondary small" data-find-cons="${ci}">find other occurrences</button>
+          <button class="btn secondary small" data-del-cons="${ci}">delete</button>
+        </div>
       </div>`;
   }).join('');
   el.querySelectorAll('[data-del-cons]').forEach(btn => {
@@ -486,6 +503,48 @@ function renderConstructionsList(){
       renderConstructionsList();
     });
   });
+  el.querySelectorAll('[data-find-cons]').forEach(btn => {
+    btn.addEventListener('click', () => findOtherOccurrences(parseInt(btn.dataset.findCons, 10)));
+  });
+}
+
+// Looks for other lines where every part of the same pattern (e.g. "在" and "之前"
+// from "在...之前") shows up as its own exact word card, and links each one it
+// finds as a new occurrence of the same construction. This only matches parts that
+// were segmented as standalone tokens — if a part like 之前 got split into 之 + 前
+// somewhere, merge it into one card first or that occurrence won't be found.
+function findOtherOccurrences(consIndex){
+  const cons = constructions[consIndex];
+  const parts = cons.pattern.split(/\.{2,}|…/).map(p => p.trim()).filter(Boolean);
+  if(parts.length < 2){
+    alert('This pattern doesn\u2019t use "..." between parts, so there\u2019s nothing to auto-match.');
+    return;
+  }
+
+  const alreadyLinkedLines = new Set(
+    constructions.filter(c => c.pattern === cons.pattern).flatMap(c => c.members.map(([li]) => li))
+  );
+
+  let added = 0;
+  lineData.forEach((line, li) => {
+    if(alreadyLinkedLines.has(li)) return;
+    const matchIndices = parts.map(part => line.tokens.findIndex(t => !t.isPunct && t.h === part));
+    if(matchIndices.every(idx => idx !== -1)){
+      constructions.push({
+        id: 'c' + Date.now() + Math.random().toString(36).slice(2),
+        pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
+        members: matchIndices.map(idx => [li, idx])
+      });
+      alreadyLinkedLines.add(li);
+      added++;
+    }
+  });
+
+  renderConstructionsList();
+  renderLines();
+  alert(added > 0
+    ? `Found and linked ${added} more occurrence${added===1?'':'s'}.`
+    : 'No other matching occurrences found in the current lines.');
 }
 
 document.getElementById('btnLinkMode').addEventListener('click', () => {
@@ -691,12 +750,31 @@ function renderTokenCard(line, li, ti){
       tok.unresolved = false;
       card.classList.remove('unresolved');
     });
+    inp.addEventListener('blur', () => propagateTokenEdit(tok));
   });
+
+// Repeated lyrics mean the same word shows up across many lines — when you fix one
+// occurrence's pinyin/gloss/HSK by hand, apply that same fix everywhere else the
+// exact same hanzi appears in this song, so you're not repeating the correction.
+function propagateTokenEdit(sourceTok){
+  let changed = 0;
+  lineData.forEach(line => {
+    line.tokens.forEach(t => {
+      if(t === sourceTok || t.isPunct || t.h !== sourceTok.h) return;
+      t.p = sourceTok.p;
+      t.g = [...sourceTok.g];
+      t.hsk = sourceTok.hsk;
+      t.unresolved = false;
+      changed++;
+    });
+  });
+  if(changed > 0) renderLines();
+}
 
 function makeToken(hanzi){
   const entry = lookup(hanzi) || fallbackLookup(hanzi);
   const hasMultipleReadings = entry && entry.readings && entry.readings.length > 1;
-  return {
+  return applyParticleOverride({
     h: hanzi,
     p: entry ? entry.p : '',
     g: entry ? entry.g : [],
@@ -707,7 +785,7 @@ function makeToken(hanzi){
     reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: r.g[0] || '' })) : null,
     selected_reading: hasMultipleReadings ? entry.p : null,
     needsReadingPick: hasMultipleReadings
-  };
+  });
 }
 
 const mergeBtn = card.querySelector('[data-action="merge"]');

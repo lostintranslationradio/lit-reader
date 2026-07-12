@@ -237,6 +237,8 @@
     border-left:2px solid var(--rule);
     padding-left:12px;
   }
+  .translation.seekable{ cursor:pointer; }
+  .translation.seekable:hover{ opacity:1; color:var(--accent); border-left-color:var(--accent); }
   body.hide-translation .translation{ display:none; }
   .word{
     position:relative;
@@ -559,6 +561,7 @@
 
 <main id="mainArea" style="display:none;">
   <div class="reader">
+    <div id="videoSentinel" style="height:1px;"></div>
     <div class="video-wrap" id="videoOuter">
       <div id="videoWrap" style="position:absolute; inset:0;"></div>
       <button class="video-mini-close" id="videoMiniClose" title="Close mini player">✕</button>
@@ -708,6 +711,11 @@ function render(){
     const t = document.createElement('div');
     t.className = 'translation';
     t.textContent = entry.translation;
+    if(typeof entry.start === 'number'){
+      t.classList.add('seekable');
+      t.title = 'Jump video to this line';
+      t.addEventListener('click', () => jumpToLine(entry.start));
+    }
     block.appendChild(t);
     linesEl.appendChild(block);
   });
@@ -960,6 +968,7 @@ let miniObserver = null;
 
 function setupMiniPlayer(){
   const outer = document.getElementById('videoOuter');
+  const sentinel = document.getElementById('videoSentinel');
   const spacer = document.getElementById('videoMiniSpacer');
   if(miniObserver) miniObserver.disconnect();
 
@@ -967,8 +976,10 @@ function setupMiniPlayer(){
     const entry = entries[0];
     const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < 0;
     if(scrolledPast && !miniPlayerDismissed){
-      outer.classList.add('mini');
-      spacer.style.height = entry.boundingClientRect.height + 'px';
+      if(!outer.classList.contains('mini')){
+        spacer.style.height = outer.getBoundingClientRect().height + 'px';
+        outer.classList.add('mini');
+      }
     } else if(!scrolledPast){
       outer.classList.remove('mini');
       spacer.style.height = '0';
@@ -976,7 +987,7 @@ function setupMiniPlayer(){
     }
   }, { threshold: 0 });
 
-  miniObserver.observe(outer);
+  miniObserver.observe(sentinel);
 }
 
 document.getElementById('videoMiniClose').addEventListener('click', () => {
@@ -990,9 +1001,24 @@ document.getElementById('videoMiniClose').addEventListener('click', () => {
 function findActiveLineIndex(t){
   for(let i = 0; i < SONG.lines.length; i++){
     const l = SONG.lines[i];
-    if(typeof l.start === 'number' && typeof l.end === 'number' && t >= l.start && t < l.end) return i;
+    if(typeof l.start !== 'number') continue;
+    // Use the real end time if we have one; otherwise infer it as "right before
+    // the next timed line starts," and for the last line, treat it as open-ended.
+    let end = typeof l.end === 'number' ? l.end : null;
+    if(end === null){
+      const next = SONG.lines.slice(i + 1).find(ln => typeof ln.start === 'number');
+      end = next ? next.start : Infinity;
+    }
+    if(t >= l.start && t < end) return i;
   }
   return -1;
+}
+
+function jumpToLine(start){
+  if(!ytPlayer || typeof ytPlayer.seekTo !== 'function') return;
+  ytPlayer.seekTo(start, true);
+  ytPlayer.playVideo();
+  document.getElementById('videoOuter').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function startFollowing(){
