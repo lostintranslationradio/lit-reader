@@ -32,7 +32,7 @@ header{ padding:22px 28px; border-bottom:1px solid var(--rule); }
 }
 .library-btn:hover{ border-color:var(--accent); color:var(--accent); }
 .eyebrow{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); text-align:center; }
-.title{ font-family:var(--font-brand); font-size:22px; font-weight:400; text-align:center; }
+.title{ font-family:var(--font-brand); font-size:28px; font-weight:400; text-align:center; }
 
 main{ max-width:700px; margin:0 auto; padding:40px 24px 90px; }
 
@@ -76,18 +76,18 @@ main{ max-width:700px; margin:0 auto; padding:40px 24px 90px; }
 
 <header id="aboutHeader">
   <div class="header-inner">
-    <a href="index.html" class="library-btn">← <span>Library</span></a>
+    <a href="index.html" id="aboutBackLink" class="library-btn">← <span>Library</span></a>
     <div>
       <div class="eyebrow">About</div>
       <div class="title">Lost In Translation Radio</div>
     </div>
-    <div style="width:90px;"></div>
+    <div style="width:90px;" id="aboutHeaderSpacer"></div>
   </div>
 </header>
 
 <main>
   <div class="mission">
-    Music knows no border, but the words still need someone to carry them across.
+    Music knows no border<span style="font-family:'Inter',sans-serif;">,</span> but the words still need someone to carry them across<span style="font-family:'Inter',sans-serif;">.</span>
   </div>
 
   <div class="section">
@@ -127,7 +127,8 @@ main{ max-width:700px; margin:0 auto; padding:40px 24px 90px; }
 
 <script>
 if(new URLSearchParams(location.search).get('embed') === '1'){
-  document.getElementById('aboutHeader').style.display = 'none';
+  document.getElementById('aboutBackLink').style.visibility = 'hidden';
+  document.getElementById('aboutHeaderSpacer').style.visibility = 'hidden';
   document.querySelector('main').style.padding = '24px 24px 40px';
 }
 </script>

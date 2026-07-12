@@ -52,7 +52,7 @@
     max-width:1180px;
     margin:0 auto;
     display:flex;
-    align-items:flex-start;
+    align-items:center;
     justify-content:space-between;
     gap:14px;
     flex-wrap:wrap;
@@ -70,6 +70,14 @@
     font-size:28px;
     font-weight:400;
   }
+  .about-q{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:50%; border:1px solid var(--rule);
+    background:var(--surface); color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:400;
+    text-decoration:none; vertical-align:middle; margin-left:6px;
+  }
+  .about-q:hover{ border-color:var(--accent); color:var(--accent); }
   .creator-link{
     font-family:'JetBrains Mono',monospace;
     font-size:11px;
@@ -454,9 +462,11 @@
   <div class="header-inner">
     <div>
       <div class="eyebrow">song library</div>
-      <div class="title">Lost in Translation Radio</div>
+      <div class="title">
+        Lost in Translation Radio
+        <a id="aboutLink" class="about-q" href="about.html" title="About">?</a>
+      </div>
     </div>
-    <a class="creator-link" id="aboutLink" href="about.html" style="text-decoration:none;">About</a>
     <button class="creator-link" id="creatorLink">Sign In</button>
   </div>
 </header>
@@ -721,6 +731,16 @@ sb.from('songs').select('*').then(({ data, error }) => {
 });
 </script>
 <footer style="text-align:center; padding:20px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
+  <div style="display:flex; justify-content:center; gap:10px; margin-bottom:12px;">
+    <a href="https://www.youtube.com/@LostInTranslationRadio" target="_blank" rel="noopener" title="YouTube"
+      style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px;
+      border-radius:50%; border:1px solid var(--rule); color:var(--text-dim); text-decoration:none;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4L15.8 12Z"/></svg>
+    </a>
+    <a href="https://ko-fi.com/lostintranslationradio" target="_blank" rel="noopener" title="Ko-fi"
+      style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px;
+      border-radius:50%; border:1px solid var(--rule); color:var(--text-dim); text-decoration:none; font-size:14px;">☕</a>
+  </div>
   Definitions powered by <a href="https://cc-cedict.org/" target="_blank" rel="noopener" style="color:var(--text-dim);">CC-CEDICT</a>
   · Reading layout inspired by <a href="https://wubli.app" target="_blank" rel="noopener" style="color:var(--text-dim);">Wubli</a>
 </footer>
