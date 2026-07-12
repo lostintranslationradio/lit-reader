@@ -276,7 +276,7 @@
   <div class="panel" id="constructionsPanel" style="display:none;">
     <h2>3.5 · Constructions (optional)</h2>
     <p class="note">
-      For grammar patterns split across non-adjacent words (like <b>在...之前</b>), click
+      For grammar patterns split across non-adjacent words (like <b>在……之前</b>), click
       <b>Link words</b>, then click each word that's part of the pattern in the review area above.
       Save once you've picked them all. Linked words get an underline in the published reader,
       color-coded per pattern.
@@ -286,8 +286,8 @@
 
     <div id="constructionForm" style="display:none; margin-top:14px; padding-top:14px; border-top:1px solid var(--rule);">
       <div class="field">
-        <label>Pattern (e.g. 在...之前)</label>
-        <input type="text" id="consPattern" placeholder="在...之前">
+        <label>Pattern (e.g. 在……之前)</label>
+        <input type="text" id="consPattern" placeholder="在……之前">
       </div>
       <div class="row2">
         <div class="field">
@@ -575,13 +575,13 @@ function renderConstructionsList(){
 }
 
 // Looks for other lines where every part of the same pattern (e.g. "在" and "之前"
-// from "在...之前") shows up as its own exact word card, and links each one it
+// from "在……之前") shows up as its own exact word card, and links each one it
 // finds as a new occurrence of the same construction. This only matches parts that
 // were segmented as standalone tokens — if a part like 之前 got split into 之 + 前
 // somewhere, merge it into one card first or that occurrence won't be found.
 function findOtherOccurrences(consIndex){
   const cons = constructions[consIndex];
-  const parts = cons.pattern.split(/\.{2,}|…/).map(p => p.trim()).filter(Boolean);
+  const parts = cons.pattern.split(/\.{2,}|…+/).map(p => p.trim()).filter(Boolean);
   if(parts.length < 2){
     alert('This pattern doesn\u2019t use "..." between parts, so there\u2019s nothing to auto-match.');
     return;

@@ -130,6 +130,7 @@
     max-width:1180px;
     margin:0 auto;
     align-items:flex-start;
+    justify-content:center;
   }
   .reader{
     flex:1 1 640px;
@@ -294,6 +295,8 @@
   .translation.seekable{ cursor:pointer; }
   .translation.seekable:hover{ opacity:1; color:var(--accent); border-left-color:var(--accent); }
   body.hide-translation .translation{ display:none; }
+  body.hide-pinyin .pinyin{ display:none !important; }
+  body.hide-word-gloss .gloss{ display:none !important; }
   .word{
     position:relative;
     display:flex;
@@ -706,7 +709,7 @@
       <div class="eyebrow">Annotated Reader</div>
       <div class="title" id="pageTitle">Lost In Translation Radio</div>
     </div>
-    <a href="how-to-use.html" class="library-btn" style="justify-self:end;">How to Use</a>
+    <a href="how-to-use.html" id="howToUseLink" class="library-btn" style="justify-self:end;">How to Use</a>
   </div>
 </header>
 
@@ -755,6 +758,12 @@
         </div>
         <div class="toggle" id="translationToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
           translation <div class="switch on"></div>
+        </div>
+        <div class="toggle" id="pinyinVisToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
+          pinyin <div class="switch on"></div>
+        </div>
+        <div class="toggle" id="wordGlossToggle" style="margin-bottom:10px; justify-content:space-between; width:100%;">
+          word translation <div class="switch on"></div>
         </div>
         <div class="toggle" id="followToggle" style="display:none; margin-bottom:10px; justify-content:space-between; width:100%;">
           follow video <div class="switch"></div>
@@ -1223,7 +1232,7 @@ document.getElementById('popupSpeakNormal').addEventListener('click', () => {
   if(currentPopup) speakWord(currentPopup.tok.h, 1);
 });
 document.getElementById('popupSpeakSlow').addEventListener('click', () => {
-  if(currentPopup) speakWord(currentPopup.tok.h, 0.5);
+  if(currentPopup) speakWord(currentPopup.tok.h, 0.3);
 });
 document.getElementById('popupClose').addEventListener('click', closePopup);
 document.getElementById('popupOverlay').addEventListener('click', function(e){
@@ -1280,6 +1289,26 @@ document.getElementById('translationToggle').addEventListener('click', function(
   document.body.classList.toggle('hide-translation');
   this.querySelector('.switch').classList.toggle('on');
 });
+
+function applyStoredVisibility(){
+  const pinyinOn = localStorage.getItem('showPinyin') !== 'off';
+  const wordGlossOn = localStorage.getItem('showWordGloss') !== 'off';
+  document.body.classList.toggle('hide-pinyin', !pinyinOn);
+  document.body.classList.toggle('hide-word-gloss', !wordGlossOn);
+  document.querySelector('#pinyinVisToggle .switch').classList.toggle('on', pinyinOn);
+  document.querySelector('#wordGlossToggle .switch').classList.toggle('on', wordGlossOn);
+}
+document.getElementById('pinyinVisToggle').addEventListener('click', function(){
+  const nowHidden = document.body.classList.toggle('hide-pinyin');
+  this.querySelector('.switch').classList.toggle('on', !nowHidden);
+  localStorage.setItem('showPinyin', nowHidden ? 'off' : 'on');
+});
+document.getElementById('wordGlossToggle').addEventListener('click', function(){
+  const nowHidden = document.body.classList.toggle('hide-word-gloss');
+  this.querySelector('.switch').classList.toggle('on', !nowHidden);
+  localStorage.setItem('showWordGloss', nowHidden ? 'off' : 'on');
+});
+applyStoredVisibility();
 
 let ytPlayer = null;
 let followVideo = false;
@@ -1532,6 +1561,7 @@ async function init(){
     (titlesRes.data || []).forEach(s => { SONG_TITLES[s.id] = s.zh; });
 
     document.title = SONG.zh + ' — Lyric Reader';
+    document.getElementById('howToUseLink').href = `how-to-use.html?from=${encodeURIComponent(SONG_ID)}`;
     document.getElementById('readerHeadingZh').textContent = SONG.zh;
     document.getElementById('readerHeadingEn').textContent = SONG.en ? ' ' + SONG.en : '';
     const subEl = document.getElementById('readerSub');

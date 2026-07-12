@@ -119,7 +119,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
 
 <header>
   <div class="header-inner">
-    <a href="index.html" class="library-btn">← Library</a>
+    <a href="index.html" id="backLink" class="library-btn">← Library</a>
     <div>
       <div class="eyebrow">Guide</div>
       <div class="title">How to Use This Site</div>
@@ -160,7 +160,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   <div class="lesson">
     <div class="lesson-num">04</div>
     <h2>Control how much shows automatically</h2>
-    <p>The Glosses slider in Settings sets a threshold — words at or below that HSK level stay hidden by default, since you're assumed to already know them; anything above it shows automatically. Drag it and watch the line below react.</p>
+    <p>The Glosses slider in Settings sets a threshold — words at or below that HSK level stay hidden by default, since you're assumed to already know them; anything above it shows automatically. Drag it and watch the line below react. There are also two separate switches in Settings — <b>pinyin</b> and <b>word translation</b> — if you'd rather turn one of them off entirely regardless of level, for example hiding pinyin once you don't need it anymore while keeping the word-by-word glosses on.</p>
     <div class="demo-box">
       <div class="level-control">
         <span>Glosses</span>
@@ -193,7 +193,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   <div class="lesson">
     <div class="lesson-num">06</div>
     <h2>The translation is always underneath</h2>
-    <p>Below every line sits the actual line-by-line translation — the real, singable rendering, distinct from the word-by-word glosses above it. You can turn it off in Settings if you'd rather work it out yourself first.</p>
+    <p>Below every line sits the actual line-by-line translation — the real, singable rendering, distinct from the word-by-word glosses above it. You can turn it off in Settings if you'd rather work it out yourself first. On a real song page, if that song has timestamps, clicking the translation jumps the video straight to that moment — a quick way to hear exactly how a line sounds.</p>
     <div class="demo-box">
       <div class="line" id="demo6"></div>
       <div class="translation" id="demo6t"></div>
@@ -203,7 +203,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   <div class="lesson">
     <div class="lesson-num">07</div>
     <h2>Connected words get underlined</h2>
-    <p>Some grammar patterns split across words that aren't next to each other — like <b>在...之前</b> ("before"), where other words sit in between. Those get a matching colored underline. Press and hold either one to see how they connect.</p>
+    <p>Some grammar patterns split across words that aren't next to each other — like <b>在……之前</b> ("before"), where other words sit in between. Those get a matching colored underline. Press and hold either one to see how they connect.</p>
     <div class="demo-box"><div class="line" id="demo7"></div></div>
   </div>
 
@@ -269,7 +269,7 @@ const demo7Words = [
   {h:'。',p:'',g:[],hsk:0,isPunct:true}
 ];
 
-const demoConstructions = { demo4: [[0,2]], demo7: [[0,2]] }; // [lineWordIdx pairs for 在...之前
+const demoConstructions = { demo4: [[0,2]], demo7: [[0,2]] }; // [lineWordIdx pairs for 在……之前
 
 let savedDemo = new Set();
 let overridesByLine = {};
@@ -357,7 +357,7 @@ function openDemoPopup(tok, lineId, key, pairs){
   const wordIdxInLine = key;
   const pairMatch = (pairs||[]).find(p => p.includes(wordIdxInLine));
   if(pairMatch){
-    consEl.innerHTML = `<div class="cons-pattern">在...之前</div><div class="cons-gloss">before</div>`;
+    consEl.innerHTML = `<div class="cons-pattern">在……之前</div><div class="cons-gloss">before</div>`;
     consEl.style.display = 'block';
   } else {
     consEl.style.display = 'none';
@@ -395,7 +395,7 @@ document.getElementById('popupSpeakNormal').addEventListener('click', () => {
   if(currentDemoPopup) speakDemo(currentDemoPopup.tok.h, 1);
 });
 document.getElementById('popupSpeakSlow').addEventListener('click', () => {
-  if(currentDemoPopup) speakDemo(currentDemoPopup.tok.h, 0.5);
+  if(currentDemoPopup) speakDemo(currentDemoPopup.tok.h, 0.3);
 });
 
 let demoLevel = 3;
@@ -416,6 +416,13 @@ document.getElementById('demoSlider').addEventListener('input', function(){
     demoLevel === 0 ? 'Show all' : demoLevel === 8 ? 'Hide all' : demoLevel === 7 ? 'HSK 7\u20139' : 'HSK ' + demoLevel;
   renderAll();
 });
+
+const fromSong = new URLSearchParams(location.search).get('from');
+if(fromSong){
+  const backLink = document.getElementById('backLink');
+  backLink.href = `reader.html?song=${encodeURIComponent(fromSong)}`;
+  backLink.textContent = '← Back to song';
+}
 
 renderAll();
 </script>
