@@ -518,6 +518,7 @@
     font-family:'JetBrains Mono',monospace; font-size:12px;
   }
   #mobileSettingsFab, #mobileSettingsClose{ display:none; }
+  #mobileVocabFab, #mobileVocabClose{ display:none; }
 
   @media (max-width:760px){
     #mobileSettingsFab{
@@ -589,7 +590,6 @@
       font-size:14px; cursor:pointer; z-index:1;
     }
   }
-  #mobileVocabFab, #mobileVocabClose{ display:none; }
 
   aside{
     flex:0 0 260px;
@@ -643,7 +643,7 @@
   @media (max-width: 760px){
     main{ flex-direction:column; padding:22px 16px 60px; gap:20px; }
     .reader{ max-width:100%; padding:24px 20px; }
-    aside{ position:static; flex:1 1 auto; width:100%; }
+    aside{ position:static; flex:1 1 auto; width:100%; padding:0; border:none; background:none; }
     header{ padding:16px 18px; }
     .title{ font-size:18px; }
     .controls{ gap:12px 14px; font-size:11px; }
@@ -1188,15 +1188,19 @@ document.getElementById('settingsBoxToggle').addEventListener('click', () => {
 });
 document.getElementById('mobileSettingsFab').addEventListener('click', () => {
   document.getElementById('settingsBox').classList.add('mobile-open');
+  document.getElementById('mobileSettingsFab').style.display = 'none';
 });
 document.getElementById('mobileSettingsClose').addEventListener('click', () => {
   document.getElementById('settingsBox').classList.remove('mobile-open');
+  document.getElementById('mobileSettingsFab').style.display = '';
 });
 document.getElementById('mobileVocabFab').addEventListener('click', () => {
   document.getElementById('vocabBox').classList.add('mobile-open');
+  document.getElementById('mobileVocabFab').style.display = 'none';
 });
 document.getElementById('mobileVocabClose').addEventListener('click', () => {
   document.getElementById('vocabBox').classList.remove('mobile-open');
+  document.getElementById('mobileVocabFab').style.display = '';
 });
 
 const FONT_PAIRS = {
