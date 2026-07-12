@@ -167,6 +167,19 @@
   </div>
 
   <div class="panel">
+    <h2>Maintenance: fix dictionary data across all songs</h2>
+    <p class="note">
+      One-time fix for songs published before short glosses and full dictionary definitions were
+      properly separated. This re-fetches the real dictionary definitions for every word in every
+      song and writes them straight back to the database — no need to load and republish each song
+      by hand. Your short glosses (and anything already fixed) are left alone; only the underlying
+      dictionary definitions get corrected.
+    </p>
+    <button class="btn secondary" id="btnFixAllSongs">Fix all songs now</button>
+    <div class="status-line" id="fixAllStatus"></div>
+  </div>
+
+  <div class="panel">
     <h2>1 · Song details</h2>
     <div class="field">
       <label>Chinese title</label>
@@ -264,6 +277,7 @@
       with no gloss until you do. The translation field is the only thing that was never automatic.
     </p>
     <button class="btn secondary" id="btnRestoreDefs">Restore full definitions from dictionary</button>
+    <button class="btn secondary" id="btnResetAllShort">Reset all short glosses to dictionary defaults</button>
     <div class="status-line" id="restoreDefsStatus" style="margin-top:6px;"></div>
     <p class="note" style="margin-top:6px;">
       Fixes an earlier bug where editing a word's gloss deleted its other dictionary definitions.
@@ -419,6 +433,64 @@ document.getElementById('btnLoadExisting').addEventListener('click', async () =>
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
+document.getElementById('btnFixAllSongs').addEventListener('click', async () => {
+  if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
+  if(!confirm('This rewrites the dictionary definitions for every word in every song, directly in the database. Short glosses are preserved. Continue?')) return;
+
+  const statusEl = document.getElementById('fixAllStatus');
+  statusEl.classList.remove('ok');
+  statusEl.textContent = 'Fetching all songs…';
+
+  const { data: songs, error } = await sb.from('songs').select('*');
+  if(error){
+    statusEl.textContent = 'Failed to fetch songs: ' + error.message;
+    return;
+  }
+
+  let songsFixed = 0, wordsFixed = 0;
+
+  for(const song of songs){
+    let changed = false;
+    const lines = (song.lines || []).map(line => ({
+      ...line,
+      words: line.words.map(w => {
+        if(PUNCT_RE.test(w.h)) return w;
+        const word = { ...w };
+        // Preserve whatever's currently shown as the short label before touching g,
+        // in case this word never went through the short/g split at all yet.
+        if(!word.short){
+          word.short = (word.g && word.g[0]) || '';
+        }
+        const entry = lookup(word.h);
+        if(entry && entry.g && entry.g.length > 0){
+          if(JSON.stringify(entry.g) !== JSON.stringify(word.g)){
+            word.g = entry.g;
+            changed = true;
+            wordsFixed++;
+          }
+        }
+        if(PARTICLE_OVERRIDE.has(word.h) && word.short !== '(particle)'){
+          word.short = '(particle)';
+          changed = true;
+        }
+        return word;
+      })
+    }));
+
+    if(changed){
+      const { error: updateError } = await sb.from('songs').update({ lines }).eq('id', song.id);
+      if(updateError){
+        console.error(`Failed to update ${song.id}:`, updateError);
+      } else {
+        songsFixed++;
+      }
+    }
+  }
+
+  statusEl.textContent = `Done — fixed ${wordsFixed} word${wordsFixed===1?'':'s'} across ${songsFixed} song${songsFixed===1?'':'s'}.`;
+  statusEl.classList.add('ok');
+});
+
 let DICT = {};
 let dictReady = false;
 
@@ -486,7 +558,9 @@ const PARTICLE_OVERRIDE = new Set(['的','地','得','吗','呢','吧','呀','�
 
 function applyParticleOverride(tok){
   if(PARTICLE_OVERRIDE.has(tok.h)){
-    tok.g = ['(particle)'];
+    // Only the short/compact label gets the space-saving "(particle)" treatment.
+    // The full dictionary definitions (tok.g) are left completely untouched —
+    // the popup should always show the real, complete entry.
     tok.short = '(particle)';
     tok.unresolved = false;
   }
@@ -859,7 +933,10 @@ function renderTokenCard(line, li, ti){
     ${tok.needsReadingPick && !tok.readingConfirmed ? '<div style="font-size:8px; color:var(--accent); margin-bottom:3px;">pick reading ↓</div>' : ''}
     ${readingPicker}
     <input type="text" value="${(tok.p||'').replace(/"/g,'&quot;')}" placeholder="pinyin" data-field="p">
-    <input type="text" value="${(tok.short||'').replace(/"/g,'&quot;')}" placeholder="short gloss" data-field="short">
+    <div style="display:flex; gap:2px; width:100%;">
+      <input type="text" value="${(tok.short||'').replace(/"/g,'&quot;')}" placeholder="short gloss" data-field="short" style="flex:1;">
+      <button data-action="reset-short" title="Reset to dictionary default" style="flex-shrink:0; font-size:10px; padding:2px 5px; border-radius:3px; border:1px solid var(--rule); background:transparent; color:var(--text-dim); cursor:pointer;">↺</button>
+    </div>
     <div class="token-hsk-row">
       <span style="font-size:9px;color:var(--text-dim);">HSK</span>
       <input type="text" value="${tok.hsk}" data-field="hsk">
@@ -928,6 +1005,29 @@ document.getElementById('btnRestoreDefs').addEventListener('click', () => {
   statusEl.classList.add('ok');
 });
 
+document.getElementById('btnResetAllShort').addEventListener('click', () => {
+  if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
+  if(!confirm('This replaces every word\u2019s short gloss with the dictionary default, discarding any custom wording you\u2019ve typed. Continue?')) return;
+  let reset = 0;
+  lineData.forEach(line => {
+    line.tokens.forEach(tok => {
+      if(tok.isPunct) return;
+      const entry = lookup(tok.h);
+      const dictDefault = PARTICLE_OVERRIDE.has(tok.h) ? '(particle)' : (entry && entry.g && entry.g[0] ? entry.g[0] : '');
+      if(tok.short !== dictDefault){
+        tok.short = dictDefault;
+        reset++;
+      }
+    });
+  });
+  renderLines();
+  const statusEl = document.getElementById('restoreDefsStatus');
+  statusEl.textContent = reset > 0
+    ? `Reset ${reset} short gloss${reset===1?'':'es'} back to dictionary defaults.`
+    : 'Nothing to reset — every word already matches the dictionary default.';
+  statusEl.classList.add('ok');
+});
+
 function makeToken(hanzi){
   const entry = lookup(hanzi) || fallbackLookup(hanzi);
   const hasMultipleReadings = entry && entry.readings && entry.readings.length > 1;
@@ -945,6 +1045,13 @@ function makeToken(hanzi){
     needsReadingPick: hasMultipleReadings
   });
 }
+
+const resetShortBtn = card.querySelector('[data-action="reset-short"]');
+if(resetShortBtn) resetShortBtn.addEventListener('click', () => {
+  const entry = lookup(tok.h);
+  tok.short = PARTICLE_OVERRIDE.has(tok.h) ? '(particle)' : (entry && entry.g && entry.g[0] ? entry.g[0] : '');
+  renderLines();
+});
 
 const mergeBtn = card.querySelector('[data-action="merge"]');
   if(mergeBtn) mergeBtn.addEventListener('click', () => {

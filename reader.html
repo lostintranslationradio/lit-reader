@@ -973,23 +973,42 @@ function indexConstructions(){
 
 function renderCreatorNotes(){
   const section = document.getElementById('creatorNotesSection');
-  const items = [];
+  const wordItems = [];
   SONG.lines.forEach(entry => {
     entry.words.forEach(tok => {
-      if(tok.note) items.push(tok);
+      if(tok.note) wordItems.push(tok);
     });
   });
-  if(items.length === 0){
+
+  const seenPatterns = new Set();
+  const consItems = [];
+  (SONG.constructions || []).forEach(c => {
+    if(c.note && !seenPatterns.has(c.pattern)){
+      seenPatterns.add(c.pattern);
+      consItems.push(c);
+    }
+  });
+
+  if(wordItems.length === 0 && consItems.length === 0){
     section.style.display = 'none';
     return;
   }
-  section.innerHTML = `<div class="notes-heading">Notes on this song</div>` +
-    items.map(tok => `
-      <div class="creator-note-item">
-        <div class="cni-hanzi" style="color:var(${HSK_VAR[tok.hsk]})">${tok.h}</div>
-        <div class="cni-text">${tok.note}</div>
-      </div>
-    `).join('');
+
+  const wordHtml = wordItems.map(tok => `
+    <div class="creator-note-item">
+      <div class="cni-hanzi" style="color:var(${HSK_VAR[tok.hsk]})">${tok.h}</div>
+      <div class="cni-text">${tok.note}</div>
+    </div>
+  `).join('');
+
+  const consHtml = consItems.map(c => `
+    <div class="creator-note-item">
+      <div class="cni-hanzi" style="color:var(--accent); font-size:15px;">${c.pattern}</div>
+      <div class="cni-text">${c.note}</div>
+    </div>
+  `).join('');
+
+  section.innerHTML = `<div class="notes-heading">Notes on this song</div>` + wordHtml + consHtml;
   section.style.display = 'block';
 }
 
