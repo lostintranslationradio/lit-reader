@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>How to Use — Lost In Translation Radio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@font-face{
+  font-family:'KN Bobohei';
+  src:url('assets/fonts/KNBobohei-Bold.ttf') format('truetype');
+  font-weight:700;
+  font-display:swap;
+}
+:root{
+  --font-title:'KN Bobohei', 'Noto Serif SC', serif;
+  --font-han:'Noto Sans SC', sans-serif;
+  --font-en:'Inter', sans-serif;
+  --bg:#faf8f3; --surface:#ffffff; --surface-raised:#f1efe6; --rule:#ddd7c8;
+  --text:#262420; --text-dim:#79766c; --accent:#b8863a;
+  --hsk1:#4f8a70; --hsk2:#3f6fd1; --hsk3:#7c5ec9; --hsk4:#c94a70; --hsk5:#c85f28;
+  --hsk6:#a83440; --hsk79:#1f8f83; --beyond:#111111;
+}
+*{box-sizing:border-box;}
+body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--font-en); min-height:100vh; }
+header{ padding:22px 28px; border-bottom:1px solid var(--rule); }
+.header-inner{ max-width:760px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+.library-btn{
+  display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:20px;
+  border:1px solid var(--rule); background:var(--surface); color:var(--text-dim); text-decoration:none;
+  font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.04em;
+}
+.library-btn:hover{ border-color:var(--accent); color:var(--accent); }
+.eyebrow{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+.title{ font-family:var(--font-title); font-size:22px; font-weight:600; text-align:center; }
+main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
+.lede{ font-size:15px; line-height:1.7; color:var(--text); margin-bottom:36px; }
+.lede a{ color:var(--accent); }
+
+.lesson{ margin-bottom:44px; }
+.lesson-num{
+  font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:6px;
+}
+.lesson h2{ font-family:var(--font-title); font-size:20px; margin:0 0 8px; }
+.lesson p{ font-size:14px; line-height:1.7; color:var(--text); opacity:.9; margin:0 0 16px; }
+.demo-box{
+  background:var(--surface); border:1px solid var(--rule); border-radius:6px;
+  padding:24px; margin-bottom:8px;
+}
+.demo-caption{
+  font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);
+  text-align:center; margin-top:10px;
+}
+
+.line{ display:flex; flex-wrap:wrap; gap:2px 4px; line-height:1.2; justify-content:center; }
+.word{
+  position:relative; display:flex; flex-direction:column; align-items:center;
+  padding:6px 5px 4px; border-radius:6px; cursor:pointer;
+  -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
+  transition:background .15s;
+}
+.word:hover{ background:var(--surface-raised); }
+.pinyin{ font-family:var(--font-en); font-size:11px; color:var(--text-dim); height:14px; white-space:nowrap; }
+.hanzi{ font-family:var(--font-han); font-size:26px; font-weight:500; white-space:nowrap; transition:color .2s; }
+.gloss{ font-family:var(--font-en); font-size:10px; color:var(--text-dim); white-space:nowrap; opacity:.85; }
+.word.g-hidden .gloss, .word.g-hidden .pinyin{ visibility:hidden; }
+.word.saved::after{ content:'★'; position:absolute; top:-3px; right:-6px; font-size:9px; color:var(--accent); }
+.ring{ position:absolute; top:14px; left:50%; transform:translate(-50%,-50%) rotate(-90deg); width:34px; height:34px; pointer-events:none; opacity:0; }
+.ring circle{ fill:none; stroke:var(--accent); stroke-width:2.5; stroke-linecap:round; stroke-dasharray:88; stroke-dashoffset:88; }
+.word.holding .ring{ opacity:1; }
+.word.holding .ring circle{ transition:stroke-dashoffset .6s linear; stroke-dashoffset:0; }
+.word.holding{ background:var(--surface-raised); }
+
+.translation{ margin-top:10px; font-family:var(--font-en); font-style:italic; font-size:14px; color:var(--text); opacity:.75; border-left:2px solid var(--rule); padding-left:12px; text-align:left; }
+
+.level-control{ display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-dim); }
+.level-control input[type=range]{ flex:1; accent-color:var(--accent); }
+
+.key{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:6px; }
+.key span{ display:flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); }
+.dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+
+.popup-overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.5); display:none;
+  align-items:center; justify-content:center; z-index:100; padding:20px;
+}
+.popup-overlay.open{ display:flex; }
+.popup-card{ background:var(--surface); border:1px solid var(--rule); border-radius:8px; max-width:320px; width:100%; padding:26px 22px 20px; position:relative; }
+.popup-close{ position:absolute; top:12px; left:14px; background:none; border:none; color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:11px; cursor:pointer; }
+.popup-star{ position:absolute; top:10px; right:12px; background:none; border:none; font-size:22px; line-height:1; cursor:pointer; color:var(--text-dim); }
+.popup-star.starred{ color:var(--accent); }
+.popup-hanzi{ font-family:var(--font-han); font-size:42px; font-weight:600; text-align:center; margin-top:16px; }
+.popup-pinyin{ text-align:center; color:var(--text-dim); font-size:14px; margin-top:2px; }
+.popup-sound{ display:flex; justify-content:center; gap:8px; margin:10px 0; }
+.popup-sound button{ font-family:'JetBrains Mono',monospace; font-size:11px; padding:6px 12px; border-radius:14px; border:1px solid var(--rule); background:transparent; color:var(--text-dim); cursor:pointer; }
+.popup-sound button:hover{ border-color:var(--accent); color:var(--accent); }
+.popup-hsk-badge{ display:block; text-align:center; margin:12px auto 16px; width:fit-content; font-family:'JetBrains Mono',monospace; font-size:10px; padding:3px 11px; border-radius:10px; border:1px solid var(--rule); }
+.popup-defs{ border-top:1px solid var(--rule); padding-top:14px; font-family:var(--font-en); font-size:13px; line-height:1.6; }
+.popup-defs ol{ margin:0; padding-left:18px; }
+.popup-construction{ margin:10px 0 14px; padding:12px 14px; background:rgba(184,134,58,.1); border:1px solid var(--accent); border-radius:8px; text-align:center; }
+.popup-construction .cons-pattern{ font-family:var(--font-han); font-size:19px; font-weight:600; color:var(--accent); margin-bottom:4px; }
+.popup-construction .cons-gloss{ font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; }
+.popup-hint{ margin-top:16px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim); }
+
+.cta{
+  text-align:center; margin-top:50px; padding-top:30px; border-top:1px solid var(--rule);
+}
+.cta a{
+  display:inline-block; margin-top:10px; padding:11px 22px; border-radius:20px;
+  border:1px solid var(--accent); background:rgba(184,134,58,.12); color:var(--accent);
+  text-decoration:none; font-family:'JetBrains Mono',monospace; font-size:12px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="library-btn">← Library</a>
+    <div>
+      <div class="eyebrow">Guide</div>
+      <div class="title">How to Use This Site</div>
+    </div>
+    <div style="width:90px;"></div>
+  </div>
+</header>
+
+<main>
+  <p class="lede">
+    This page walks through every feature in the reader using the actual thing — not screenshots.
+    Everything below is live: tap it, hold it, drag it. Once it clicks, jump into the
+    <a href="index.html">song library</a> and try it on a real song.
+  </p>
+
+  <div class="lesson">
+    <div class="lesson-num">01</div>
+    <h2>Tap a word</h2>
+    <p>Tap any word below to show or hide its pinyin and English meaning. Try it — nothing happens until you tap.</p>
+    <div class="demo-box"><div class="line" id="demo1"></div></div>
+    <div class="demo-caption">"This world never had what-ifs"</div>
+  </div>
+
+  <div class="lesson">
+    <div class="lesson-num">02</div>
+    <h2>Press and hold for the full definition</h2>
+    <p>A quick tap toggles the gloss. Press and hold instead, and a popup opens with the full dictionary entry, its HSK level, and buttons to hear it pronounced — at normal or slow speed. Try holding down <b>长按</b> below (it means "long press").</p>
+    <div class="demo-box"><div class="line" id="demo2"></div></div>
+  </div>
+
+  <div class="lesson">
+    <div class="lesson-num">03</div>
+    <h2>Save words as you go</h2>
+    <p>Inside that popup, tap the star to save a word — it'll fly into your saved list and sync across any device you're signed into. This demo saves locally only, just to show you the motion; your real saves live in the actual reader.</p>
+    <div class="demo-box"><div class="line" id="demo3"></div></div>
+  </div>
+
+  <div class="lesson">
+    <div class="lesson-num">04</div>
+    <h2>Control how much shows automatically</h2>
+    <p>The Glosses slider in Settings sets a threshold — words at or below that HSK level stay hidden by default, since you're assumed to already know them; anything above it shows automatically. Drag it and watch the line below react.</p>
+    <div class="demo-box">
+      <div class="level-control">
+        <span>Glosses</span>
+        <input type="range" id="demoSlider" min="0" max="8" step="1" value="3">
+        <span id="demoSliderLabel">HSK 3</span>
+      </div>
+      <div class="line" id="demo4" style="margin-top:16px;"></div>
+    </div>
+    <div class="demo-caption">Whatever you leave hidden, you can still tap individually to peek at.</div>
+  </div>
+
+  <div class="lesson">
+    <div class="lesson-num">05</div>
+    <h2>Colors show difficulty</h2>
+    <p>Every word is colored by its HSK level — the further right on this key, the more advanced. "Beyond" means it's outside the official 9-level system entirely (slang, proper nouns, very literary vocabulary).</p>
+    <div class="demo-box">
+      <div class="key">
+        <span><i class="dot" style="background:var(--hsk1)"></i>HSK1</span>
+        <span><i class="dot" style="background:var(--hsk2)"></i>HSK2</span>
+        <span><i class="dot" style="background:var(--hsk3)"></i>HSK3</span>
+        <span><i class="dot" style="background:var(--hsk4)"></i>HSK4</span>
+        <span><i class="dot" style="background:var(--hsk5)"></i>HSK5</span>
+        <span><i class="dot" style="background:var(--hsk6)"></i>HSK6</span>
+        <span><i class="dot" style="background:var(--hsk79)"></i>HSK 7–9</span>
+        <span><i class="dot" style="background:var(--beyond)"></i>Beyond</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="lesson">
+    <div class="lesson-num">06</div>
+    <h2>The translation is always underneath</h2>
+    <p>Below every line sits the actual line-by-line translation — the real, singable rendering, distinct from the word-by-word glosses above it. You can turn it off in Settings if you'd rather work it out yourself first.</p>
+    <div class="demo-box">
+      <div class="line" id="demo6"></div>
+      <div class="translation" id="demo6t"></div>
+    </div>
+  </div>
+
+  <div class="lesson">
+    <div class="lesson-num">07</div>
+    <h2>Connected words get underlined</h2>
+    <p>Some grammar patterns split across words that aren't next to each other — like <b>在...之前</b> ("before"), where other words sit in between. Those get a matching colored underline. Press and hold either one to see how they connect.</p>
+    <div class="demo-box"><div class="line" id="demo7"></div></div>
+  </div>
+
+  <div class="lesson">
+    <div class="lesson-num">08</div>
+    <h2>Finding songs</h2>
+    <p>Back in the <a href="index.html">library</a>, every artist, year, and tag is clickable — tap one and the library filters to everything matching it. Sort by newest, alphabetical, year, or difficulty using the dropdown up top.</p>
+  </div>
+
+  <div class="cta">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim);">Ready to try it on a real song?</div>
+    <a href="index.html">Go to the library →</a>
+  </div>
+</main>
+
+<div class="popup-overlay" id="popupOverlay">
+  <div class="popup-card">
+    <button class="popup-close" id="popupClose">✕ CLOSE</button>
+    <button class="popup-star" id="popupStar">★</button>
+    <div class="popup-hanzi" id="popupHanzi"></div>
+    <div class="popup-pinyin" id="popupPinyin"></div>
+    <div class="popup-sound">
+      <button id="popupSpeakNormal">🔊 Listen</button>
+      <button id="popupSpeakSlow">🐢 Slow</button>
+    </div>
+    <div id="popupConstruction" style="display:none;"></div>
+    <div class="popup-hsk-badge" id="popupHsk"></div>
+    <div class="popup-defs" id="popupDefs"></div>
+    <div class="popup-hint">tap the star to save (demo only) · tap outside to close</div>
+  </div>
+</div>
+
+<script>
+const HSK_VAR = {0:'--beyond',1:'--hsk1',2:'--hsk2',3:'--hsk3',4:'--hsk4',5:'--hsk5',6:'--hsk6',7:'--hsk79',8:'--hsk79',9:'--hsk79'};
+
+function w(h,p,g,hsk){ return {h,p,g:[g],hsk}; }
+
+const demo1Words = [
+  w('这','zhè','this',1), w('世界','shìjiè','world',2), w('从来','cónglái','always',3),
+  w('没有','méiyǒu',"doesn't have",1), w('如果','rúguǒ','if',2), {h:'。',p:'',g:[],hsk:0,isPunct:true}
+];
+const demo2Words = [
+  w('长按','cháng àn','long-press',0), w('生词','shēngcí','new word',4),
+  w('来','lái','to',1), w('收藏','shōucáng','save',5), {h:'。',p:'',g:[],hsk:0,isPunct:true}
+];
+const demo3Words = [
+  w('梦想','mèngxiǎng','dream',3), w('就','jiù','then; in that case',1),
+  w('等于','děngyú','equals',4), w('未来','wèilái','the future',2), {h:'。',p:'',g:[],hsk:0,isPunct:true}
+];
+const demo4Words = [
+  w('在','zài','(at)',1), w('后悔','hòuhuǐ','regret',4), w('之前','zhīqián','before',1),
+  w('让','ràng','let',2), w('懵懂','měngdǒng','ignorance',0), w('承受','chéngshòu','to bear',5),
+  {h:'。',p:'',g:[],hsk:0,isPunct:true}
+];
+const demo6Words = [
+  w('此刻','cǐkè','this moment',4), w('将','jiāng','to make',3), w('一切','yíqiè','everything',2),
+  w('归','guī','to return',4), w('零','líng','zero',1), w('再','zài','again',1), w('来','lái','come',1),
+  {h:'。',p:'',g:[],hsk:0,isPunct:true}
+];
+const demo7Words = [
+  w('在','zài','(at)',1), w('明亮','míngliàng','bright',4), w('之前','zhīqián','before',1),
+  w('跟','gēn','with',2), w('黑暗','hēiàn','dark',3), w('蔓延','mànyán','to extend',6),
+  {h:'。',p:'',g:[],hsk:0,isPunct:true}
+];
+
+const demoConstructions = { demo4: [[0,2]], demo7: [[0,2]] }; // [lineWordIdx pairs for 在...之前
+
+let savedDemo = new Set();
+let overridesByLine = {};
+
+function isPunct(tok){ return tok.h.length===1 && /[。，！？]/.test(tok.h); }
+
+function renderDemoLine(containerId, words, options){
+  options = options || {};
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  overridesByLine[containerId] = overridesByLine[containerId] || {};
+  const pairs = demoConstructions[containerId] || [];
+  const consWords = new Set(pairs.flat());
+
+  words.forEach((tok, idx) => {
+    const el = document.createElement('div');
+    el.className = 'word';
+    if(isPunct(tok)){
+      el.innerHTML = `<span class="pinyin"></span><span class="hanzi" style="color:var(--text-dim)">${tok.h}</span><span class="gloss"></span>`;
+      container.appendChild(el);
+      return;
+    }
+    const key = idx;
+    const hiddenByLevel = options.level != null ? (tok.hsk !== 0 && tok.hsk < options.level) : false;
+    const override = overridesByLine[containerId][key];
+    const hidden = override !== undefined ? override : hiddenByLevel;
+    if(hidden) el.classList.add('g-hidden');
+    if(savedDemo.has(tok.h)) el.classList.add('saved');
+    const hanziStyle = consWords.has(idx) ? `box-shadow:0 2px 0 0 var(--accent); color:var(${HSK_VAR[tok.hsk]});` : `color:var(${HSK_VAR[tok.hsk]})`;
+    el.innerHTML = `
+      <span class="pinyin">${tok.p}</span>
+      <span class="hanzi" style="${hanziStyle}">${tok.h}</span>
+      <span class="gloss">${tok.g[0]||''}</span>
+      <svg class="ring" viewBox="0 0 34 34"><circle cx="17" cy="17" r="14"></circle></svg>
+    `;
+    attachDemoPress(el, tok, containerId, key, pairs);
+    container.appendChild(el);
+  });
+}
+
+function attachDemoPress(el, tok, lineId, key, pairs){
+  let timer = null, fired = false;
+  const HOLD_MS = 550;
+  const start = (e) => {
+    e.preventDefault();
+    fired = false;
+    el.classList.add('holding');
+    timer = setTimeout(() => {
+      fired = true;
+      el.classList.remove('holding');
+      openDemoPopup(tok, lineId, key, pairs);
+    }, HOLD_MS);
+  };
+  const finish = () => {
+    clearTimeout(timer);
+    el.classList.remove('holding');
+    if(!fired){
+      const current = overridesByLine[lineId][key];
+      overridesByLine[lineId][key] = !current;
+      // need to know default state again — simplest: just recompute by re-render
+      renderAll();
+    }
+  };
+  const abort = () => { clearTimeout(timer); el.classList.remove('holding'); };
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', finish);
+  el.addEventListener('mouseleave', abort);
+  el.addEventListener('touchstart', start, {passive:false});
+  el.addEventListener('touchend', finish);
+  el.addEventListener('touchcancel', abort);
+}
+
+let currentDemoPopup = null;
+function openDemoPopup(tok, lineId, key, pairs){
+  currentDemoPopup = { tok, lineId, key };
+  document.getElementById('popupHanzi').textContent = tok.h;
+  document.getElementById('popupPinyin').textContent = tok.p;
+  const badge = document.getElementById('popupHsk');
+  badge.textContent = tok.hsk === 0 ? 'Beyond HSK' : (tok.hsk >= 7 ? 'HSK 7\u20139' : 'HSK ' + tok.hsk);
+  badge.style.color = `var(${HSK_VAR[tok.hsk]})`;
+  badge.style.borderColor = `var(${HSK_VAR[tok.hsk]})`;
+  document.getElementById('popupDefs').innerHTML = `<ol><li>${tok.g[0]||''}</li></ol>`;
+
+  const consEl = document.getElementById('popupConstruction');
+  const wordIdxInLine = key;
+  const pairMatch = (pairs||[]).find(p => p.includes(wordIdxInLine));
+  if(pairMatch){
+    consEl.innerHTML = `<div class="cons-pattern">在...之前</div><div class="cons-gloss">before</div>`;
+    consEl.style.display = 'block';
+  } else {
+    consEl.style.display = 'none';
+  }
+
+  document.getElementById('popupStar').classList.toggle('starred', savedDemo.has(tok.h));
+  document.getElementById('popupOverlay').classList.add('open');
+}
+function closeDemoPopup(){
+  document.getElementById('popupOverlay').classList.remove('open');
+  currentDemoPopup = null;
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+}
+document.getElementById('popupClose').addEventListener('click', closeDemoPopup);
+document.getElementById('popupOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'popupOverlay') closeDemoPopup();
+});
+document.getElementById('popupStar').addEventListener('click', function(){
+  if(!currentDemoPopup) return;
+  const { tok } = currentDemoPopup;
+  if(savedDemo.has(tok.h)) savedDemo.delete(tok.h);
+  else savedDemo.add(tok.h);
+  this.classList.toggle('starred', savedDemo.has(tok.h));
+  renderAll();
+});
+function speakDemo(text, rate){
+  if(!window.speechSynthesis || !text) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'zh-CN';
+  utter.rate = rate;
+  window.speechSynthesis.speak(utter);
+}
+document.getElementById('popupSpeakNormal').addEventListener('click', () => {
+  if(currentDemoPopup) speakDemo(currentDemoPopup.tok.h, 1);
+});
+document.getElementById('popupSpeakSlow').addEventListener('click', () => {
+  if(currentDemoPopup) speakDemo(currentDemoPopup.tok.h, 0.5);
+});
+
+let demoLevel = 3;
+function renderAll(){
+  renderDemoLine('demo1', demo1Words, {});
+  renderDemoLine('demo2', demo2Words, {});
+  renderDemoLine('demo3', demo3Words, {});
+  renderDemoLine('demo4', demo4Words, { level: demoLevel });
+  renderDemoLine('demo6', demo6Words, {});
+  renderDemoLine('demo7', demo7Words, {});
+  document.getElementById('demo6t').textContent = 'This moment, return to zero, begin again';
+}
+
+document.getElementById('demoSlider').addEventListener('input', function(){
+  demoLevel = parseInt(this.value, 10);
+  overridesByLine['demo4'] = {};
+  document.getElementById('demoSliderLabel').textContent =
+    demoLevel === 0 ? 'Show all' : demoLevel === 8 ? 'Hide all' : demoLevel === 7 ? 'HSK 7\u20139' : 'HSK ' + demoLevel;
+  renderAll();
+});
+
+renderAll();
+</script>
+</body>
+</html>

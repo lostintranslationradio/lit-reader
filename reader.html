@@ -237,6 +237,10 @@
     font-size:26px;
     font-weight:600;
     margin:0 0 6px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
   }
   #readerHeadingEn{
     font-size:17px;
@@ -475,6 +479,18 @@
     font-size:9px;
     color:var(--text-dim);
   }
+  .popup-sound{
+    display:flex; justify-content:center; gap:8px;
+    margin:8px 0 10px;
+  }
+  .popup-sound button{
+    font-family:'JetBrains Mono',monospace; font-size:11px;
+    padding:6px 12px; border-radius:14px;
+    border:1px solid var(--rule); background:transparent;
+    color:var(--text-dim); cursor:pointer;
+  }
+  .popup-sound button:hover{ border-color:var(--accent); color:var(--accent); }
+  .popup-sound button:disabled{ opacity:.4; cursor:not-allowed; }
   .ring{
     position:absolute;
     top:14px; left:50%;
@@ -690,7 +706,7 @@
       <div class="eyebrow">Annotated Reader</div>
       <div class="title" id="pageTitle">Lost In Translation Radio</div>
     </div>
-    <div></div>
+    <a href="how-to-use.html" class="library-btn" style="justify-self:end;">How to Use</a>
   </div>
 </header>
 
@@ -699,7 +715,7 @@
 <main id="mainArea" style="display:none;">
   <div class="reader">
     <div class="reader-heading" id="readerHeading">
-      <span id="readerHeadingZh"></span><span id="readerHeadingEn"></span>
+      <span><span id="readerHeadingZh"></span><span id="readerHeadingEn"></span></span>
       <button id="mobileSettingsFab" title="Settings">⚙️</button>
     </div>
     <div class="reader-sub" id="readerSub"></div>
@@ -728,9 +744,9 @@
         <div style="margin-bottom:14px;">
           <div style="display:flex; justify-content:space-between; margin-bottom:6px; color:var(--text-dim);">
             <span>Glosses</span>
-            <span id="levelValue">HSK 3</span>
+            <span id="levelValue">Show all</span>
           </div>
-          <input type="range" id="levelSlider" min="0" max="8" step="1" value="3" style="width:100%;">
+          <input type="range" id="levelSlider" min="0" max="8" step="1" value="0" style="width:100%;">
           <div id="levelPct" style="color:var(--text-dim); font-size:11px; margin-top:2px;">—% hidden</div>
         </div>
 
@@ -810,6 +826,10 @@
     <button class="popup-star" id="popupStar">★</button>
     <div class="popup-hanzi" id="popupHanzi"></div>
     <div class="popup-pinyin" id="popupPinyin"></div>
+    <div class="popup-sound">
+      <button id="popupSpeakNormal" title="Listen">🔊 Listen</button>
+      <button id="popupSpeakSlow" title="Listen slowly">🐢 Slow</button>
+    </div>
     <div id="popupConstruction" style="display:none;"></div>
     <div class="popup-hsk-badge" id="popupHsk"></div>
     <div class="popup-defs" id="popupDefs"></div>
@@ -829,7 +849,7 @@ let saved = JSON.parse(localStorage.getItem('lyricVocab') || '[]');
 saved = saved.map(s => ({...s, sources: s.sources || []}));
 let currentUser = null; // when signed in, `saved` is backed by Supabase instead of localStorage
 let currentProfile = null; // { username, email, is_creator }
-let currentLevel = 3;
+let currentLevel = 0;
 let overrides = {};
 
 function rank(tok){ return tok.hsk === 0 ? 10 : Math.min(tok.hsk, 7); }
@@ -1058,6 +1078,7 @@ function openPopup(tok, key, el){
 function closePopup(){
   document.getElementById('popupOverlay').classList.remove('open');
   currentPopup = null;
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
 }
 
 async function saveWord(tok, el){
@@ -1186,6 +1207,24 @@ document.getElementById('popupStar').addEventListener('click', function(){
   }
   this.classList.toggle('starred', !isSaved);
 });
+function speakWord(text, rate){
+  if(!window.speechSynthesis || !text) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'zh-CN';
+  utter.rate = rate;
+  window.speechSynthesis.speak(utter);
+}
+if(!window.speechSynthesis){
+  document.getElementById('popupSpeakNormal').disabled = true;
+  document.getElementById('popupSpeakSlow').disabled = true;
+}
+document.getElementById('popupSpeakNormal').addEventListener('click', () => {
+  if(currentPopup) speakWord(currentPopup.tok.h, 1);
+});
+document.getElementById('popupSpeakSlow').addEventListener('click', () => {
+  if(currentPopup) speakWord(currentPopup.tok.h, 0.5);
+});
 document.getElementById('popupClose').addEventListener('click', closePopup);
 document.getElementById('popupOverlay').addEventListener('click', function(e){
   if(e.target.id === 'popupOverlay') closePopup();
@@ -1221,7 +1260,7 @@ function applyFontChoice(choice){
   document.documentElement.style.setProperty('--font-en', pair.en);
   localStorage.setItem('fontChoice', choice);
 }
-const savedFontChoice = localStorage.getItem('fontChoice') || 'serif-inter';
+const savedFontChoice = localStorage.getItem('fontChoice') || 'sans-inter';
 document.getElementById('fontPicker').value = savedFontChoice;
 applyFontChoice(savedFontChoice);
 document.getElementById('fontPicker').addEventListener('change', function(){

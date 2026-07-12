@@ -258,8 +258,13 @@ function injectAuthModal(){
         if(window.onAuthSuccess) window.onAuthSuccess(result.user, mode);
       } else if(mode === 'signup'){
         const result = await authSignUp(email, username, password);
-        closeAuthModal();
-        if(window.onAuthSuccess) window.onAuthSuccess(result.user, mode);
+        if(result.session){
+          closeAuthModal();
+          if(window.onAuthSuccess) window.onAuthSuccess(result.user, mode);
+        } else {
+          infoEl.textContent = 'Account created — check your inbox to confirm your email before signing in.';
+          infoEl.style.display = 'block';
+        }
       } else if(mode === 'reset-request'){
         await authRequestPasswordReset(username);
         infoEl.textContent = 'If that username exists, a reset link was sent to its email.';
