@@ -627,6 +627,33 @@ function mergeLines(li){
   renderLines();
 }
 
+let copiedLine = null;
+let copiedLineIndex = null;
+
+// Copy an entire line's word tags and translation, then paste it onto whichever
+// other specific lines you choose — for repeated lines (like a chorus) where you
+// want an exact duplicate, without affecting occurrences of the same word elsewhere
+// that might carry a different nuance in a different line.
+function copyLine(li){
+  copiedLine = {
+    tokens: JSON.parse(JSON.stringify(lineData[li].tokens)),
+    translation: lineData[li].translation
+  };
+  copiedLineIndex = li;
+  renderLines();
+}
+
+function pasteLine(li){
+  if(!copiedLine) return;
+  lineData[li] = {
+    ...lineData[li],
+    tokens: JSON.parse(JSON.stringify(copiedLine.tokens)),
+    translation: copiedLine.translation
+  };
+  renderConstructionsList();
+  renderLines();
+}
+
 function renderLines(){
   const container = document.getElementById('linesContainer');
   container.innerHTML = '';
@@ -648,6 +675,21 @@ function renderLines(){
       mergeBtn.style.marginRight = '6px';
       mergeBtn.addEventListener('click', () => mergeLines(li));
       headBtns.appendChild(mergeBtn);
+    }
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn secondary small';
+    copyBtn.textContent = copiedLineIndex === li ? 'copied ✓' : 'copy line';
+    copyBtn.style.marginRight = '6px';
+    copyBtn.addEventListener('click', () => copyLine(li));
+    headBtns.appendChild(copyBtn);
+
+    if(copiedLine && copiedLineIndex !== li){
+      const pasteBtn = document.createElement('button');
+      pasteBtn.className = 'btn secondary small';
+      pasteBtn.textContent = 'paste line';
+      pasteBtn.style.marginRight = '6px';
+      pasteBtn.addEventListener('click', () => pasteLine(li));
+      headBtns.appendChild(pasteBtn);
     }
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn secondary small';
@@ -750,26 +792,7 @@ function renderTokenCard(line, li, ti){
       tok.unresolved = false;
       card.classList.remove('unresolved');
     });
-    inp.addEventListener('blur', () => propagateTokenEdit(tok));
   });
-
-// Repeated lyrics mean the same word shows up across many lines — when you fix one
-// occurrence's pinyin/gloss/HSK by hand, apply that same fix everywhere else the
-// exact same hanzi appears in this song, so you're not repeating the correction.
-function propagateTokenEdit(sourceTok){
-  let changed = 0;
-  lineData.forEach(line => {
-    line.tokens.forEach(t => {
-      if(t === sourceTok || t.isPunct || t.h !== sourceTok.h) return;
-      t.p = sourceTok.p;
-      t.g = [...sourceTok.g];
-      t.hsk = sourceTok.hsk;
-      t.unresolved = false;
-      changed++;
-    });
-  });
-  if(changed > 0) renderLines();
-}
 
 function makeToken(hanzi){
   const entry = lookup(hanzi) || fallbackLookup(hanzi);

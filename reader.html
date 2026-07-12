@@ -957,6 +957,11 @@ function renderVideo(){
           const hasTimestamps = SONG.lines.some(l => typeof l.start === 'number');
           document.getElementById('followToggle').style.display = hasTimestamps ? 'flex' : 'none';
           setupMiniPlayer();
+        },
+        onStateChange: (event) => {
+          if(followVideo && (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED)){
+            disengageFollow();
+          }
         }
       }
     });
@@ -1021,6 +1026,9 @@ function jumpToLine(start){
   document.getElementById('videoOuter').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+let autoScrolling = false;
+let autoScrollTimer = null;
+
 function startFollowing(){
   if(followInterval) return;
   followInterval = setInterval(() => {
@@ -1033,7 +1041,12 @@ function startFollowing(){
       const active = blocks[idx];
       if(active){
         active.classList.add('active-line');
+        autoScrolling = true;
+        clearTimeout(autoScrollTimer);
         active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // smooth scrolling takes a moment to settle — ignore scroll events until then,
+        // so we don't mistake our own scroll for the person scrolling away on purpose
+        autoScrollTimer = setTimeout(() => { autoScrolling = false; }, 700);
       }
     }
   }, 400);
@@ -1044,6 +1057,17 @@ function stopFollowing(){
   followInterval = null;
   document.querySelectorAll('.line-block.active-line').forEach(el => el.classList.remove('active-line'));
 }
+
+function disengageFollow(){
+  if(!followVideo) return;
+  followVideo = false;
+  document.querySelector('#followToggle .switch').classList.remove('on');
+  stopFollowing();
+}
+
+window.addEventListener('scroll', () => {
+  if(followVideo && !autoScrolling) disengageFollow();
+}, { passive: true });
 
 document.getElementById('followToggle').addEventListener('click', function(){
   followVideo = !followVideo;
