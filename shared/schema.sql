@@ -184,20 +184,45 @@ create policy "Users manage their own known words"
 -- scheme (1=review tomorrow, up to 5=review in a month); Remembered moves up
 -- a box, Vaguely Remember repeats the same box's interval, Completely Forgot
 -- drops back to box 1. Global per-user, not per-song, matching known_words.
+-- "aspect" tracks which SKILL is being tested independently — knowing a
+-- word's sound doesn't mean you know its written form, so quizzing yourself
+-- on listening today shouldn't use up your chance to quiz the characters
+-- later the same day.
 create table flashcard_progress (
   id bigint generated always as identity primary key,
   user_id uuid references auth.users not null,
   hanzi text not null,
+  aspect text not null default 'h', -- 'h'=characters, 'p'=pinyin, 'g'=definition, 's'=sound
   box int not null default 1,
   next_review timestamptz not null default now(),
   last_reviewed timestamptz,
-  unique (user_id, hanzi)
+  unique (user_id, hanzi, aspect)
 );
 
 alter table flashcard_progress enable row level security;
 
 create policy "Users manage their own flashcard progress"
   on flashcard_progress for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- Opt-in on-site reminders for due flashcard reviews (shown as a banner when
+-- signed in, not emailed — no email quota to worry about). threshold=1 means
+-- "remind me as soon as anything is due"; higher numbers mean "wait until
+-- this many words have piled up." last_reminder_sent_at enforces a minimum
+-- gap between reminders so it can't nag more than once a day, regardless of
+-- what threshold someone picks.
+create table review_reminder_prefs (
+  user_id uuid primary key references auth.users on delete cascade,
+  enabled boolean not null default false,
+  threshold int not null default 1,
+  last_reminder_sent_at timestamptz
+);
+
+alter table review_reminder_prefs enable row level security;
+
+create policy "Users manage their own reminder prefs"
+  on review_reminder_prefs for all
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 

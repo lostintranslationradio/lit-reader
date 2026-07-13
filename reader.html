@@ -794,9 +794,7 @@
     display:flex;
     justify-content:space-between;
     align-items:baseline;
-    margin-bottom:14px;
-    padding-bottom:12px;
-    border-bottom:1px solid var(--rule);
+    margin-bottom:10px;
   }
   .aside-title{
     font-family:'JetBrains Mono',monospace;
@@ -874,6 +872,29 @@
   }
   .fc-auth-note a{ color:var(--accent); }
   .fc-empty{ text-align:center; color:var(--text-dim); font-size:13px; padding:30px 10px; }
+  .fc-mode-note{
+    font-family:'Inter',sans-serif; font-size:12px; line-height:1.5; color:var(--text-dim);
+    background:var(--surface-raised); border-radius:6px; padding:10px 12px; margin-bottom:14px;
+  }
+  .fc-nav-row{ display:flex; gap:8px; margin-bottom:14px; }
+  .fc-nav-btn{
+    flex:1; font-family:'JetBrains Mono',monospace; font-size:11px; padding:9px 6px;
+    border-radius:8px; border:1px solid var(--rule); background:transparent; color:var(--text-dim); cursor:pointer;
+  }
+  .fc-nav-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .fc-test-cta{
+    border-top:1px solid var(--rule); padding-top:16px; margin-top:4px;
+  }
+  .fc-reminder-section{
+    border-top:1px solid var(--rule); padding-top:14px; margin-top:14px;
+    font-family:'Inter',sans-serif; font-size:12px; color:var(--text-dim);
+  }
+  .fc-reminder-toggle{ display:flex; align-items:center; gap:6px; cursor:pointer; }
+  #fcReminderThresholdRow{ margin-top:8px; line-height:1.8; }
+  #fcReminderThreshold{
+    width:44px; background:var(--surface-raised); border:1px solid var(--rule); border-radius:4px;
+    padding:3px 5px; color:var(--text); font-family:'Inter',sans-serif; font-size:12px; text-align:center;
+  }
   .count.pulse{ animation:fabPulse .4s ease; }
   @keyframes fabPulse{ 0%{transform:scale(1);} 40%{transform:scale(1.3);} 100%{transform:scale(1);} }
   .vocab-item{
@@ -1064,6 +1085,16 @@
       </div>
     </div>
 
+    <div id="reviewReminderBanner" style="display:none; position:fixed; bottom:20px; left:20px; z-index:150; max-width:280px;
+      background:var(--surface); border:1px solid var(--accent); border-radius:10px; padding:14px 16px;
+      box-shadow:0 4px 16px rgba(0,0,0,.2); font-family:'Inter',sans-serif;">
+      <div style="font-family:'JetBrains Mono',monospace; font-size:12px; margin-bottom:10px;" id="reviewReminderText"></div>
+      <div style="display:flex; gap:8px;">
+        <button id="reviewReminderQuizBtn" style="flex:1; font-family:'JetBrains Mono',monospace; font-size:11px; padding:7px 10px; border-radius:14px; border:1px solid var(--accent); background:rgba(184,134,58,.12); color:var(--accent); cursor:pointer;">Quiz now</button>
+        <button id="reviewReminderDismissBtn" style="font-family:'JetBrains Mono',monospace; font-size:11px; padding:7px 10px; border-radius:14px; border:1px solid var(--rule); background:transparent; color:var(--text-dim); cursor:pointer;">Dismiss</button>
+      </div>
+    </div>
+
     <div id="fcModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:180; align-items:center; justify-content:center; padding:20px;">
   <div id="fcModalBox" style="background:var(--surface); border-radius:10px; width:100%; max-width:480px; max-height:88vh; overflow-y:auto; position:relative; padding:24px;">
     <button id="fcModalClose" style="position:absolute; top:12px; right:14px; background:var(--surface); border:1px solid var(--rule); border-radius:50%; width:30px; height:30px; cursor:pointer; color:var(--text-dim); font-size:14px;">✕</button>
@@ -1077,13 +1108,13 @@
         <div class="aside-title">Saved words</div>
         <div class="count" id="vocabCount">0</div>
       </div>
-      <div class="fc-launch-row">
-        <button id="btnOpenFlashcards" class="fc-launch-btn">🗂 Flashcards</button>
-        <button id="btnOpenQuiz" class="fc-launch-btn">❓ Quiz</button>
-      </div>
       <div id="vocabAuth" style="margin-bottom:12px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
         <div id="vocabAuthStatus">Saving to this device only.</div>
         <a href="#" id="vocabAuthLink" style="color:var(--accent); display:block; margin-top:4px;">Sign in to sync</a>
+      </div>
+      <div style="border-bottom:1px solid var(--rule); padding-bottom:12px; margin-bottom:12px;"></div>
+      <div class="fc-launch-row">
+        <button id="btnOpenFlashcards" class="fc-launch-btn" style="flex:none; width:100%;">🗂 Flashcards</button>
       </div>
       <div id="vocabList"></div>
       <div class="hint">
@@ -2283,63 +2314,71 @@ async function loadKnownWordsFromSupabase(){
   updateKnownWordsCount();
 }
 
-// ===== Flashcards / Quiz =====
+// ===== Flashcards (study) + Quiz (SRS test), merged into one modal =====
 // Deck pulls from the saved-words list. Guests get a fully working local
 // deck via localStorage; signing in just makes that progress permanent and
 // synced across devices, same pattern as saved words and known words.
-let flashcardProgress = JSON.parse(localStorage.getItem('flashcardProgress') || '{}'); // hanzi -> {box, next_review}
+// Progress is tracked per (word, aspect) pair — testing your listening
+// comprehension on a word is tracked separately from testing the characters,
+// the pinyin, or the meaning, since those are genuinely different skills.
+let flashcardProgress = JSON.parse(localStorage.getItem('flashcardProgress') || '{}'); // "hanzi::aspect" -> {box, next_review}
 const BOX_INTERVAL_DAYS = { 1: 1, 2: 3, 3: 7, 4: 14, 5: 30 };
-let fcFrontField = localStorage.getItem('fcFrontField') || 'h'; // 'h' | 'p' | 'g'
+const FC_ASPECT_LABELS = { h: 'Characters', p: 'Pinyin', g: 'Definition', s: 'Sound' };
+let fcFrontField = localStorage.getItem('fcFrontField') || 'h'; // study-mode front field
+let fcQuizAspect = 'h'; // which skill the current quiz session is testing
 let fcQueue = [];
 let fcIdx = 0;
-let fcMode = 'flashcards';
+let fcMode = 'study'; // 'study' | 'quiz'
 let fcFlipped = false;
+
+function fcKey(hanzi, aspect){ return hanzi + '::' + aspect; }
 
 async function loadFlashcardProgressFromSupabase(){
   const { data, error } = await sb.from('flashcard_progress').select('*').eq('user_id', currentUser.id);
   if(error){ console.error(error); return; }
   const remote = {};
-  (data || []).forEach(r => { remote[r.hanzi] = { box: r.box, next_review: r.next_review }; });
-  for(const [hanzi, prog] of Object.entries(flashcardProgress)){
-    if(!(hanzi in remote)){
+  (data || []).forEach(r => { remote[fcKey(r.hanzi, r.aspect)] = { box: r.box, next_review: r.next_review }; });
+  for(const [key, prog] of Object.entries(flashcardProgress)){
+    if(!(key in remote)){
+      const [hanzi, aspect] = key.split('::');
       await sb.from('flashcard_progress').upsert({
-        user_id: currentUser.id, hanzi, box: prog.box, next_review: prog.next_review
-      }, { onConflict: 'user_id,hanzi' });
-      remote[hanzi] = prog;
+        user_id: currentUser.id, hanzi, aspect, box: prog.box, next_review: prog.next_review
+      }, { onConflict: 'user_id,hanzi,aspect' });
+      remote[key] = prog;
     }
   }
   flashcardProgress = remote;
 }
 
-async function saveFlashcardProgress(hanzi, box, nextReview){
-  flashcardProgress[hanzi] = { box, next_review: nextReview };
+async function saveFlashcardProgress(hanzi, aspect, box, nextReview){
+  flashcardProgress[fcKey(hanzi, aspect)] = { box, next_review: nextReview };
   if(currentUser){
     await sb.from('flashcard_progress').upsert({
-      user_id: currentUser.id, hanzi, box, next_review: nextReview, last_reviewed: new Date().toISOString()
-    }, { onConflict: 'user_id,hanzi' });
+      user_id: currentUser.id, hanzi, aspect, box, next_review: nextReview, last_reviewed: new Date().toISOString()
+    }, { onConflict: 'user_id,hanzi,aspect' });
   } else {
     localStorage.setItem('flashcardProgress', JSON.stringify(flashcardProgress));
   }
 }
 
-function getDueCards(){
+function getDueCards(aspect){
   const now = new Date();
   return saved.filter(s => {
-    const prog = flashcardProgress[s.h];
+    const prog = flashcardProgress[fcKey(s.h, aspect)];
     if(!prog) return true;
     return new Date(prog.next_review) <= now;
   });
 }
 
-function rateCard(hanzi, rating){
-  const prog = flashcardProgress[hanzi] || { box: 1 };
+function rateCard(hanzi, aspect, rating){
+  const prog = flashcardProgress[fcKey(hanzi, aspect)] || { box: 1 };
   let newBox = prog.box;
   if(rating === 'remembered') newBox = Math.min(prog.box + 1, 5);
   else if(rating === 'forgot') newBox = 1;
   // 'vague' keeps the same box — repeats the current interval rather than advancing or resetting
   const days = BOX_INTERVAL_DAYS[newBox];
   const nextReview = new Date(Date.now() + days * 86400000).toISOString();
-  saveFlashcardProgress(hanzi, newBox, nextReview);
+  saveFlashcardProgress(hanzi, aspect, newBox, nextReview);
 }
 
 function getWordGloss(s){
@@ -2356,9 +2395,38 @@ function wireFcAuthLink(){
   if(link) link.addEventListener('click', (e) => { e.preventDefault(); closeFcModal(); openAuthModal(); });
 }
 
-function openFlashcardModal(mode){
-  fcMode = mode;
-  fcQueue = getDueCards();
+async function checkAndShowReviewReminder(){
+  if(!currentUser) return;
+  const { data: pref } = await sb.from('review_reminder_prefs').select('*').eq('user_id', currentUser.id).maybeSingle();
+  if(!pref || !pref.enabled) return;
+
+  const now = new Date();
+  if(pref.last_reminder_sent_at){
+    const hoursSince = (now - new Date(pref.last_reminder_sent_at)) / 36e5;
+    if(hoursSince < 20) return; // never nag more than once a day, regardless of threshold
+  }
+
+  const dueCount = Object.values(flashcardProgress).filter(p => new Date(p.next_review) <= now).length;
+  if(dueCount < pref.threshold) return;
+
+  document.getElementById('reviewReminderText').textContent =
+    `${dueCount} word${dueCount===1?'':'s'} ready for review.`;
+  document.getElementById('reviewReminderBanner').style.display = 'block';
+
+  await sb.from('review_reminder_prefs').update({ last_reminder_sent_at: now.toISOString() }).eq('user_id', currentUser.id);
+}
+
+document.getElementById('reviewReminderQuizBtn').addEventListener('click', () => {
+  document.getElementById('reviewReminderBanner').style.display = 'none';
+  openFlashcardModal();
+});
+document.getElementById('reviewReminderDismissBtn').addEventListener('click', () => {
+  document.getElementById('reviewReminderBanner').style.display = 'none';
+});
+
+function openFlashcardModal(){
+  fcMode = 'study';
+  fcQueue = [...saved];
   fcIdx = 0;
   fcFlipped = false;
   document.getElementById('fcModalOverlay').style.display = 'flex';
@@ -2367,34 +2435,70 @@ function openFlashcardModal(mode){
 function closeFcModal(){
   document.getElementById('fcModalOverlay').style.display = 'none';
 }
+function startQuiz(aspect){
+  fcMode = 'quiz';
+  fcQuizAspect = aspect;
+  fcQueue = getDueCards(aspect);
+  fcIdx = 0;
+  fcFlipped = false;
+  renderFcModal();
+}
+function backToStudy(){
+  fcMode = 'study';
+  fcQueue = [...saved];
+  fcIdx = 0;
+  fcFlipped = false;
+  renderFcModal();
+}
 
 function renderFcModal(){
   const content = document.getElementById('fcModalContent');
-  const title = fcMode === 'quiz' ? 'Quiz' : 'Flashcards';
-  if(fcQueue.length === 0){
-    content.innerHTML = `
-      <div class="fc-heading">${title}</div>
-      <div class="fc-empty">
-        ${saved.length === 0 ? 'Save some words first — this deck pulls from your saved words list.' : 'All caught up! Nothing is due for review right now.'}
-      </div>
-      ${fcAuthNoteHtml()}
-    `;
-    wireFcAuthLink();
-    return;
+  const backLink = `<button id="fcBackToStudy" class="fc-nav-btn" style="margin-bottom:12px;">‹ Back to Flashcards</button>`;
+
+  if(fcMode === 'quiz'){
+    const quizIntro = `<p class="fc-mode-note">Testing: <strong>${FC_ASPECT_LABELS[fcQuizAspect]}</strong>. Rate yourself honestly — each skill (sound, characters, pinyin, meaning) has its own spaced-repetition schedule, so testing your listening today doesn't use up your turn to test the characters too. A word already tested for THIS skill won't reappear until its scheduled review — that's why the deck empties, not a bug.</p>`;
+    if(fcQueue.length === 0){
+      content.innerHTML = `
+        ${backLink}
+        <div class="fc-heading">Quiz — ${FC_ASPECT_LABELS[fcQuizAspect]}</div>
+        ${quizIntro}
+        <div class="fc-empty">
+          ${saved.length === 0 ? 'Save some words first — quiz pulls from your saved words list.' : `Nothing due for ${FC_ASPECT_LABELS[fcQuizAspect].toLowerCase()} right now. Try a different skill, or check back later.`}
+        </div>
+        ${fcAuthNoteHtml()}
+      `;
+      document.getElementById('fcBackToStudy').addEventListener('click', backToStudy);
+      wireFcAuthLink();
+      return;
+    }
+    if(fcIdx >= fcQueue.length){
+      content.innerHTML = `
+        ${backLink}
+        <div class="fc-heading">Quiz — ${FC_ASPECT_LABELS[fcQuizAspect]}</div>
+        <div class="fc-empty">Done — you reviewed ${fcQueue.length} word${fcQueue.length===1?'':'s'}. Nice work.</div>
+        ${fcAuthNoteHtml()}
+      `;
+      document.getElementById('fcBackToStudy').addEventListener('click', backToStudy);
+      wireFcAuthLink();
+      return;
+    }
+    renderQuizCard();
+  } else {
+    if(fcQueue.length === 0){
+      content.innerHTML = `
+        <div class="fc-heading">Flashcards</div>
+        <div class="fc-empty">Save some words first — this deck pulls from your saved words list.</div>
+        ${fcAuthNoteHtml()}
+      `;
+      wireFcAuthLink();
+      return;
+    }
+    renderFlashcard();
   }
-  if(fcIdx >= fcQueue.length){
-    content.innerHTML = `
-      <div class="fc-heading">${title}</div>
-      <div class="fc-empty">Done — you reviewed ${fcQueue.length} word${fcQueue.length===1?'':'s'}. Nice work.</div>
-      ${fcAuthNoteHtml()}
-    `;
-    wireFcAuthLink();
-    return;
-  }
-  if(fcMode === 'quiz') renderQuizCard();
-  else renderFlashcard();
 }
 
+// Flashcards: pure study tool. Flip back and forth freely, browse in any
+// order, no rating, no due-date gating — always all of your saved words.
 function renderFlashcard(){
   const content = document.getElementById('fcModalContent');
   const s = fcQueue[fcIdx];
@@ -2415,17 +2519,152 @@ function renderFlashcard(){
     : s.h;
   const frontIsHanzi = fcFrontField === 'h';
 
+  const cardInner = !fcFlipped
+    ? `<div class="fc-card-front" style="${frontIsHanzi ? '' : 'font-family:\'Inter\',sans-serif; font-size:20px;'}">${frontContent}</div>
+       <div class="fc-card-tap-hint">${isListenFront ? 'try to recall it, then tap to flip' : 'tap to flip'}</div>`
+    : `<div class="fc-back-hanzi">${s.h}</div>
+       ${s.p ? `<div class="fc-back-pinyin">${s.p}</div>` : ''}
+       <button class="fc-back-listen" id="fcListenBtn">🔊 Listen</button>
+       <div class="fc-back-gloss">${gloss || '(no definition)'}</div>
+       ${userNotes[s.h] ? `<div class="fc-back-note">${userNotes[s.h]}</div>` : ''}
+       <div class="fc-card-tap-hint">tap to flip back</div>`;
+
+  content.innerHTML = `
+    <div class="fc-heading">Flashcards</div>
+    <div class="fc-progress">${fcIdx + 1} of ${fcQueue.length} · study anytime, no limit</div>
+    ${fieldPicker}
+    <div class="fc-card" id="fcCardEl">
+      ${cardInner}
+    </div>
+    <div class="fc-nav-row">
+      <button id="fcPrevBtn" class="fc-nav-btn">‹ Prev</button>
+      <button id="fcNextBtn" class="fc-nav-btn">Next ›</button>
+    </div>
+    <div class="fc-test-cta">
+      <div class="fc-heading" style="font-size:15px;">Ready to test yourself?</div>
+      <p class="fc-mode-note">
+        Pick a skill and quiz yourself on it. Sound, characters, pinyin, and meaning are tracked
+        separately with their own spaced-repetition schedule — words you consistently know come back
+        less often, words you're shaky on come back sooner. Studying sound today doesn't stop you from
+        quizzing the characters too, and once a word's schedule comes back around, you can quiz it again.
+      </p>
+      <div class="fc-field-picker">
+        Quiz me on:
+        <select id="fcQuizAspectSelect">
+          ${Object.entries(FC_ASPECT_LABELS).map(([val, label]) => `<option value="${val}">${label}</option>`).join('')}
+        </select>
+      </div>
+      <button id="btnStartQuiz" class="fc-launch-btn" style="width:100%; box-sizing:border-box;">❓ Start Quiz</button>
+    </div>
+    ${currentUser ? `
+      <div class="fc-reminder-section">
+        <label class="fc-reminder-toggle">
+          <input type="checkbox" id="fcReminderEnabled"> Show me a reminder on this site when words are ready to review
+        </label>
+        <div id="fcReminderThresholdRow" style="display:none;">
+          Remind me once at least
+          <input type="number" id="fcReminderThreshold" min="1" value="1">
+          word(s) are due (checked once per visit — won't nag more than once a day).
+          <button id="fcReminderSave" class="fc-nav-btn">Save</button>
+        </div>
+        <div id="fcReminderStatus" class="fc-progress" style="margin-top:6px;"></div>
+      </div>
+    ` : `
+      <div class="fc-reminder-section">
+        <p class="fc-mode-note" style="margin-bottom:0;">Sign in to get on-site reminders when words are ready to review.</p>
+      </div>
+    `}
+    ${fcAuthNoteHtml()}
+  `;
+  document.getElementById('fcCardEl').addEventListener('click', () => { fcFlipped = !fcFlipped; renderFcModal(); });
+  if(fcFlipped){
+    document.getElementById('fcListenBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      speakWord(s.h, 1, 1, s.p);
+    });
+  } else if(isListenFront){
+    document.getElementById('fcFrontListenBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      speakWord(s.h, 1, 1, s.p);
+    });
+  }
+  document.getElementById('fcFieldSelect').addEventListener('change', (e) => {
+    fcFrontField = e.target.value;
+    localStorage.setItem('fcFrontField', fcFrontField);
+    renderFcModal();
+  });
+  document.getElementById('fcPrevBtn').addEventListener('click', () => {
+    fcIdx = (fcIdx - 1 + fcQueue.length) % fcQueue.length;
+    fcFlipped = false;
+    renderFcModal();
+  });
+  document.getElementById('fcNextBtn').addEventListener('click', () => {
+    fcIdx = (fcIdx + 1) % fcQueue.length;
+    fcFlipped = false;
+    renderFcModal();
+  });
+  document.getElementById('btnStartQuiz').addEventListener('click', () => {
+    startQuiz(document.getElementById('fcQuizAspectSelect').value);
+  });
+  if(currentUser) wireReminderSection();
+  wireFcAuthLink();
+}
+
+async function wireReminderSection(){
+  const checkbox = document.getElementById('fcReminderEnabled');
+  const thresholdRow = document.getElementById('fcReminderThresholdRow');
+  const thresholdInput = document.getElementById('fcReminderThreshold');
+  const statusEl = document.getElementById('fcReminderStatus');
+
+  const { data } = await sb.from('review_reminder_prefs').select('*').eq('user_id', currentUser.id).maybeSingle();
+  if(data){
+    checkbox.checked = data.enabled;
+    thresholdInput.value = data.threshold;
+    thresholdRow.style.display = data.enabled ? 'block' : 'none';
+  }
+
+  checkbox.addEventListener('change', () => {
+    thresholdRow.style.display = checkbox.checked ? 'block' : 'none';
+  });
+
+  document.getElementById('fcReminderSave').addEventListener('click', async () => {
+    const enabled = checkbox.checked;
+    const threshold = Math.max(1, parseInt(thresholdInput.value, 10) || 1);
+    const { error } = await sb.from('review_reminder_prefs').upsert({
+      user_id: currentUser.id, enabled, threshold
+    }, { onConflict: 'user_id' });
+    statusEl.textContent = error ? 'Failed to save.' : (enabled ? `Saved — you'll see a reminder once ${threshold}+ word${threshold===1?' is':'s are'} due.` : 'Saved — reminders turned off.');
+  });
+}
+
+// Quiz: the graded, SRS-driven review, testing one specific skill at a time.
+// Flip once to check yourself, rate honestly, and the word gets rescheduled
+// for THAT skill based on the rating.
+function renderQuizCard(){
+  const content = document.getElementById('fcModalContent');
+  const s = fcQueue[fcIdx];
+  const gloss = getWordGloss(s);
+  const aspect = fcQuizAspect;
+  const isListenFront = aspect === 's';
+  const frontContent = aspect === 'p' ? (s.p || '(no pinyin)')
+    : aspect === 'g' ? (gloss || '(no definition)')
+    : isListenFront ? `<button id="fcFrontListenBtn" class="fc-back-listen" style="font-size:14px; padding:10px 20px;">🔊 Listen</button>`
+    : s.h;
+  const frontIsHanzi = aspect === 'h';
+  const backLink = `<button id="fcBackToStudy" class="fc-nav-btn" style="margin-bottom:12px;">‹ Back to Flashcards</button>`;
+
   if(!fcFlipped){
     content.innerHTML = `
-      <div class="fc-heading">Flashcards</div>
-      <div class="fc-progress">${fcIdx + 1} of ${fcQueue.length} due</div>
-      ${fieldPicker}
+      ${backLink}
+      <div class="fc-heading">Quiz — ${FC_ASPECT_LABELS[aspect]}</div>
+      <div class="fc-progress">${fcIdx + 1} of ${fcQueue.length} due today</div>
       <div class="fc-card" id="fcCardEl">
         <div class="fc-card-front" style="${frontIsHanzi ? '' : 'font-family:\'Inter\',sans-serif; font-size:20px;'}">${frontContent}</div>
-        <div class="fc-card-tap-hint">${isListenFront ? 'try to recall it, then tap here to flip' : 'tap to flip'}</div>
+        <div class="fc-card-tap-hint">${isListenFront ? 'try to recall it, then tap here to reveal' : 'tap to reveal'}</div>
       </div>
       ${fcAuthNoteHtml()}
     `;
+    document.getElementById('fcBackToStudy').addEventListener('click', backToStudy);
     document.getElementById('fcCardEl').addEventListener('click', () => { fcFlipped = true; renderFcModal(); });
     if(isListenFront){
       document.getElementById('fcFrontListenBtn').addEventListener('click', (e) => {
@@ -2433,16 +2672,12 @@ function renderFlashcard(){
         speakWord(s.h, 1, 1, s.p);
       });
     }
-    document.getElementById('fcFieldSelect').addEventListener('change', (e) => {
-      fcFrontField = e.target.value;
-      localStorage.setItem('fcFrontField', fcFrontField);
-      renderFcModal();
-    });
     wireFcAuthLink();
   } else {
     content.innerHTML = `
-      <div class="fc-heading">Flashcards</div>
-      <div class="fc-progress">${fcIdx + 1} of ${fcQueue.length} due</div>
+      ${backLink}
+      <div class="fc-heading">Quiz — ${FC_ASPECT_LABELS[aspect]}</div>
+      <div class="fc-progress">${fcIdx + 1} of ${fcQueue.length} due today</div>
       <div class="fc-card" style="cursor:default;">
         <div class="fc-back-hanzi">${s.h}</div>
         ${s.p ? `<div class="fc-back-pinyin">${s.p}</div>` : ''}
@@ -2450,6 +2685,7 @@ function renderFlashcard(){
         <div class="fc-back-gloss">${gloss || '(no definition)'}</div>
         ${userNotes[s.h] ? `<div class="fc-back-note">${userNotes[s.h]}</div>` : ''}
       </div>
+      <p class="fc-mode-note" style="text-align:center; margin-bottom:8px;">How well did you know this?</p>
       <div class="fc-rate-row">
         <button class="fc-rate-btn fc-rate-forgot" data-rate="forgot">Completely Forgot</button>
         <button class="fc-rate-btn fc-rate-vague" data-rate="vague">Vaguely Remember</button>
@@ -2457,10 +2693,11 @@ function renderFlashcard(){
       </div>
       ${fcAuthNoteHtml()}
     `;
+    document.getElementById('fcBackToStudy').addEventListener('click', backToStudy);
     document.getElementById('fcListenBtn').addEventListener('click', () => speakWord(s.h, 1, 1, s.p));
     content.querySelectorAll('[data-rate]').forEach(btn => {
       btn.addEventListener('click', () => {
-        rateCard(s.h, btn.dataset.rate);
+        rateCard(s.h, aspect, btn.dataset.rate);
         fcIdx++;
         fcFlipped = false;
         renderFcModal();
@@ -2470,56 +2707,7 @@ function renderFlashcard(){
   }
 }
 
-function renderQuizCard(){
-  const content = document.getElementById('fcModalContent');
-  const s = fcQueue[fcIdx];
-  const correctGloss = getWordGloss(s) || '(no definition)';
-  const pool = saved.filter(o => o.h !== s.h);
-  const shuffledPool = [...pool].sort(() => Math.random() - 0.5);
-  const distractors = [];
-  for(const o of shuffledPool){
-    const g = getWordGloss(o);
-    if(g && g !== correctGloss && !distractors.includes(g)){
-      distractors.push(g);
-      if(distractors.length === 3) break;
-    }
-  }
-  const options = [...distractors, correctGloss].sort(() => Math.random() - 0.5);
-  const shortPoolNote = options.length < 4
-    ? `<div class="fc-progress" style="color:var(--accent);">Save ${4 - options.length} more word${4 - options.length === 1 ? '' : 's'} to unlock full 4-option quizzes.</div>`
-    : '';
-
-  content.innerHTML = `
-    <div class="fc-heading">Quiz</div>
-    <div class="fc-progress">${fcIdx + 1} of ${fcQueue.length} due</div>
-    ${shortPoolNote}
-    <div class="fc-quiz-question">
-      <div class="fc-quiz-hanzi">${s.h}</div>
-    </div>
-    <div class="fc-quiz-options">
-      ${options.map((opt, i) => `<button class="fc-quiz-option" data-opt="${i}">${opt}</button>`).join('')}
-    </div>
-    ${fcAuthNoteHtml()}
-  `;
-  content.querySelectorAll('.fc-quiz-option').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const chosen = options[parseInt(btn.dataset.opt, 10)];
-      const isCorrect = chosen === correctGloss;
-      content.querySelectorAll('.fc-quiz-option').forEach(b2 => {
-        b2.style.pointerEvents = 'none';
-        const optText = options[parseInt(b2.dataset.opt, 10)];
-        if(optText === correctGloss) b2.classList.add('correct');
-        else if(b2 === btn) b2.classList.add('incorrect');
-      });
-      rateCard(s.h, isCorrect ? 'remembered' : 'forgot');
-      setTimeout(() => { fcIdx++; renderFcModal(); }, 900);
-    });
-  });
-  wireFcAuthLink();
-}
-
-document.getElementById('btnOpenFlashcards').addEventListener('click', () => openFlashcardModal('flashcards'));
-document.getElementById('btnOpenQuiz').addEventListener('click', () => openFlashcardModal('quiz'));
+document.getElementById('btnOpenFlashcards').addEventListener('click', () => openFlashcardModal());
 document.getElementById('fcModalClose').addEventListener('click', closeFcModal);
 document.getElementById('fcModalOverlay').addEventListener('click', (e) => {
   if(e.target.id === 'fcModalOverlay') closeFcModal();
@@ -2585,6 +2773,7 @@ window.onAuthSuccess = async function(user){
   await loadUserNotesFromSupabase();
   await loadKnownWordsFromSupabase();
   await loadFlashcardProgressFromSupabase();
+  checkAndShowReviewReminder();
 };
 
 document.getElementById('vocabAuthLink').addEventListener('click', async (e) => {
@@ -2614,6 +2803,7 @@ authOnChange(async (user) => {
     await loadUserNotesFromSupabase();
     await loadKnownWordsFromSupabase();
     await loadFlashcardProgressFromSupabase();
+  checkAndShowReviewReminder();
   }
 });
 
