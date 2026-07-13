@@ -2285,7 +2285,13 @@ let miniObserver = null;
 
 const MINI_DEFAULT_WIDTH = 300;
 const MINI_MIN_WIDTH = 200;
-const MINI_MAX_WIDTH = 480;
+function getMiniMaxWidth(){
+  // Scales with real screen space instead of a flat cap — an ultrawide
+  // monitor has room for a genuinely bigger mini-player, but it's still
+  // capped well short of the full window so it stays a "mini" player
+  // rather than taking over the screen.
+  return Math.max(480, Math.min(1000, window.innerWidth * 0.55));
+}
 const MINI_ASPECT = 9/16;
 let miniRect = null;
 
@@ -2306,9 +2312,25 @@ function saveMiniRect(){
   localStorage.setItem('miniPlayerRect', JSON.stringify(miniRect));
 }
 
+function clampMiniRect(rect){
+  // A position saved in a wide window can end up entirely off-screen once
+  // the window shrinks (browser resize, OS half-screen snap, etc) — this
+  // re-validates against the CURRENT viewport every time the rect is
+  // applied, not just while actively dragging.
+  const maxW = Math.max(MINI_MIN_WIDTH, window.innerWidth - 16);
+  const width = Math.min(rect.width, maxW);
+  const height = Math.round(width * MINI_ASPECT);
+  const clamped = { ...rect, width, height };
+  if(clamped.left !== undefined) clamped.left = Math.max(0, Math.min(clamped.left, window.innerWidth - width));
+  if(clamped.right !== undefined) clamped.right = Math.max(0, Math.min(clamped.right, window.innerWidth - width));
+  if(clamped.top !== undefined) clamped.top = Math.max(0, Math.min(clamped.top, window.innerHeight - height));
+  if(clamped.bottom !== undefined) clamped.bottom = Math.max(0, Math.min(clamped.bottom, window.innerHeight - height));
+  return clamped;
+}
+
 function applyMiniRect(){
   const outer = document.getElementById('videoOuter');
-  const rect = getMiniRect();
+  const rect = clampMiniRect(getMiniRect());
   outer.style.width = rect.width + 'px';
   if(rect.left !== undefined){
     outer.style.left = rect.left + 'px';
@@ -2379,7 +2401,7 @@ function setupMiniDragAndResize(){
     let startX, startWidth, anchorX, anchorY;
     function onMove(e){
       const dx = e.clientX - startX;
-      const newWidth = Math.max(MINI_MIN_WIDTH, Math.min(MINI_MAX_WIDTH, startWidth + widthSign * dx));
+      const newWidth = Math.max(MINI_MIN_WIDTH, Math.min(getMiniMaxWidth(), startWidth + widthSign * dx));
       outer.style.width = newWidth + 'px';
       if(anchorH === 'left'){ outer.style.left = anchorX + 'px'; outer.style.right = 'auto'; }
       else { outer.style.right = anchorX + 'px'; outer.style.left = 'auto'; }
@@ -2415,6 +2437,17 @@ function setupMiniDragAndResize(){
   setupResizeCorner(gripBL, 'right', 'top', -1);    // bottom-left handle, anchors top-right
 }
 setupMiniDragAndResize();
+
+window.addEventListener('resize', () => {
+  const outer = document.getElementById('videoOuter');
+  if(outer.classList.contains('mini')){
+    // Re-clamp against the new viewport size and persist the corrected
+    // position, so it doesn't drift back off-screen again next time either.
+    miniRect = clampMiniRect(getMiniRect());
+    applyMiniRect();
+    saveMiniRect();
+  }
+});
 
 function setupMiniPlayer(){
   const outer = document.getElementById('videoOuter');
