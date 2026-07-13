@@ -1678,15 +1678,6 @@ function speakWithBrowserVoice(text, rate){
   window.speechSynthesis.speak(utter);
 }
 
-// Measured once, hardcoded to avoid an extra API call (and its cost) on
-// every single click. 不's slow value is an estimate extrapolated from 一's
-// measured normal→slow ratio, not a live measurement — flag it if it ever
-// sounds slightly early or late, since it may need a small manual nudge.
-const SANDHI_CUTOFFS = {
-  '不': { 1: 0.624, 0.6: 0.864 },
-  '一': { 1: 0.648, 0.6: 0.888 }
-};
-
 async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyllable){
   if(!text) return;
   try{
@@ -1698,24 +1689,22 @@ async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyl
     if(res.ok){
       const data = await res.json();
       if(data.audioContent){
-        const cutoff = muteAfterFirstSyllable ? (SANDHI_CUTOFFS[text[0]] || {})[cloudRate] : null;
-        console.log('[TTS debug] cutoff branch check:', { text, cutoff, muteAfterFirstSyllable });
-
-        if(cutoff){
+        if(muteAfterFirstSyllable){
           try{
             // Decode to raw samples and physically trim the buffer, so there's
-            // nothing beyond the cutoff to play at all — sidesteps the audio
-            // hardware buffering lag that made plain pause() unreliable on
-            // clips this short.
+            // nothing beyond the cutoff to play at all. Cutting at a fixed
+            // proportion of the REAL combined-phrase duration (rather than a
+            // hardcoded isolated-word measurement) — isolated pronunciation
+            // runs slower per syllable than the same word spoken as part of
+            // a natural connected phrase, so a canned duration for 不/一
+            // alone was consistently landing too late.
             const binary = atob(data.audioContent);
             const bytes = new Uint8Array(binary.length);
             for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if(audioCtx.state === 'suspended') await audioCtx.resume();
-            console.log('[TTS debug] audioCtx.state:', audioCtx.state);
             const fullBuffer = await audioCtx.decodeAudioData(bytes.buffer);
-            const cutoffSample = Math.min(Math.floor(cutoff * fullBuffer.sampleRate), fullBuffer.length);
-            console.log('[TTS debug] fullBuffer duration:', fullBuffer.duration, 'trimmed to sample', cutoffSample, 'of', fullBuffer.length);
+            const cutoffSample = Math.min(Math.floor(fullBuffer.duration * 0.45 * fullBuffer.sampleRate), fullBuffer.length);
             const trimmed = audioCtx.createBuffer(fullBuffer.numberOfChannels, cutoffSample, fullBuffer.sampleRate);
             for(let ch = 0; ch < fullBuffer.numberOfChannels; ch++){
               trimmed.copyToChannel(fullBuffer.getChannelData(ch).subarray(0, cutoffSample), ch);
@@ -1725,10 +1714,9 @@ async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyl
             source.connect(audioCtx.destination);
             currentTtsAudio = { pause: () => { try{ source.stop(); } catch{} } };
             source.start();
-            console.log('[TTS debug] trimmed source started, duration:', trimmed.duration);
             return;
           } catch(trimErr){
-            console.error('[TTS debug] trimming path threw, falling through:', trimErr);
+            console.error('Sandhi trim failed, playing full phrase:', trimErr);
           }
         }
 
