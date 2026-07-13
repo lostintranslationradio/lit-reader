@@ -1736,7 +1736,7 @@ if(!window.speechSynthesis){
   document.getElementById('popupSpeakSlow').disabled = true;
 }
 const SANDHI_CHARS = new Set(['不', '一']);
-const MUTE_AFTER_FIRST_CHARS = new Set(['不', '一']); // 一 temporarily added just to measure its duration
+const MUTE_AFTER_FIRST_CHARS = new Set(['不']); // only 不 for now, per request
 
 function getTtsContext(tok, key){
   if(!SANDHI_CHARS.has(tok.h) || !key) return { hanzi: tok.h, pinyin: tok.p, muteAfterFirst: false };
