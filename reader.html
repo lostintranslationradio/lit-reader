@@ -1447,10 +1447,12 @@ function navigatePopup(direction){
 document.getElementById('popupPrev').addEventListener('click', () => navigatePopup(-1));
 document.getElementById('popupNext').addEventListener('click', () => navigatePopup(1));
 
+let currentTtsAudio = null;
 function closePopup(){
   document.getElementById('popupOverlay').classList.remove('open');
   currentPopup = null;
   if(window.speechSynthesis) window.speechSynthesis.cancel();
+  if(currentTtsAudio){ currentTtsAudio.pause(); currentTtsAudio = null; }
 }
 
 async function saveWord(tok, el){
@@ -1641,7 +1643,33 @@ document.getElementById('popupStar').addEventListener('click', function(){
   }
   this.classList.toggle('starred', !isSaved);
 });
-function speakWord(text, rate){
+const ACCENT_TO_TONE = {
+  'ā':['a',1],'á':['a',2],'ǎ':['a',3],'à':['a',4],
+  'ē':['e',1],'é':['e',2],'ě':['e',3],'è':['e',4],
+  'ī':['i',1],'í':['i',2],'ǐ':['i',3],'ì':['i',4],
+  'ō':['o',1],'ó':['o',2],'ǒ':['o',3],'ò':['o',4],
+  'ū':['u',1],'ú':['u',2],'ǔ':['u',3],'ù':['u',4],
+  'ǖ':['ü',1],'ǘ':['ü',2],'ǚ':['ü',3],'ǜ':['ü',4]
+};
+function accentedToNumbered(pinyin){
+  if(!pinyin) return null;
+  return pinyin.trim().split(/\s+/).map(syl => {
+    let tone = 5; // no accent mark found = neutral tone
+    let result = '';
+    for(const ch of syl){
+      if(ACCENT_TO_TONE[ch]){
+        const [base, t] = ACCENT_TO_TONE[ch];
+        result += base;
+        tone = t;
+      } else {
+        result += ch;
+      }
+    }
+    return result + tone;
+  }).join(' ');
+}
+
+function speakWithBrowserVoice(text, rate){
   if(!window.speechSynthesis || !text) return;
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
@@ -1649,15 +1677,39 @@ function speakWord(text, rate){
   utter.rate = rate;
   window.speechSynthesis.speak(utter);
 }
+
+async function speakWord(text, rate, pinyin){
+  if(!text) return;
+  try{
+    const res = await fetch('/.netlify/functions/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hanzi: text, pinyin: accentedToNumbered(pinyin), rate })
+    });
+    if(res.ok){
+      const data = await res.json();
+      if(data.audioContent){
+        const audio = new Audio('data:audio/mp3;base64,' + data.audioContent);
+        currentTtsAudio = audio;
+        await audio.play();
+        return;
+      }
+    }
+    throw new Error('Cloud TTS unavailable');
+  } catch(err){
+    console.warn('Falling back to browser voice:', err.message);
+    speakWithBrowserVoice(text, rate);
+  }
+}
 if(!window.speechSynthesis){
   document.getElementById('popupSpeakNormal').disabled = true;
   document.getElementById('popupSpeakSlow').disabled = true;
 }
 document.getElementById('popupSpeakNormal').addEventListener('click', () => {
-  if(currentPopup) speakWord(currentPopup.tok.h, 1);
+  if(currentPopup) speakWord(currentPopup.tok.h, 1, currentPopup.tok.p);
 });
 document.getElementById('popupSpeakSlow').addEventListener('click', () => {
-  if(currentPopup) speakWord(currentPopup.tok.h, 0.3);
+  if(currentPopup) speakWord(currentPopup.tok.h, 0.3, currentPopup.tok.p);
 });
 document.getElementById('popupClose').addEventListener('click', closePopup);
 document.getElementById('popupOverlay').addEventListener('click', function(e){

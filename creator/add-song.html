@@ -519,7 +519,7 @@ async function loadSongForEditing(id){
       return {
         h: w.h, p: w.p, g: w.g, short: w.short || (w.g && w.g[0]) || '', hsk: w.hsk, pos: w.pos || null, note: w.note || '',
         isPunct, unresolved: false,
-        reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: r.g[0] || '' })) : null,
+        reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: pickShortGloss(r.g) })) : null,
         selected_reading: hasMultipleReadings ? w.p : null,
         needsReadingPick: hasMultipleReadings,
         readingConfirmed: hasMultipleReadings // already published with a specific reading chosen — don't nag about it again
@@ -669,6 +669,16 @@ function extractYoutubeId(input){
   return m ? m[1] : '';
 }
 
+// Some CC-CEDICT readings list a "variant of X[...]" cross-reference as their
+// very first definition, which makes a bad short label on its own — pick the
+// first substantive definition instead when one exists, falling back to the
+// cross-reference only if that's genuinely all there is.
+function pickShortGloss(defs){
+  if(!defs || defs.length === 0) return '';
+  const substantive = defs.find(d => !/^(variant of|old variant of|unofficial variant of)/i.test(d));
+  return substantive || defs[0];
+}
+
 function lookup(word){
   if(DICT[word]){
     const d = DICT[word];
@@ -729,7 +739,7 @@ function segmentLine(text){
       pos: entry ? entry.pos : null,
       isPunct: false,
       unresolved: !entry,
-      reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: r.g[0] || '' })) : null,
+      reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: pickShortGloss(r.g) })) : null,
       selected_reading: hasMultipleReadings ? entry.p : null,
       needsReadingPick: hasMultipleReadings
     }));
@@ -1211,7 +1221,7 @@ function makeToken(hanzi){
     pos: entry ? entry.pos : null,
     isPunct: false,
     unresolved: !entry,
-    reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: r.g[0] || '' })) : null,
+    reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: pickShortGloss(r.g) })) : null,
     selected_reading: hasMultipleReadings ? entry.p : null,
     needsReadingPick: hasMultipleReadings
   });
