@@ -2377,20 +2377,24 @@ function setupMiniDragAndResize(){
     outer.style.right = 'auto';
     outer.style.bottom = 'auto';
   }
-  function onDragEnd(){
-    document.removeEventListener('pointermove', onDragMove);
-    document.removeEventListener('pointerup', onDragEnd);
+  function onDragEnd(e){
+    handle.releasePointerCapture(e.pointerId);
+    handle.removeEventListener('pointermove', onDragMove);
+    handle.removeEventListener('pointerup', onDragEnd);
+    handle.removeEventListener('pointercancel', onDragEnd);
     const r = outer.getBoundingClientRect();
     miniRect = { left: r.left, top: r.top, width: r.width, height: r.height };
     saveMiniRect();
   }
   handle.addEventListener('pointerdown', (e) => {
     e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
     const r = outer.getBoundingClientRect();
     dragStartX = e.clientX; dragStartY = e.clientY;
     dragStartLeft = r.left; dragStartTop = r.top;
-    document.addEventListener('pointermove', onDragMove);
-    document.addEventListener('pointerup', onDragEnd);
+    handle.addEventListener('pointermove', onDragMove);
+    handle.addEventListener('pointerup', onDragEnd);
+    handle.addEventListener('pointercancel', onDragEnd);
   });
 
   // One generic handler covers all four corners. anchorH/anchorV say which
@@ -2408,9 +2412,11 @@ function setupMiniDragAndResize(){
       if(anchorV === 'top'){ outer.style.top = anchorY + 'px'; outer.style.bottom = 'auto'; }
       else { outer.style.bottom = anchorY + 'px'; outer.style.top = 'auto'; }
     }
-    function onEnd(){
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', onEnd);
+    function onEnd(e){
+      gripEl.releasePointerCapture(e.pointerId);
+      gripEl.removeEventListener('pointermove', onMove);
+      gripEl.removeEventListener('pointerup', onEnd);
+      gripEl.removeEventListener('pointercancel', onEnd);
       const r = outer.getBoundingClientRect();
       const next = { width: r.width, height: r.height };
       if(anchorH === 'left') next.left = r.left; else next.right = window.innerWidth - r.right;
@@ -2421,13 +2427,15 @@ function setupMiniDragAndResize(){
     gripEl.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      gripEl.setPointerCapture(e.pointerId);
       const r = outer.getBoundingClientRect();
       startX = e.clientX;
       startWidth = r.width;
       anchorX = anchorH === 'left' ? r.left : window.innerWidth - r.right;
       anchorY = anchorV === 'top' ? r.top : window.innerHeight - r.bottom;
-      document.addEventListener('pointermove', onMove);
-      document.addEventListener('pointerup', onEnd);
+      gripEl.addEventListener('pointermove', onMove);
+      gripEl.addEventListener('pointerup', onEnd);
+      gripEl.addEventListener('pointercancel', onEnd);
     });
   }
 
