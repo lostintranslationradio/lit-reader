@@ -1698,18 +1698,33 @@ async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyl
     if(res.ok){
       const data = await res.json();
       if(data.audioContent){
+        const cutoff = muteAfterFirstSyllable ? (SANDHI_CUTOFFS[text[0]] || {})[cloudRate] : null;
+
+        if(cutoff){
+          // Decode to raw samples and physically trim the buffer, so there's
+          // nothing beyond the cutoff to play at all — sidesteps the audio
+          // hardware buffering lag that made plain pause() unreliable on
+          // clips this short.
+          const binary = atob(data.audioContent);
+          const bytes = new Uint8Array(binary.length);
+          for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const fullBuffer = await audioCtx.decodeAudioData(bytes.buffer);
+          const cutoffSample = Math.min(Math.floor(cutoff * fullBuffer.sampleRate), fullBuffer.length);
+          const trimmed = audioCtx.createBuffer(fullBuffer.numberOfChannels, cutoffSample, fullBuffer.sampleRate);
+          for(let ch = 0; ch < fullBuffer.numberOfChannels; ch++){
+            trimmed.copyToChannel(fullBuffer.getChannelData(ch).subarray(0, cutoffSample), ch);
+          }
+          const source = audioCtx.createBufferSource();
+          source.buffer = trimmed;
+          source.connect(audioCtx.destination);
+          currentTtsAudio = { pause: () => { try{ source.stop(); } catch{} } };
+          source.start();
+          return;
+        }
+
         const audio = new Audio('data:audio/mp3;base64,' + data.audioContent);
         currentTtsAudio = audio;
-        if(muteAfterFirstSyllable){
-          const cutoff = (SANDHI_CUTOFFS[text[0]] || {})[cloudRate];
-          console.log('[TTS cutoff debug]', { text, cloudRate, cutoff, muteAfterFirstSyllable });
-          if(cutoff){
-            setTimeout(() => {
-              console.log('[TTS cutoff debug] timeout fired, paused:', audio.paused, 'currentTime:', audio.currentTime);
-              if(!audio.paused) audio.pause();
-            }, cutoff * 1000);
-          }
-        }
         await audio.play();
         return;
       }
