@@ -1379,7 +1379,7 @@ function render(){
       t.className = 'translation';
       const isHiddenLine = translationHidden.has(lineIdx);
       if(isHiddenLine) t.classList.add('trans-hidden');
-      t.textContent = isHiddenLine ? '|' : entry.translation;
+      t.textContent = isHiddenLine ? ' ' : entry.translation;
       t.title = isHiddenLine ? 'Tap to reveal' : 'Tap to hide';
       t.addEventListener('click', () => {
         if(translationHidden.has(lineIdx)) translationHidden.delete(lineIdx);
@@ -1391,7 +1391,7 @@ function render(){
         const seekBtn = document.createElement('button');
         seekBtn.className = 'translation-seek';
         seekBtn.title = 'Jump video to this line';
-        seekBtn.textContent = '⇥';
+        seekBtn.textContent = '↵';
         seekBtn.addEventListener('click', (e) => { e.stopPropagation(); jumpToLine(entry.start); });
         row.appendChild(seekBtn);
       }
@@ -1442,7 +1442,7 @@ function render(){
     t.className = 'translation';
     const isHiddenLine = translationHidden.has(lineIdx);
     if(isHiddenLine) t.classList.add('trans-hidden');
-    t.textContent = isHiddenLine ? '|' : entry.translation;
+    t.textContent = isHiddenLine ? ' ' : entry.translation;
     t.title = isHiddenLine ? 'Tap to reveal' : 'Tap to hide';
     t.addEventListener('click', () => {
       if(translationHidden.has(lineIdx)) translationHidden.delete(lineIdx);
@@ -1454,7 +1454,7 @@ function render(){
       const seekBtn = document.createElement('button');
       seekBtn.className = 'translation-seek';
       seekBtn.title = 'Jump video to this line';
-      seekBtn.textContent = '⇥';
+      seekBtn.textContent = '↵';
       seekBtn.addEventListener('click', (e) => { e.stopPropagation(); jumpToLine(entry.start); });
       row.appendChild(seekBtn);
     }
@@ -2257,7 +2257,6 @@ const MINI_DEFAULT_WIDTH = 300;
 const MINI_MIN_WIDTH = 200;
 const MINI_MAX_WIDTH = 480;
 const MINI_ASPECT = 9/16;
-const MINI_HANDLE_HEIGHT = 20;
 let miniRect = null;
 
 function computeDefaultMiniRect(){
@@ -2267,7 +2266,7 @@ function computeDefaultMiniRect(){
   const contentMaxWidth = 1180;
   const margin = (window.innerWidth - contentMaxWidth) / 2;
   const width = MINI_DEFAULT_WIDTH;
-  const height = Math.round(width * MINI_ASPECT) + MINI_HANDLE_HEIGHT;
+  const height = Math.round(width * MINI_ASPECT);
   if(margin > width + 40){
     const left = window.innerWidth - margin + (margin - width) / 2;
     return { left: Math.round(left), top: 120, width, height };
@@ -2353,7 +2352,7 @@ function setupMiniDragAndResize(){
   function onResizeMove(e){
     const dx = e.clientX - resizeStartX;
     const newWidth = Math.max(MINI_MIN_WIDTH, Math.min(MINI_MAX_WIDTH, resizeStartWidth + dx));
-    const newHeight = Math.round(newWidth * MINI_ASPECT) + MINI_HANDLE_HEIGHT;
+    const newHeight = Math.round(newWidth * MINI_ASPECT);
     outer.style.width = newWidth + 'px';
     outer.style.height = newHeight + 'px';
   }

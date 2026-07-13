@@ -165,14 +165,14 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   <div class="lesson">
     <div class="lesson-num">03</div>
     <h2>Save words as you go</h2>
-    <p>Inside that popup, tap the star to save a word — it'll fly into your saved list and sync across any device you're signed into. This demo saves locally only, just to show you the motion; your real saves live in the actual reader. Your saved list isn't just a flat list to glance at either — press and hold any entry in it, same as a word in the lyrics, and the exact same popup opens back up: full definition, pronunciation, your personal note, all of it.</p>
+    <p>Tap the star to save a word — it flies into your saved list and syncs across devices when signed in. Press and hold any saved entry later to reopen the same popup: full definition, pronunciation, your notes.</p>
     <div class="demo-box"><div class="line" id="demo3"></div></div>
   </div>
 
   <div class="lesson">
     <div class="lesson-num">04</div>
     <h2>Control how much shows automatically</h2>
-    <p>The Glosses slider in Settings sets a threshold — words at or below that HSK level stay hidden by default, since you're assumed to already know them; anything above it shows automatically. Drag it and watch the line below react. There are also two separate switches in Settings — <b>pinyin</b> and <b>word translation</b> — if you'd rather turn one of them off entirely regardless of level, for example hiding pinyin once you don't need it anymore while keeping the word-by-word glosses on.</p>
+    <p>The Glosses slider in Settings hides words at or below a chosen HSK level, assuming you already know them. Drag it and watch below. Separate pinyin/translation switches let you turn either off entirely, independent of level.</p>
     <div class="demo-box">
       <div class="level-control">
         <span>Glosses</span>
@@ -187,7 +187,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   <div class="lesson">
     <div class="lesson-num">05</div>
     <h2>Mark words you already know</h2>
-    <p>The Glosses slider works off HSK level, but your own vocabulary rarely lines up neatly with the official levels — you might know plenty of "advanced" words already, or still be shaky on some basic ones. Settings has a "Words you already know" section where you can paste in a whole list at once to get started, or just check the "✓ I know this" button inside any word's popup as you come across it. Anything marked known stays hidden by default from then on, everywhere, regardless of what the slider says.</p>
+    <p>Your vocabulary rarely matches HSK levels exactly. Settings has a "Words you already know" section — paste a list, or tap "✓ I know this" in any popup as you go. Marked words stay hidden by default everywhere, regardless of the slider.</p>
   </div>
 
   <div class="lesson">
@@ -211,12 +211,12 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   <div class="lesson">
     <div class="lesson-num">07</div>
     <h2>Tap the translation to hide it</h2>
-    <p>Below every line sits the actual line-by-line translation — the real, singable rendering, distinct from the word-by-word glosses above it. Tap it to hide it, if you'd rather try recalling the meaning yourself first — it collapses down to a small "|" marker rather than disappearing entirely, so you always know exactly where to tap again to bring it back. This is separate from the "lyrics translation" switch in Settings, which hides translations everywhere at once; tapping a single line is just for that one line, whenever you want to test yourself. On a real song page, if that line has a timestamp, the small ⇥ button beside it jumps the video straight to that moment.</p>
+    <p>Below each line sits the full translation. Tap it to hide just that line if you want to test your recall — the accent bar stays, marking where to tap it back. Separate from the Settings switch, which hides translations everywhere at once. If the line has a timestamp, tap ↵ beside it to jump the video there.</p>
     <div class="demo-box">
       <div class="line" id="demo6"></div>
       <div class="translation-row">
         <div class="translation" id="demo6t"></div>
-        <button class="translation-seek" id="demo6seek" title="Jump video to this line">⇥</button>
+        <button class="translation-seek" id="demo6seek" title="Jump video to this line">↵</button>
       </div>
     </div>
   </div>
@@ -434,7 +434,7 @@ function renderAll(){
   demo6tEl.addEventListener('click', () => {
     demo6Hidden = !demo6Hidden;
     demo6tEl.classList.toggle('trans-hidden', demo6Hidden);
-    demo6tEl.textContent = demo6Hidden ? '|' : 'This moment, return to zero, begin again';
+    demo6tEl.textContent = demo6Hidden ? ' ' : 'This moment, return to zero, begin again';
     demo6tEl.title = demo6Hidden ? 'Tap to reveal' : 'Tap to hide';
   });
   document.getElementById('demo6seek').addEventListener('click', function(){
