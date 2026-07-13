@@ -1064,7 +1064,14 @@
       </div>
     </div>
 
-    <div class="vocab-box" id="vocabBox">
+    <div id="fcModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:180; align-items:center; justify-content:center; padding:20px;">
+  <div id="fcModalBox" style="background:var(--surface); border-radius:10px; width:100%; max-width:480px; max-height:88vh; overflow-y:auto; position:relative; padding:24px;">
+    <button id="fcModalClose" style="position:absolute; top:12px; right:14px; background:var(--surface); border:1px solid var(--rule); border-radius:50%; width:30px; height:30px; cursor:pointer; color:var(--text-dim); font-size:14px;">✕</button>
+    <div id="fcModalContent"></div>
+  </div>
+</div>
+
+<div class="vocab-box" id="vocabBox">
       <button id="mobileVocabClose" title="Close">✕</button>
       <div class="aside-head">
         <div class="aside-title">Saved words</div>
@@ -2691,13 +2698,6 @@ init();
   Definitions powered by <a href="https://cc-cedict.org/" target="_blank" rel="noopener" style="color:var(--text-dim);">CC-CEDICT</a>
   · Reading layout inspired by <a href="https://wubli.app" target="_blank" rel="noopener" style="color:var(--text-dim);">Wubli</a>
 </footer>
-
-<div id="fcModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:180; align-items:center; justify-content:center; padding:20px;">
-  <div id="fcModalBox" style="background:var(--surface); border-radius:10px; width:100%; max-width:480px; max-height:88vh; overflow-y:auto; position:relative; padding:24px;">
-    <button id="fcModalClose" style="position:absolute; top:12px; right:14px; background:var(--surface); border:1px solid var(--rule); border-radius:50%; width:30px; height:30px; cursor:pointer; color:var(--text-dim); font-size:14px;">✕</button>
-    <div id="fcModalContent"></div>
-  </div>
-</div>
 
 <div id="aboutModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; padding:20px;">
   <div style="background:var(--surface); border-radius:10px; width:100%; max-width:720px; max-height:88vh; position:relative; overflow:hidden; display:flex; flex-direction:column;">
