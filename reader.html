@@ -1497,11 +1497,11 @@ async function saveConstruction(cons){
   if(existing){
     if(!existing.sources.includes(SONG_ID)) existing.sources.push(SONG_ID);
   } else {
-    saved.push({ h: cons.pattern, p: '', g: [cons.gloss, cons.note].filter(Boolean), hsk: 0, kind: 'construction', sources: [SONG_ID] });
+    saved.push({ h: cons.pattern, p: cons.pinyin || '', g: [cons.gloss, cons.note].filter(Boolean), hsk: 0, kind: 'construction', sources: [SONG_ID] });
   }
   if(currentUser){
     await sb.from('saved_words').upsert({
-      user_id: currentUser.id, kind: 'construction', hanzi: cons.pattern, pinyin: '',
+      user_id: currentUser.id, kind: 'construction', hanzi: cons.pattern, pinyin: cons.pinyin || '',
       gloss: [cons.gloss, cons.note].filter(Boolean), hsk: 0,
       sources: existing ? existing.sources : [SONG_ID]
     }, { onConflict: 'user_id,hanzi' });
@@ -1572,7 +1572,7 @@ function openVocabPopup(s, el, vocabIdx){
   if(s.kind === 'construction'){
     const tok = { h: s.h, p: s.p || '', g: [], hsk: 0, note: '' };
     const override = {
-      construction: { pattern: s.h, gloss: Array.isArray(s.g) ? (s.g[0]||'') : (s.g||''), note: s.note || '' }
+      construction: { pattern: s.h, pinyin: s.p || '', gloss: Array.isArray(s.g) ? (s.g[0]||'') : (s.g||''), note: s.note || '' }
     };
     openPopup(tok, 'vocab_' + s.h, el, override, vocabIdx);
   } else {

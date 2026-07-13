@@ -855,6 +855,7 @@ function renderConstructionsList(){
         </div>
         <div data-edit-form="${ci}" style="display:none; margin-top:8px; padding:10px; background:var(--surface-raised); border-radius:4px;">
           <input type="text" data-edit-field="pattern" value="${(c.pattern||'').replace(/"/g,'&quot;')}" placeholder="Pattern" style="margin-bottom:6px;">
+          <input type="text" data-edit-field="pinyin" value="${(c.pinyin||'').replace(/"/g,'&quot;')}" placeholder="Pinyin (e.g. zài … zhīqián)" style="margin-bottom:6px;">
           <input type="text" data-edit-field="gloss" value="${(c.gloss||'').replace(/"/g,'&quot;')}" placeholder="Short gloss" style="margin-bottom:6px;">
           <textarea data-edit-field="note" placeholder="Note (optional)" rows="3" style="margin-bottom:8px; resize:vertical;">${(c.note||'').replace(/</g,'&lt;')}</textarea>
           <div style="display:flex; gap:6px;">
@@ -894,6 +895,7 @@ function renderConstructionsList(){
       const ci = parseInt(btn.dataset.saveCons, 10);
       const form = el.querySelector(`[data-edit-form="${ci}"]`);
       const newPattern = form.querySelector('[data-edit-field="pattern"]').value.trim();
+      const newPinyin = form.querySelector('[data-edit-field="pinyin"]').value.trim();
       const newGloss = form.querySelector('[data-edit-field="gloss"]').value.trim();
       const newNote = form.querySelector('[data-edit-field="note"]').value.trim();
       if(!newPattern){ alert('Pattern can\u2019t be empty.'); return; }
@@ -901,6 +903,7 @@ function renderConstructionsList(){
       constructions.forEach(c => {
         if(c.pattern === originalPattern){
           c.pattern = newPattern;
+          c.pinyin = newPinyin;
           c.gloss = newGloss;
           c.note = newNote;
         }
