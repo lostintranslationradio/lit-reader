@@ -600,8 +600,9 @@
     font-size:13px;
     line-height:1.6;
     color:var(--text);
-    text-align:center;
+    text-align:left;
   }
+  .popup-construction .cons-gloss ol{ margin:0; padding-left:18px; }
   .cons-sound{
     display:flex;
     justify-content:center;
@@ -1402,12 +1403,12 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
         <span class="cons-pattern">${cons.construction.pattern}</span>
         ${cons.construction.pinyin ? `<span class="cons-pattern-pinyin">${cons.construction.pinyin}</span>` : ''}
       </div>
-      <div class="cons-gloss">${cons.construction.gloss}</div>
-      ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
       <div class="cons-sound">
         <button id="consSpeakNormal" title="Listen">🔊 Listen</button>
         <button id="consSpeakSlow" title="Listen slowly">🐢 Slow</button>
       </div>
+      <div class="cons-gloss"><ol><li>${cons.construction.gloss}</li></ol></div>
+      ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
       <button id="popupConsSave" style="font-family:'JetBrains Mono',monospace; font-size:10px;
         padding:5px 10px; border-radius:12px; border:1px solid ${isConsSaved ? 'var(--accent)' : 'var(--rule)'};
         background:${isConsSaved ? 'rgba(184,134,58,.14)' : 'transparent'};
