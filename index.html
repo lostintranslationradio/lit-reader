@@ -97,10 +97,10 @@
   }
 
   .sod-wrap{
-    max-width:820px; margin:0 auto; padding:40px 24px 0;
+    max-width:1180px; margin:0 auto; padding:40px 24px 0;
   }
   .sod-card{
-    display:flex; gap:28px; align-items:flex-start;
+    display:flex; gap:28px; align-items:center;
     background:var(--surface); border:1px solid var(--rule); border-radius:10px;
     padding:24px 28px; position:relative; overflow:hidden;
   }
@@ -131,11 +131,10 @@
   }
   .sod-cta:hover{ background:var(--accent); color:#fff; }
   @media (min-width:769px){
-    /* On real desktop real estate, let the cover stretch to match the full
-       height of the text column beside it, rather than a small fixed square
-       pinned to the top with empty space below. */
-    .sod-card{ align-items:stretch; }
-    .sod-cover{ width:auto; aspect-ratio:1; height:auto; align-self:stretch; font-size:min(15vw, 90px); }
+    /* Bigger, vertically centered instead of pinned to the top — avoids the
+       fragile stretch+aspect-ratio combo that was collapsing the cover to
+       nothing when the card's height was itself content-driven. */
+    .sod-cover{ width:220px; height:220px; font-size:60px; }
   }
   @media (max-width:640px){
     .sod-card{ flex-direction:column; align-items:center; text-align:center; }
