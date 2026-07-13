@@ -96,6 +96,44 @@
     background:rgba(184,134,58,.1);
   }
 
+  .sod-wrap{
+    max-width:1180px; margin:0 auto; padding:24px;
+  }
+  .sod-card{
+    display:flex; gap:24px; align-items:center;
+    background:var(--surface); border:1px solid var(--rule); border-radius:10px;
+    padding:20px 24px; position:relative; overflow:hidden;
+  }
+  .sod-card::before{
+    content:''; position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, var(--accent), transparent);
+  }
+  .sod-eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--accent); margin-bottom:6px;
+  }
+  .sod-cover{
+    width:88px; height:88px; border-radius:8px; flex-shrink:0;
+    background-size:cover; background-position:center;
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-title); font-size:26px;
+  }
+  .sod-body{ flex:1; min-width:0; }
+  .sod-title{ font-family:var(--font-title); font-size:20px; margin-bottom:2px; }
+  .sod-artist{ font-size:13px; color:var(--text-dim); margin-bottom:8px; }
+  .sod-about{ font-size:13px; line-height:1.55; color:var(--text); max-width:640px; }
+  .sod-cta{
+    flex-shrink:0; align-self:center;
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.03em;
+    padding:10px 18px; border-radius:20px; border:1px solid var(--accent);
+    background:rgba(184,134,58,.12); color:var(--accent); text-decoration:none; white-space:nowrap;
+  }
+  .sod-cta:hover{ background:var(--accent); color:#fff; }
+  @media (max-width:640px){
+    .sod-card{ flex-direction:column; align-items:flex-start; text-align:left; }
+    .sod-cta{ align-self:stretch; text-align:center; }
+  }
+
   .toolbar{
     max-width:1180px;
     margin:0 auto;
@@ -523,6 +561,8 @@
   </div>
 </header>
 
+<div id="songOfDay" style="display:none;"></div>
+
 <div class="toolbar">
   <div class="toolbar-left">
     <div class="search">
@@ -536,6 +576,7 @@
     <a class="creator-link" id="addSongLink" href="creator/add-song.html" style="display:none; text-decoration:none;">+ Add Song</a>
   </div>
   <div class="right-controls">
+    <button class="creator-link" id="randomSongBtn" title="Jump to a random song">🎲 Random</button>
     <div class="view-toggle" id="viewToggle">
       <button data-view="grid" class="active">Tiles</button>
       <button data-view="list">List</button>
@@ -823,16 +864,77 @@ sb.from('songs').select('*').then(({ data, error }) => {
     return {
       id: s.id, zh: s.zh, en: s.en, artist: s.artist, status: s.status,
       tags: s.tags || [], year: s.year || null, publishAt: s.publish_at || null, hsk: stats.hsk, avgDifficulty: stats.avgDifficulty,
-      added: new Date(s.added).getTime(), coverUrl: s.cover_url || ''
+      added: new Date(s.added).getTime(), coverUrl: s.cover_url || '', context: s.context || ''
     };
   });
   render();
+  renderSongOfDay();
 });
 
 sb.from('upcoming_releases').select('publish_at').limit(1).then(({ data, error }) => {
   if(error || !data || data.length === 0) return;
   nextRelease = data[0].publish_at;
   render();
+});
+
+function simpleHash(str){
+  let h = 0;
+  for(let i = 0; i < str.length; i++){
+    h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function eligibleForFeature(){
+  // Published only, and not still-scheduled — same "actually live" definition used elsewhere.
+  return manifest.filter(s => s.status === 'published');
+}
+
+async function renderSongOfDay(){
+  const el = document.getElementById('songOfDay');
+  const pool = eligibleForFeature();
+  if(pool.length === 0) return;
+
+  const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, same for everyone that day
+
+  let chosen = null;
+  const { data: override } = await sb.from('song_of_day_overrides').select('song_id').eq('date', todayStr).maybeSingle();
+  if(override && override.song_id){
+    chosen = pool.find(s => s.id === override.song_id) || manifest.find(s => s.id === override.song_id);
+  }
+  if(!chosen){
+    // Deterministic pick seeded by today's date — same song for every visitor,
+    // no override row needed unless the creator wants to hand-pick one.
+    const sorted = [...pool].sort((a, b) => a.id.localeCompare(b.id));
+    const idx = simpleHash(todayStr) % sorted.length;
+    chosen = sorted[idx];
+  }
+  if(!chosen) return;
+
+  el.innerHTML = `
+    <div class="sod-wrap">
+      <div class="sod-card">
+        <div class="sod-cover" style="background-color:${coverColor(chosen.id)}22; ${chosen.coverUrl ? `background-image:url('${chosen.coverUrl}');` : ''} color:${coverColor(chosen.id)};">
+          ${chosen.coverUrl ? '' : chosen.zh.slice(0,2)}
+        </div>
+        <div class="sod-body">
+          <div class="sod-eyebrow">Song of the Day</div>
+          <div class="sod-title">${chosen.zh} · ${chosen.en}</div>
+          <div class="sod-artist">${chosen.artist}${chosen.year ? ` · ${chosen.year}` : ''}</div>
+          ${chosen.context ? `<div class="sod-about">${chosen.context}</div>` : ''}
+        </div>
+        <a class="sod-cta" href="reader.html?song=${chosen.id}">Read the lyrics →</a>
+      </div>
+    </div>
+  `;
+  el.style.display = 'block';
+}
+
+document.getElementById('randomSongBtn').addEventListener('click', () => {
+  const pool = eligibleForFeature();
+  if(pool.length === 0) return;
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  location.href = `reader.html?song=${pick.id}`;
 });
 </script>
 <footer style="text-align:center; padding:20px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">

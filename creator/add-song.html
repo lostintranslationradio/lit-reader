@@ -185,6 +185,28 @@
   </div>
 
   <div class="panel">
+    <h2>Song of the day (optional override)</h2>
+    <p class="note">
+      Without an override, a different published song is picked automatically each day — same
+      one for everyone, no repeats logic, just deterministic by date. Set one here to hand-pick
+      a specific song for a specific day instead.
+    </p>
+    <div class="row2">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="sodDate">
+      </div>
+      <div class="field">
+        <label>Song</label>
+        <select id="sodSongSelect"><option value="">— loading songs —</option></select>
+      </div>
+    </div>
+    <button class="btn secondary" id="btnSetSod">Set override</button>
+    <button class="btn secondary" id="btnClearSod">Clear override for this date</button>
+    <div class="status-line" id="sodStatus"></div>
+  </div>
+
+  <div class="panel">
     <h2>1 · Song details</h2>
     <div class="field">
       <label>Chinese title</label>
@@ -362,6 +384,7 @@ async function checkCreatorAccess(){
     populateExistingSongs();
     populateSuggestions();
     fetchKnownConstructions();
+    populateSodPanel();
     if(!hasAutoLoadedFromUrl){
       hasAutoLoadedFromUrl = true;
       const editId = new URLSearchParams(location.search).get('edit');
@@ -480,6 +503,49 @@ async function populateExistingSongs(){
       return `<option value="${s.id}">${s.zh} · ${s.en || s.id} (${label})</option>`;
     }).join('');
 }
+
+async function populateSodPanel(){
+  const dateInput = document.getElementById('sodDate');
+  if(!dateInput.value){
+    dateInput.value = new Date().toISOString().slice(0, 10);
+  }
+  const { data } = await sb.from('songs').select('id, zh, en').eq('status', 'published').order('zh');
+  const select = document.getElementById('sodSongSelect');
+  select.innerHTML = '<option value="">— choose a song —</option>' +
+    (data || []).map(s => `<option value="${s.id}">${s.zh} · ${s.en || s.id}</option>`).join('');
+  loadSodForDate();
+}
+
+async function loadSodForDate(){
+  const date = document.getElementById('sodDate').value;
+  const statusEl = document.getElementById('sodStatus');
+  if(!date) return;
+  const { data } = await sb.from('song_of_day_overrides').select('song_id').eq('date', date).maybeSingle();
+  document.getElementById('sodSongSelect').value = data ? data.song_id : '';
+  statusEl.classList.remove('ok');
+  statusEl.textContent = data ? `Currently overridden for ${date}.` : `No override set for ${date} — automatic pick applies.`;
+}
+document.getElementById('sodDate').addEventListener('change', loadSodForDate);
+
+document.getElementById('btnSetSod').addEventListener('click', async () => {
+  const date = document.getElementById('sodDate').value;
+  const songId = document.getElementById('sodSongSelect').value;
+  const statusEl = document.getElementById('sodStatus');
+  if(!date || !songId){ alert('Pick both a date and a song.'); return; }
+  const { error } = await sb.from('song_of_day_overrides').upsert({ date, song_id: songId }, { onConflict: 'date' });
+  statusEl.textContent = error ? 'Failed: ' + error.message : `Set for ${date}.`;
+  statusEl.classList.toggle('ok', !error);
+});
+
+document.getElementById('btnClearSod').addEventListener('click', async () => {
+  const date = document.getElementById('sodDate').value;
+  const statusEl = document.getElementById('sodStatus');
+  if(!date) return;
+  const { error } = await sb.from('song_of_day_overrides').delete().eq('date', date);
+  statusEl.textContent = error ? 'Failed: ' + error.message : `Cleared override for ${date} — automatic pick applies again.`;
+  statusEl.classList.toggle('ok', !error);
+  document.getElementById('sodSongSelect').value = '';
+});
 
 async function loadSongForEditing(id){
   const statusEl = document.getElementById('loadExistingStatus');

@@ -2261,7 +2261,15 @@ async function init(){
       a.textContent = tag;
       subEl.appendChild(a);
     });
-    document.getElementById('contextBody').textContent = SONG.context || '';
+    function renderSimpleMarkdown(text){
+      // Escape raw HTML first so nothing can be injected — only the specific
+      // **bold** / *italic* patterns below get turned into real formatting.
+      const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return escaped
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>');
+    }
+    document.getElementById('contextBody').innerHTML = renderSimpleMarkdown(SONG.context || '');
     if(!SONG.context) document.getElementById('contextBlock').style.display = 'none';
 
     document.getElementById('loadState').style.display = 'none';

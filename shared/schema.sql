@@ -180,6 +180,26 @@ create policy "Users manage their own known words"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- Manual override for "Song of the Day." Absence of a row for a given date
+-- means the picker falls back to a deterministic random pick, seeded by that
+-- date, so everyone sees the same song without needing a row for every day —
+-- this table only needs a row when the creator wants to hand-pick one.
+create table song_of_day_overrides (
+  date date primary key,
+  song_id text references songs(id) on delete cascade
+);
+
+alter table song_of_day_overrides enable row level security;
+
+create policy "Anyone can read song of day overrides"
+  on song_of_day_overrides for select
+  using (true);
+
+create policy "Creator can manage song of day overrides"
+  on song_of_day_overrides for all
+  using (exists (select 1 from profiles where id = auth.uid() and is_creator = true))
+  with check (exists (select 1 from profiles where id = auth.uid() and is_creator = true));
+
 -- Cover art storage: a public bucket, but only the creator can upload to it.
 insert into storage.buckets (id, name, public)
 values ('covers', 'covers', true)
