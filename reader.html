@@ -1678,19 +1678,49 @@ function speakWithBrowserVoice(text, rate){
   window.speechSynthesis.speak(utter);
 }
 
-async function speakWord(text, rate, pinyin){
+async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyllable){
   if(!text) return;
   try{
+    let cutoffPromise = null;
+    if(muteAfterFirstSyllable){
+      // Measure how long the isolated first character takes on its own (the
+      // tone will be wrong in isolation, but duration is a solid proxy for
+      // where the real, correctly-toned combined audio should be cut).
+      cutoffPromise = fetch('/.netlify/functions/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hanzi: text[0], rate: cloudRate })
+      }).then(r => r.ok ? r.json() : null).then(d => {
+        if(!d || !d.audioContent) return null;
+        return new Promise(resolve => {
+          const probe = new Audio('data:audio/mp3;base64,' + d.audioContent);
+          probe.addEventListener('loadedmetadata', () => {
+            console.log(`[TTS cutoff measurement] rate=${cloudRate} → ${probe.duration.toFixed(3)}s — report this back so it can be hardcoded`);
+            resolve(probe.duration);
+          });
+          probe.addEventListener('error', () => resolve(null));
+        });
+      }).catch(() => null);
+    }
+
     const res = await fetch('/.netlify/functions/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ hanzi: text, pinyin: accentedToNumbered(pinyin), rate })
+      body: JSON.stringify({ hanzi: text, pinyin: accentedToNumbered(pinyin), rate: cloudRate })
     });
     if(res.ok){
       const data = await res.json();
       if(data.audioContent){
         const audio = new Audio('data:audio/mp3;base64,' + data.audioContent);
         currentTtsAudio = audio;
+        if(cutoffPromise){
+          const cutoff = await cutoffPromise;
+          if(cutoff){
+            audio.addEventListener('timeupdate', () => {
+              if(audio.currentTime >= cutoff) audio.pause();
+            });
+          }
+        }
         await audio.play();
         return;
       }
@@ -1698,18 +1728,52 @@ async function speakWord(text, rate, pinyin){
     throw new Error('Cloud TTS unavailable');
   } catch(err){
     console.warn('Falling back to browser voice:', err.message);
-    speakWithBrowserVoice(text, rate);
+    speakWithBrowserVoice(text, browserRate);
   }
 }
 if(!window.speechSynthesis){
   document.getElementById('popupSpeakNormal').disabled = true;
   document.getElementById('popupSpeakSlow').disabled = true;
 }
+const SANDHI_CHARS = new Set(['不', '一']);
+const MUTE_AFTER_FIRST_CHARS = new Set(['不']); // only 不 for now, per request
+
+function getTtsContext(tok, key){
+  if(!SANDHI_CHARS.has(tok.h) || !key) return { hanzi: tok.h, pinyin: tok.p, muteAfterFirst: false };
+  const parts = key.split('_');
+  if(parts.length !== 2) return { hanzi: tok.h, pinyin: tok.p, muteAfterFirst: false };
+  const lineIdx = parseInt(parts[0], 10);
+  const wordIdx = parseInt(parts[1], 10);
+  const line = SONG.lines[lineIdx];
+  if(!line) return { hanzi: tok.h, pinyin: tok.p, muteAfterFirst: false };
+  for(let i = wordIdx + 1; i < line.words.length; i++){
+    const next = line.words[i];
+    if(!next) break;
+    const isPunct = next.h.length === 1 && /[。，！？]/.test(next.h);
+    if(isPunct) continue;
+    // Sandhi is about the pair — pronouncing 不/一 correctly on its own is
+    // impossible, so the audio has to include the next word too. The popup
+    // itself still only shows the clicked word's own definition.
+    return {
+      hanzi: tok.h + next.h,
+      pinyin: (tok.p + ' ' + next.p).trim(),
+      muteAfterFirst: MUTE_AFTER_FIRST_CHARS.has(tok.h)
+    };
+  }
+  return { hanzi: tok.h, pinyin: tok.p, muteAfterFirst: false };
+}
+
 document.getElementById('popupSpeakNormal').addEventListener('click', () => {
-  if(currentPopup) speakWord(currentPopup.tok.h, 1, currentPopup.tok.p);
+  if(currentPopup){
+    const ctx = getTtsContext(currentPopup.tok, currentPopup.key);
+    speakWord(ctx.hanzi, 1, 1, ctx.pinyin, ctx.muteAfterFirst);
+  }
 });
 document.getElementById('popupSpeakSlow').addEventListener('click', () => {
-  if(currentPopup) speakWord(currentPopup.tok.h, 0.3, currentPopup.tok.p);
+  if(currentPopup){
+    const ctx = getTtsContext(currentPopup.tok, currentPopup.key);
+    speakWord(ctx.hanzi, 0.6, 0.3, ctx.pinyin, ctx.muteAfterFirst);
+  }
 });
 document.getElementById('popupClose').addEventListener('click', closePopup);
 document.getElementById('popupOverlay').addEventListener('click', function(e){
