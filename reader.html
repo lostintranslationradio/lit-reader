@@ -400,7 +400,7 @@
     background:rgba(0,0,0,.6);
     display:none;
     align-items:center; justify-content:center;
-    z-index:50;
+    z-index:150;
     padding:20px;
   }
   .popup-overlay.open{ display:flex; }
@@ -577,8 +577,15 @@
     line-height:1.5;
     text-align:center;
   }
+  .popup-construction .cons-pattern-pinyin{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:.02em;
+    margin-bottom:2px;
+  }
   .popup-construction .cons-pattern{
-    font-family:'Hanzi Pinyin Top', var(--font-han, 'Noto Serif SC', serif);
+    font-family:var(--font-han, 'Noto Serif SC', serif);
     font-size:26px;
     font-weight:400;
     color:var(--accent);
@@ -1364,6 +1371,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
   if(cons){
     const isConsSaved = saved.some(s => s.h === cons.construction.pattern && s.kind === 'construction');
     consEl.innerHTML = `
+      ${cons.construction.pinyin ? `<div class="cons-pattern-pinyin">${cons.construction.pinyin}</div>` : ''}
       <div class="cons-pattern">${cons.construction.pattern}</div>
       <div class="cons-gloss">${cons.construction.gloss}</div>
       ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}

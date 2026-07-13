@@ -476,7 +476,8 @@ function scanForSuggestedConstructions(){
       const s = suggestions[parseInt(btn.dataset.linkSuggestion, 10)];
       constructions.push({
         id: 'c' + Date.now() + Math.random().toString(36).slice(2),
-        pattern: s.pattern, gloss: s.gloss, note: s.note, members: s.members
+        pattern: s.pattern, gloss: s.gloss, note: s.note,
+        pinyin: getMemberPinyin(s.members), members: s.members
       });
       renderConstructionsList();
       renderLines();
@@ -624,7 +625,7 @@ document.getElementById('btnLoadExisting').addEventListener('click', () => {
 
 document.getElementById('btnFixAllSongs').addEventListener('click', async () => {
   if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
-  if(!confirm('This rewrites dictionary definitions AND pinyin for every word in every song, directly in the database. Short glosses are preserved. Continue?')) return;
+  if(!confirm('This rewrites dictionary definitions for every word in every song, directly in the database. Pinyin and short glosses are never touched. Continue?')) return;
 
   const statusEl = document.getElementById('fixAllStatus');
   statusEl.classList.remove('ok');
@@ -636,9 +637,7 @@ document.getElementById('btnFixAllSongs').addEventListener('click', async () => 
     return;
   }
 
-  const stripTones = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-  let songsFixed = 0, wordsFixed = 0, pinyinFixed = 0, needsReview = [];
+  let songsFixed = 0, wordsFixed = 0;
 
   for(const song of songs){
     let changed = false;
@@ -660,36 +659,6 @@ document.getElementById('btnFixAllSongs').addEventListener('click', async () => 
             wordsFixed++;
           }
         }
-        if(entry){
-          if(!entry.readings || entry.readings.length <= 1){
-            // Only one possible reading — safe to resync pinyin directly.
-            if(entry.p && entry.p !== word.p){
-              word.p = entry.p;
-              changed = true;
-              pinyinFixed++;
-            }
-          } else {
-            // Polyphonic — only auto-fix if exactly one reading matches the
-            // current (possibly tone-broken) pinyin once tones are stripped.
-            // If it's ambiguous, leave it alone and flag it instead of guessing.
-            const currentBase = stripTones(word.p);
-            const matches = entry.readings.filter(r => stripTones(r.p) === currentBase);
-            if(matches.length === 1 && matches[0].p !== word.p){
-              word.p = matches[0].p;
-              changed = true;
-              pinyinFixed++;
-            } else if(matches.length !== 1){
-              needsReview.push(`${word.h} in "${song.zh}"`);
-            }
-          }
-        }
-        if(PARTICLE_OVERRIDE.has(word.h) && word.short !== '(particle)'){
-          word.short = '(particle)';
-          changed = true;
-        } else if(entry && entry.pos === 'M' && word.short !== '(classifier)'){
-          word.short = '(classifier)';
-          changed = true;
-        }
         return word;
       })
     }));
@@ -704,10 +673,7 @@ document.getElementById('btnFixAllSongs').addEventListener('click', async () => 
     }
   }
 
-  statusEl.textContent = `Done — fixed ${wordsFixed} definition${wordsFixed===1?'':'s'} and ${pinyinFixed} pinyin reading${pinyinFixed===1?'':'s'} across ${songsFixed} song${songsFixed===1?'':'s'}.` +
-    (needsReview.length > 0
-      ? ` ${needsReview.length} polyphonic word${needsReview.length===1?'':'s'} couldn't be auto-corrected safely — check by hand: ${needsReview.slice(0, 8).join(', ')}${needsReview.length > 8 ? ', …' : ''}`
-      : '');
+  statusEl.textContent = `Done — fixed ${wordsFixed} definition${wordsFixed===1?'':'s'} across ${songsFixed} song${songsFixed===1?'':'s'}. Pinyin and short glosses were left untouched.`;
   statusEl.classList.add('ok');
 });
 
@@ -844,6 +810,16 @@ function toggleMemberSelection(li, ti){
   updateSelectStatus();
 }
 
+function autofillPattern(){
+  const patternEl = document.getElementById('consPattern');
+  if(selectedMembers.length < 2) return;
+  const sorted = [...selectedMembers].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const hanziList = sorted.map(([li, ti]) => lineData[li]?.tokens[ti]?.h || '');
+  const sameLine = sorted.every(([li]) => li === sorted[0][0]);
+  const contiguous = sameLine && sorted.every((m, i) => i === 0 || m[1] === sorted[i-1][1] + 1);
+  patternEl.value = contiguous ? hanziList.join('') : hanziList.join('……');
+}
+
 function updateSelectStatus(){
   const statusEl = document.getElementById('selectStatus');
   const formEl = document.getElementById('constructionForm');
@@ -856,6 +832,7 @@ function updateSelectStatus(){
     ? `${selectedMembers.length} word${selectedMembers.length===1?'':'s'} selected`
     : 'Click words above to select them';
   formEl.style.display = selectedMembers.length >= 2 ? 'block' : 'none';
+  autofillPattern();
 }
 
 function renderConstructionsList(){
@@ -971,10 +948,12 @@ function findOtherOccurrences(consIndex){
       if(alreadyLinkedLines.has(li)) return;
       const match = findContiguousMatch(line.tokens, cons.pattern);
       if(match){
+        const members = match.map(idx => [li, idx]);
         constructions.push({
           id: 'c' + Date.now() + Math.random().toString(36).slice(2),
           pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
-          members: match.map(idx => [li, idx])
+          pinyin: getMemberPinyin(members),
+          members
         });
         alreadyLinkedLines.add(li);
         added++;
@@ -985,10 +964,12 @@ function findOtherOccurrences(consIndex){
       if(alreadyLinkedLines.has(li)) return;
       const matchIndices = parts.map(part => line.tokens.findIndex(t => !t.isPunct && t.h === part));
       if(matchIndices.every(idx => idx !== -1)){
+        const members = matchIndices.map(idx => [li, idx]);
         constructions.push({
           id: 'c' + Date.now() + Math.random().toString(36).slice(2),
           pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
-          members: matchIndices.map(idx => [li, idx])
+          pinyin: getMemberPinyin(members),
+          members
         });
         alreadyLinkedLines.add(li);
         added++;
@@ -1017,6 +998,14 @@ document.getElementById('btnCancelConstruction').addEventListener('click', () =>
   renderLines();
 });
 
+function getMemberPinyin(members){
+  const sorted = [...members].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const pinyinList = sorted.map(([li, ti]) => lineData[li]?.tokens[ti]?.p || '');
+  const sameLine = sorted.every(([li]) => li === sorted[0][0]);
+  const contiguous = sameLine && sorted.every((m, i) => i === 0 || m[1] === sorted[i-1][1] + 1);
+  return contiguous ? pinyinList.join(' ') : pinyinList.join(' … ');
+}
+
 document.getElementById('btnSaveConstruction').addEventListener('click', () => {
   const pattern = document.getElementById('consPattern').value.trim();
   const gloss = document.getElementById('consGloss').value.trim();
@@ -1025,6 +1014,7 @@ document.getElementById('btnSaveConstruction').addEventListener('click', () => {
   constructions.push({
     id: 'c' + Date.now(),
     pattern, gloss, note,
+    pinyin: getMemberPinyin(selectedMembers),
     members: selectedMembers.map(m => [...m])
   });
   document.getElementById('consPattern').value = '';
