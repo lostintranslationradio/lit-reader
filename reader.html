@@ -1706,11 +1706,19 @@ async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyl
             const fullBuffer = await audioCtx.decodeAudioData(bytes.buffer);
             // 不 and 一 don't take up the same proportion of a combined
             // pair's total duration — 不 needs a noticeably bigger cut.
-            const cutoffRatio = text[0] === '不' ? 0.32 : (cloudRate === 1 ? 0.36 : 0.40);
+            const cutoffRatio = text[0] === '不' ? 0.29 : (cloudRate === 1 ? 0.36 : 0.40);
             const cutoffSample = Math.min(Math.floor(fullBuffer.duration * cutoffRatio * fullBuffer.sampleRate), fullBuffer.length);
             const trimmed = audioCtx.createBuffer(fullBuffer.numberOfChannels, cutoffSample, fullBuffer.sampleRate);
+            const fadeSamples = Math.min(Math.floor(0.015 * fullBuffer.sampleRate), cutoffSample);
             for(let ch = 0; ch < fullBuffer.numberOfChannels; ch++){
               trimmed.copyToChannel(fullBuffer.getChannelData(ch).subarray(0, cutoffSample), ch);
+              // A hard cut mid-waveform creates an audible click/pop at the
+              // truncation point — fade the last ~15ms to silence instead.
+              const channelData = trimmed.getChannelData(ch);
+              for(let i = 0; i < fadeSamples; i++){
+                const idx = cutoffSample - fadeSamples + i;
+                channelData[idx] *= (1 - i / fadeSamples);
+              }
             }
             const source = audioCtx.createBufferSource();
             source.buffer = trimmed;
