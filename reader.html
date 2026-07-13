@@ -1706,7 +1706,7 @@ async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyl
             const fullBuffer = await audioCtx.decodeAudioData(bytes.buffer);
             // 不 and 一 don't take up the same proportion of a combined
             // pair's total duration — 不 needs a noticeably bigger cut.
-            const cutoffRatio = text[0] === '不' ? 0.32 : 0.40;
+            const cutoffRatio = text[0] === '不' ? 0.32 : (cloudRate === 1 ? 0.36 : 0.40);
             const cutoffSample = Math.min(Math.floor(fullBuffer.duration * cutoffRatio * fullBuffer.sampleRate), fullBuffer.length);
             const trimmed = audioCtx.createBuffer(fullBuffer.numberOfChannels, cutoffSample, fullBuffer.sampleRate);
             for(let ch = 0; ch < fullBuffer.numberOfChannels; ch++){
@@ -1741,9 +1741,14 @@ if(!window.speechSynthesis){
 }
 const SANDHI_CHARS = new Set(['不', '一']);
 const MUTE_AFTER_FIRST_CHARS = new Set(['不', '一']);
+const DEFAULT_PINYIN = { '不': 'bù', '一': 'yī' };
 
 function getTtsContext(tok, key){
-  if(!SANDHI_CHARS.has(tok.h) || !key) return { hanzi: tok.h, pinyin: tok.p, muteAfterFirst: false };
+  // Only apply the special pairing/mute treatment when the pinyin has been
+  // manually corrected away from the plain default — an untouched bù or yī
+  // doesn't need sandhi handling and should just play normally.
+  const isSandhiCorrected = SANDHI_CHARS.has(tok.h) && tok.p && tok.p !== DEFAULT_PINYIN[tok.h];
+  if(!isSandhiCorrected || !key) return { hanzi: tok.h, pinyin: tok.p, muteAfterFirst: false };
   const parts = key.split('_');
   if(parts.length !== 2) return { hanzi: tok.h, pinyin: tok.p, muteAfterFirst: false };
   const lineIdx = parseInt(parts[0], 10);
