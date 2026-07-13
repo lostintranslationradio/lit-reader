@@ -180,6 +180,27 @@ create policy "Users manage their own known words"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- Flashcard spaced-repetition progress. "box" is a simple fixed-interval
+-- scheme (1=review tomorrow, up to 5=review in a month); Remembered moves up
+-- a box, Vaguely Remember repeats the same box's interval, Completely Forgot
+-- drops back to box 1. Global per-user, not per-song, matching known_words.
+create table flashcard_progress (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users not null,
+  hanzi text not null,
+  box int not null default 1,
+  next_review timestamptz not null default now(),
+  last_reviewed timestamptz,
+  unique (user_id, hanzi)
+);
+
+alter table flashcard_progress enable row level security;
+
+create policy "Users manage their own flashcard progress"
+  on flashcard_progress for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 -- Manual override for "Song of the Day." Absence of a row for a given date
 -- means the picker falls back to a deterministic random pick, seeded by that
 -- date, so everyone sees the same song without needing a row for every day —

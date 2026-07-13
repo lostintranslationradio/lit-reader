@@ -103,6 +103,14 @@
     font-size:22px;
     font-weight:400;
   }
+  .about-q{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:22px; height:22px; border-radius:50%; border:1px solid var(--rule);
+    background:var(--surface); color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:400;
+    text-decoration:none; vertical-align:middle; margin-left:6px;
+  }
+  .about-q:hover{ border-color:var(--accent); color:var(--accent); }
   .controls{
     display:flex;
     flex-wrap:wrap;
@@ -608,6 +616,7 @@
     justify-content:center;
     gap:8px;
     margin-top:10px;
+    margin-bottom:14px;
   }
   .cons-sound button{
     font-family:'Inter',sans-serif;
@@ -691,6 +700,13 @@
   }
   #mobileSettingsFab, #mobileSettingsClose{ display:none; }
   #mobileVocabFab, #mobileVocabClose{ display:none; }
+
+  @media (min-width:761px){
+    /* On desktop, Settings sits directly above the Saved Words sidebar, whose
+       own sign-in prompt is always visible right underneath — showing this
+       one too would just be the same nudge twice in the same glance. */
+    #knownWordsAuthNote{ display:none !important; }
+  }
 
   @media (max-width:760px){
     #mobileSettingsFab{
@@ -790,6 +806,74 @@
     color:var(--text-dim);
   }
   .count{ font-family:'Noto Serif SC',serif; font-size:20px; color:var(--accent); display:inline-block; }
+
+  .fc-launch-row{ display:flex; gap:8px; margin-bottom:14px; }
+  .fc-launch-btn{
+    flex:1; font-family:'JetBrains Mono',monospace; font-size:11px;
+    padding:8px 10px; border-radius:16px; border:1px solid var(--rule);
+    background:transparent; color:var(--text-dim); cursor:pointer;
+  }
+  .fc-launch-btn:hover{ border-color:var(--accent); color:var(--accent); }
+
+  .fc-heading{ font-family:var(--font-title); font-size:18px; margin-bottom:4px; }
+  .fc-progress{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); margin-bottom:16px; }
+  .fc-field-picker{
+    display:flex; align-items:center; gap:8px; margin-bottom:16px;
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);
+  }
+  .fc-field-picker select{
+    background:var(--surface-raised); border:1px solid var(--rule); border-radius:4px;
+    padding:4px 6px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:10px;
+  }
+  .fc-card{
+    border:1px solid var(--rule); border-radius:10px; padding:32px 20px;
+    min-height:180px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; cursor:pointer; margin-bottom:16px; background:var(--surface-raised);
+  }
+  .fc-card-front{ font-family:var(--font-han, 'Noto Serif SC', serif); font-size:36px; }
+  .fc-card-tap-hint{
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-top:14px;
+  }
+  .fc-back-hanzi{ font-family:var(--font-han, 'Noto Serif SC', serif); font-size:30px; margin-bottom:6px; }
+  .fc-back-pinyin{ font-family:'Inter',sans-serif; font-size:14px; color:var(--text-dim); margin-bottom:10px; }
+  .fc-back-listen{
+    font-family:'Inter',sans-serif; font-size:11px; padding:5px 12px; border-radius:14px;
+    border:1px solid var(--rule); background:var(--surface); color:var(--text-dim); cursor:pointer; margin-bottom:14px;
+  }
+  .fc-back-listen:hover{ border-color:var(--accent); color:var(--accent); }
+  .fc-back-gloss{ font-family:'Inter',sans-serif; font-size:14px; line-height:1.5; margin-bottom:8px; }
+  .fc-back-note{
+    font-family:'Inter',sans-serif; font-size:12px; line-height:1.5; color:var(--text-dim);
+    text-align:left; background:var(--surface); border-left:2px solid var(--accent);
+    border-radius:4px; padding:8px 10px; margin-top:8px;
+  }
+  .fc-rate-row{ display:flex; gap:8px; }
+  .fc-rate-btn{
+    flex:1; font-family:'JetBrains Mono',monospace; font-size:11px; padding:9px 6px;
+    border-radius:8px; border:1px solid var(--rule); cursor:pointer; background:transparent;
+  }
+  .fc-rate-forgot{ color:#c0392b; border-color:#c0392b44; }
+  .fc-rate-forgot:hover{ background:#c0392b18; }
+  .fc-rate-vague{ color:#b8863a; border-color:#b8863a44; }
+  .fc-rate-vague:hover{ background:#b8863a18; }
+  .fc-rate-remembered{ color:#2e7d4f; border-color:#2e7d4f44; }
+  .fc-rate-remembered:hover{ background:#2e7d4f18; }
+  .fc-quiz-question{ text-align:center; margin-bottom:18px; }
+  .fc-quiz-hanzi{ font-family:var(--font-han, 'Noto Serif SC', serif); font-size:34px; }
+  .fc-quiz-options{ display:flex; flex-direction:column; gap:8px; }
+  .fc-quiz-option{
+    text-align:left; font-family:'Inter',sans-serif; font-size:13px; padding:10px 12px;
+    border-radius:8px; border:1px solid var(--rule); background:transparent; cursor:pointer;
+  }
+  .fc-quiz-option:hover{ border-color:var(--accent); }
+  .fc-quiz-option.correct{ border-color:#2e7d4f; background:#2e7d4f18; color:#2e7d4f; }
+  .fc-quiz-option.incorrect{ border-color:#c0392b; background:#c0392b18; color:#c0392b; }
+  .fc-auth-note{
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);
+    margin-top:16px; text-align:center;
+  }
+  .fc-auth-note a{ color:var(--accent); }
+  .fc-empty{ text-align:center; color:var(--text-dim); font-size:13px; padding:30px 10px; }
   .count.pulse{ animation:fabPulse .4s ease; }
   @keyframes fabPulse{ 0%{transform:scale(1);} 40%{transform:scale(1.3);} 100%{transform:scale(1);} }
   .vocab-item{
@@ -862,10 +946,12 @@
     <a href="index.html" class="library-btn">← <span class="library-btn-text">Library</span></a>
     <div class="brand">
       <div class="eyebrow">Annotated Reader</div>
-      <div class="title" id="pageTitle">Lost In Translation Radio</div>
+      <div class="title" id="pageTitle">
+        Lost In Translation Radio
+        <a id="aboutLink" class="about-q" href="about.html" title="About">?</a>
+      </div>
     </div>
     <div style="justify-self:end; display:flex; gap:8px;">
-      <a href="about.html" id="aboutLink" class="library-btn">About</a>
       <a href="how-to-use.html" id="howToUseLink" class="library-btn">How to Use</a>
     </div>
   </div>
@@ -961,6 +1047,10 @@
           <p class="note" style="margin:0 0 8px; font-size:11px; line-height:1.5; color:var(--text-dim);">
             These get hidden by default across every song, regardless of the Glosses slider above.
           </p>
+          <div id="knownWordsAuthNote" style="display:none; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); margin-bottom:8px;">
+            Not signed in — this list only lives on this device.
+            <a href="#" id="knownWordsAuthLink" style="color:var(--accent);">Sign in to keep it permanently</a>
+          </div>
           <textarea id="knownWordsInput" placeholder="Paste words, one per line or separated by commas..."
             rows="3" style="width:100%; background:var(--surface-raised); border:1px solid var(--rule);
             border-radius:4px; padding:7px 8px; color:var(--text); font-family:'Inter',sans-serif;
@@ -979,6 +1069,10 @@
       <div class="aside-head">
         <div class="aside-title">Saved words</div>
         <div class="count" id="vocabCount">0</div>
+      </div>
+      <div class="fc-launch-row">
+        <button id="btnOpenFlashcards" class="fc-launch-btn">🗂 Flashcards</button>
+        <button id="btnOpenQuiz" class="fc-launch-btn">❓ Quiz</button>
       </div>
       <div id="vocabAuth" style="margin-bottom:12px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
         <div id="vocabAuthStatus">Saving to this device only.</div>
@@ -1917,6 +2011,11 @@ document.getElementById('wordGlossToggle').addEventListener('click', function(){
 });
 applyStoredVisibility();
 
+document.getElementById('knownWordsAuthLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  openAuthModal();
+});
+
 function updateKnownWordsCount(){
   document.getElementById('knownWordsCount').textContent = knownWords.size;
 }
@@ -2114,13 +2213,16 @@ injectAuthModal();
 function refreshVocabAuthUI(){
   const statusEl = document.getElementById('vocabAuthStatus');
   const linkEl = document.getElementById('vocabAuthLink');
+  const knownWordsNote = document.getElementById('knownWordsAuthNote');
   if(currentUser){
     const name = (currentProfile && currentProfile.username) ? currentProfile.username : currentUser.email;
     statusEl.textContent = `Synced as ${name}. `;
     linkEl.textContent = 'Sign out';
+    knownWordsNote.style.display = 'none';
   } else {
     statusEl.textContent = 'Saving to this device only. ';
     linkEl.textContent = 'Sign in to sync';
+    knownWordsNote.style.display = 'block';
   }
 }
 
@@ -2173,6 +2275,249 @@ async function loadKnownWordsFromSupabase(){
   render();
   updateKnownWordsCount();
 }
+
+// ===== Flashcards / Quiz =====
+// Deck pulls from the saved-words list. Guests get a fully working local
+// deck via localStorage; signing in just makes that progress permanent and
+// synced across devices, same pattern as saved words and known words.
+let flashcardProgress = JSON.parse(localStorage.getItem('flashcardProgress') || '{}'); // hanzi -> {box, next_review}
+const BOX_INTERVAL_DAYS = { 1: 1, 2: 3, 3: 7, 4: 14, 5: 30 };
+let fcFrontField = localStorage.getItem('fcFrontField') || 'h'; // 'h' | 'p' | 'g'
+let fcQueue = [];
+let fcIdx = 0;
+let fcMode = 'flashcards';
+let fcFlipped = false;
+
+async function loadFlashcardProgressFromSupabase(){
+  const { data, error } = await sb.from('flashcard_progress').select('*').eq('user_id', currentUser.id);
+  if(error){ console.error(error); return; }
+  const remote = {};
+  (data || []).forEach(r => { remote[r.hanzi] = { box: r.box, next_review: r.next_review }; });
+  for(const [hanzi, prog] of Object.entries(flashcardProgress)){
+    if(!(hanzi in remote)){
+      await sb.from('flashcard_progress').upsert({
+        user_id: currentUser.id, hanzi, box: prog.box, next_review: prog.next_review
+      }, { onConflict: 'user_id,hanzi' });
+      remote[hanzi] = prog;
+    }
+  }
+  flashcardProgress = remote;
+}
+
+async function saveFlashcardProgress(hanzi, box, nextReview){
+  flashcardProgress[hanzi] = { box, next_review: nextReview };
+  if(currentUser){
+    await sb.from('flashcard_progress').upsert({
+      user_id: currentUser.id, hanzi, box, next_review: nextReview, last_reviewed: new Date().toISOString()
+    }, { onConflict: 'user_id,hanzi' });
+  } else {
+    localStorage.setItem('flashcardProgress', JSON.stringify(flashcardProgress));
+  }
+}
+
+function getDueCards(){
+  const now = new Date();
+  return saved.filter(s => {
+    const prog = flashcardProgress[s.h];
+    if(!prog) return true;
+    return new Date(prog.next_review) <= now;
+  });
+}
+
+function rateCard(hanzi, rating){
+  const prog = flashcardProgress[hanzi] || { box: 1 };
+  let newBox = prog.box;
+  if(rating === 'remembered') newBox = Math.min(prog.box + 1, 5);
+  else if(rating === 'forgot') newBox = 1;
+  // 'vague' keeps the same box — repeats the current interval rather than advancing or resetting
+  const days = BOX_INTERVAL_DAYS[newBox];
+  const nextReview = new Date(Date.now() + days * 86400000).toISOString();
+  saveFlashcardProgress(hanzi, newBox, nextReview);
+}
+
+function getWordGloss(s){
+  const g = Array.isArray(s.g) ? s.g : (s.g ? [s.g] : []);
+  return g[0] || '';
+}
+
+function fcAuthNoteHtml(){
+  if(currentUser) return '';
+  return `<div class="fc-auth-note">Progress isn't saved — <a href="#" id="fcSignInLink">create an account or sign in</a> to keep it.</div>`;
+}
+function wireFcAuthLink(){
+  const link = document.getElementById('fcSignInLink');
+  if(link) link.addEventListener('click', (e) => { e.preventDefault(); closeFcModal(); openAuthModal(); });
+}
+
+function openFlashcardModal(mode){
+  fcMode = mode;
+  fcQueue = getDueCards();
+  fcIdx = 0;
+  fcFlipped = false;
+  document.getElementById('fcModalOverlay').style.display = 'flex';
+  renderFcModal();
+}
+function closeFcModal(){
+  document.getElementById('fcModalOverlay').style.display = 'none';
+}
+
+function renderFcModal(){
+  const content = document.getElementById('fcModalContent');
+  const title = fcMode === 'quiz' ? 'Quiz' : 'Flashcards';
+  if(fcQueue.length === 0){
+    content.innerHTML = `
+      <div class="fc-heading">${title}</div>
+      <div class="fc-empty">
+        ${saved.length === 0 ? 'Save some words first — this deck pulls from your saved words list.' : 'All caught up! Nothing is due for review right now.'}
+      </div>
+      ${fcAuthNoteHtml()}
+    `;
+    wireFcAuthLink();
+    return;
+  }
+  if(fcIdx >= fcQueue.length){
+    content.innerHTML = `
+      <div class="fc-heading">${title}</div>
+      <div class="fc-empty">Done — you reviewed ${fcQueue.length} word${fcQueue.length===1?'':'s'}. Nice work.</div>
+      ${fcAuthNoteHtml()}
+    `;
+    wireFcAuthLink();
+    return;
+  }
+  if(fcMode === 'quiz') renderQuizCard();
+  else renderFlashcard();
+}
+
+function renderFlashcard(){
+  const content = document.getElementById('fcModalContent');
+  const s = fcQueue[fcIdx];
+  const gloss = getWordGloss(s);
+  const fieldOptions = { h: 'Hanzi', p: 'Pinyin', g: 'Definition', s: 'Listen' };
+  const fieldPicker = `
+    <div class="fc-field-picker">
+      Front shows:
+      <select id="fcFieldSelect">
+        ${Object.entries(fieldOptions).map(([val, label]) => `<option value="${val}" ${fcFrontField===val?'selected':''}>${label}</option>`).join('')}
+      </select>
+    </div>
+  `;
+  const isListenFront = fcFrontField === 's';
+  const frontContent = fcFrontField === 'p' ? (s.p || '(no pinyin)')
+    : fcFrontField === 'g' ? (gloss || '(no definition)')
+    : isListenFront ? `<button id="fcFrontListenBtn" class="fc-back-listen" style="font-size:14px; padding:10px 20px;">🔊 Listen</button>`
+    : s.h;
+  const frontIsHanzi = fcFrontField === 'h';
+
+  if(!fcFlipped){
+    content.innerHTML = `
+      <div class="fc-heading">Flashcards</div>
+      <div class="fc-progress">${fcIdx + 1} of ${fcQueue.length} due</div>
+      ${fieldPicker}
+      <div class="fc-card" id="fcCardEl">
+        <div class="fc-card-front" style="${frontIsHanzi ? '' : 'font-family:\'Inter\',sans-serif; font-size:20px;'}">${frontContent}</div>
+        <div class="fc-card-tap-hint">${isListenFront ? 'try to recall it, then tap here to flip' : 'tap to flip'}</div>
+      </div>
+      ${fcAuthNoteHtml()}
+    `;
+    document.getElementById('fcCardEl').addEventListener('click', () => { fcFlipped = true; renderFcModal(); });
+    if(isListenFront){
+      document.getElementById('fcFrontListenBtn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        speakWord(s.h, 1, 1, s.p);
+      });
+    }
+    document.getElementById('fcFieldSelect').addEventListener('change', (e) => {
+      fcFrontField = e.target.value;
+      localStorage.setItem('fcFrontField', fcFrontField);
+      renderFcModal();
+    });
+    wireFcAuthLink();
+  } else {
+    content.innerHTML = `
+      <div class="fc-heading">Flashcards</div>
+      <div class="fc-progress">${fcIdx + 1} of ${fcQueue.length} due</div>
+      <div class="fc-card" style="cursor:default;">
+        <div class="fc-back-hanzi">${s.h}</div>
+        ${s.p ? `<div class="fc-back-pinyin">${s.p}</div>` : ''}
+        <button class="fc-back-listen" id="fcListenBtn">🔊 Listen</button>
+        <div class="fc-back-gloss">${gloss || '(no definition)'}</div>
+        ${userNotes[s.h] ? `<div class="fc-back-note">${userNotes[s.h]}</div>` : ''}
+      </div>
+      <div class="fc-rate-row">
+        <button class="fc-rate-btn fc-rate-forgot" data-rate="forgot">Completely Forgot</button>
+        <button class="fc-rate-btn fc-rate-vague" data-rate="vague">Vaguely Remember</button>
+        <button class="fc-rate-btn fc-rate-remembered" data-rate="remembered">Remembered</button>
+      </div>
+      ${fcAuthNoteHtml()}
+    `;
+    document.getElementById('fcListenBtn').addEventListener('click', () => speakWord(s.h, 1, 1, s.p));
+    content.querySelectorAll('[data-rate]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        rateCard(s.h, btn.dataset.rate);
+        fcIdx++;
+        fcFlipped = false;
+        renderFcModal();
+      });
+    });
+    wireFcAuthLink();
+  }
+}
+
+function renderQuizCard(){
+  const content = document.getElementById('fcModalContent');
+  const s = fcQueue[fcIdx];
+  const correctGloss = getWordGloss(s) || '(no definition)';
+  const pool = saved.filter(o => o.h !== s.h);
+  const shuffledPool = [...pool].sort(() => Math.random() - 0.5);
+  const distractors = [];
+  for(const o of shuffledPool){
+    const g = getWordGloss(o);
+    if(g && g !== correctGloss && !distractors.includes(g)){
+      distractors.push(g);
+      if(distractors.length === 3) break;
+    }
+  }
+  const options = [...distractors, correctGloss].sort(() => Math.random() - 0.5);
+  const shortPoolNote = options.length < 4
+    ? `<div class="fc-progress" style="color:var(--accent);">Save ${4 - options.length} more word${4 - options.length === 1 ? '' : 's'} to unlock full 4-option quizzes.</div>`
+    : '';
+
+  content.innerHTML = `
+    <div class="fc-heading">Quiz</div>
+    <div class="fc-progress">${fcIdx + 1} of ${fcQueue.length} due</div>
+    ${shortPoolNote}
+    <div class="fc-quiz-question">
+      <div class="fc-quiz-hanzi">${s.h}</div>
+    </div>
+    <div class="fc-quiz-options">
+      ${options.map((opt, i) => `<button class="fc-quiz-option" data-opt="${i}">${opt}</button>`).join('')}
+    </div>
+    ${fcAuthNoteHtml()}
+  `;
+  content.querySelectorAll('.fc-quiz-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const chosen = options[parseInt(btn.dataset.opt, 10)];
+      const isCorrect = chosen === correctGloss;
+      content.querySelectorAll('.fc-quiz-option').forEach(b2 => {
+        b2.style.pointerEvents = 'none';
+        const optText = options[parseInt(b2.dataset.opt, 10)];
+        if(optText === correctGloss) b2.classList.add('correct');
+        else if(b2 === btn) b2.classList.add('incorrect');
+      });
+      rateCard(s.h, isCorrect ? 'remembered' : 'forgot');
+      setTimeout(() => { fcIdx++; renderFcModal(); }, 900);
+    });
+  });
+  wireFcAuthLink();
+}
+
+document.getElementById('btnOpenFlashcards').addEventListener('click', () => openFlashcardModal('flashcards'));
+document.getElementById('btnOpenQuiz').addEventListener('click', () => openFlashcardModal('quiz'));
+document.getElementById('fcModalClose').addEventListener('click', closeFcModal);
+document.getElementById('fcModalOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'fcModalOverlay') closeFcModal();
+});
+
 
 async function addKnownWords(hanziList){
   const added = [];
@@ -2232,6 +2577,7 @@ window.onAuthSuccess = async function(user){
   await loadVocabFromSupabase();
   await loadUserNotesFromSupabase();
   await loadKnownWordsFromSupabase();
+  await loadFlashcardProgressFromSupabase();
 };
 
 document.getElementById('vocabAuthLink').addEventListener('click', async (e) => {
@@ -2242,6 +2588,7 @@ document.getElementById('vocabAuthLink').addEventListener('click', async (e) => 
     currentProfile = null;
     saved = JSON.parse(localStorage.getItem('lyricVocab') || '[]').map(s => ({...s, sources: s.sources || []}));
     knownWords = new Set(JSON.parse(localStorage.getItem('knownWords') || '[]'));
+    flashcardProgress = JSON.parse(localStorage.getItem('flashcardProgress') || '{}');
     updateKnownWordsCount();
     refreshVocabAuthUI();
     renderVocab();
@@ -2259,6 +2606,7 @@ authOnChange(async (user) => {
     await loadVocabFromSupabase();
     await loadUserNotesFromSupabase();
     await loadKnownWordsFromSupabase();
+    await loadFlashcardProgressFromSupabase();
   }
 });
 
@@ -2343,6 +2691,13 @@ init();
   Definitions powered by <a href="https://cc-cedict.org/" target="_blank" rel="noopener" style="color:var(--text-dim);">CC-CEDICT</a>
   · Reading layout inspired by <a href="https://wubli.app" target="_blank" rel="noopener" style="color:var(--text-dim);">Wubli</a>
 </footer>
+
+<div id="fcModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:180; align-items:center; justify-content:center; padding:20px;">
+  <div id="fcModalBox" style="background:var(--surface); border-radius:10px; width:100%; max-width:480px; max-height:88vh; overflow-y:auto; position:relative; padding:24px;">
+    <button id="fcModalClose" style="position:absolute; top:12px; right:14px; background:var(--surface); border:1px solid var(--rule); border-radius:50%; width:30px; height:30px; cursor:pointer; color:var(--text-dim); font-size:14px;">✕</button>
+    <div id="fcModalContent"></div>
+  </div>
+</div>
 
 <div id="aboutModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; padding:20px;">
   <div style="background:var(--surface); border-radius:10px; width:100%; max-width:720px; max-height:88vh; position:relative; overflow:hidden; display:flex; flex-direction:column;">

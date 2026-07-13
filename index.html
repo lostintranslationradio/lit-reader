@@ -581,7 +581,6 @@
       <button class="chip" data-status="published">Published</button>
       <button class="chip" data-status="draft" id="draftChip" style="display:none;">Draft</button>
     </div>
-    <a class="creator-link" id="addSongLink" href="creator/add-song.html" style="display:none; text-decoration:none;">+ Add Song</a>
   </div>
   <div class="right-controls">
     <button class="creator-link" id="randomSongBtn" title="Jump to a random song">🎲 Random</button>
@@ -781,7 +780,7 @@ function render(){
 
   document.getElementById('draftChip').style.display = creatorMode ? 'inline-block' : 'none';
   document.getElementById('statusChips').style.display = creatorMode ? 'flex' : 'none';
-  document.getElementById('addSongLink').style.display = creatorMode ? 'inline-block' : 'none';
+  document.getElementById('addSongLink').style.display = creatorMode ? 'flex' : 'none';
 }
 
 function syncUrl(){
@@ -829,7 +828,7 @@ function refreshCreatorUI(){
     creatorLink.textContent = 'Sign In';
     creatorLink.classList.remove('active');
   }
-  document.getElementById('addSongLink').style.display = creatorMode ? 'inline-block' : 'none';
+  document.getElementById('addSongLink').style.display = creatorMode ? 'flex' : 'none';
 }
 
 window.onAuthSuccess = async function(user){
@@ -982,6 +981,12 @@ document.getElementById('randomSongBtn').addEventListener('click', () => {
   Definitions powered by <a href="https://cc-cedict.org/" target="_blank" rel="noopener" style="color:var(--text-dim);">CC-CEDICT</a>
   · Reading layout inspired by <a href="https://wubli.app" target="_blank" rel="noopener" style="color:var(--text-dim);">Wubli</a>
 </footer>
+
+<a id="addSongLink" href="creator/add-song.html" style="display:none; position:fixed; bottom:24px; right:24px; z-index:90;
+  align-items:center; gap:8px; padding:16px 26px; border-radius:32px;
+  background:#6b3f1d; color:#fff; text-decoration:none;
+  font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:500;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);">+ Add Song</a>
 
 <div id="aboutModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; padding:20px;">
   <div style="background:var(--surface); border-radius:10px; width:100%; max-width:720px; max-height:88vh; position:relative; overflow:hidden; display:flex; flex-direction:column;">
