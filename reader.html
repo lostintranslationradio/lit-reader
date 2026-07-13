@@ -182,10 +182,13 @@
     top:auto;
     bottom:20px;
     right:20px;
+    padding-top:0;
     margin-bottom:0;
     z-index:45;
     box-shadow:0 10px 30px rgba(0,0,0,.35);
     border:1px solid var(--rule);
+    box-sizing:border-box;
+    aspect-ratio:16/9;
   }
   .video-mini-handle{
     display:none;
@@ -209,6 +212,32 @@
   .video-mini-resize::after{
     content:''; position:absolute; bottom:3px; right:3px; width:9px; height:9px;
     border-right:2px solid rgba(255,255,255,.75); border-bottom:2px solid rgba(255,255,255,.75);
+  }
+  .video-mini-resize-tl{
+    bottom:auto; right:auto; top:0; left:0;
+  }
+  .video-mini-resize-tl::after{
+    bottom:auto; right:auto; top:3px; left:3px;
+    border-right:none; border-bottom:none;
+    border-left:2px solid rgba(255,255,255,.75); border-top:2px solid rgba(255,255,255,.75);
+  }
+  .video-mini-resize-tr{
+    bottom:auto; left:auto; top:0; right:0;
+    cursor:nesw-resize;
+  }
+  .video-mini-resize-tr::after{
+    bottom:auto; left:auto; top:3px; right:3px;
+    border-left:none; border-bottom:none;
+    border-right:2px solid rgba(255,255,255,.75); border-top:2px solid rgba(255,255,255,.75);
+  }
+  .video-mini-resize-bl{
+    top:auto; right:auto; bottom:0; left:0;
+    cursor:nesw-resize;
+  }
+  .video-mini-resize-bl::after{
+    top:auto; right:auto; bottom:3px; left:3px;
+    border-right:none; border-top:none;
+    border-left:2px solid rgba(255,255,255,.75); border-bottom:2px solid rgba(255,255,255,.75);
   }
   .video-wrap.mini .video-mini-resize{ display:block; }
   .video-mini-spacer{ display:none; }
@@ -353,15 +382,14 @@
     color:var(--text);
     padding:4px 0;
   }
-  .translation-row{
+  .line-row{
     display:flex;
-    align-items:flex-start;
+    align-items:center;
     gap:8px;
-    margin-top:8px;
   }
+  .line-row .line{ flex:1; min-width:0; }
   .translation{
-    flex:1;
-    min-width:0;
+    margin-top:8px;
     font-family:var(--font-en);
     font-style:italic;
     font-size:calc(14px * var(--font-scale));
@@ -375,7 +403,6 @@
   .translation.trans-hidden{ opacity:.4; }
   .translation-seek{
     flex-shrink:0;
-    margin-top:2px;
     width:22px; height:22px;
     display:flex; align-items:center; justify-content:center;
     border-radius:5px; border:1px solid var(--rule);
@@ -383,7 +410,7 @@
     cursor:pointer; font-size:12px;
   }
   .translation-seek:hover{ border-color:var(--accent); color:var(--accent); }
-  body.hide-translation .translation-row{ display:none; }
+  body.hide-translation .translation{ display:none; }
   body.hide-pinyin .pinyin{ display:none !important; }
   body.hide-word-gloss .gloss{ display:none !important; }
   .word{
@@ -1033,6 +1060,9 @@
       <div class="video-mini-handle" id="videoMiniHandle" title="Drag to move">⠿⠿</div>
       <button class="video-mini-close" id="videoMiniClose" title="Close mini player">✕</button>
       <div class="video-mini-resize" id="videoMiniResize" title="Drag to resize"></div>
+      <div class="video-mini-resize video-mini-resize-tl" id="videoMiniResizeTL" title="Drag to resize"></div>
+      <div class="video-mini-resize video-mini-resize-tr" id="videoMiniResizeTR" title="Drag to resize"></div>
+      <div class="video-mini-resize video-mini-resize-bl" id="videoMiniResizeBL" title="Drag to resize"></div>
     </div>
     <div class="video-mini-spacer" id="videoMiniSpacer"></div>
     <details class="context-block" id="contextBlock">
@@ -1372,9 +1402,18 @@ function render(){
     if(isOriginalEnglish){
       lineEl.className = 'line original-english-line';
       lineEl.textContent = entry.words.map(w => w.h).join(' ');
-      block.appendChild(lineEl);
-      const row = document.createElement('div');
-      row.className = 'translation-row';
+      const lineRow = document.createElement('div');
+      lineRow.className = 'line-row';
+      lineRow.appendChild(lineEl);
+      if(typeof entry.start === 'number'){
+        const seekBtn = document.createElement('button');
+        seekBtn.className = 'translation-seek';
+        seekBtn.title = 'Jump video to this line';
+        seekBtn.textContent = '↵';
+        seekBtn.addEventListener('click', (e) => { e.stopPropagation(); jumpToLine(entry.start); });
+        lineRow.appendChild(seekBtn);
+      }
+      block.appendChild(lineRow);
       const t = document.createElement('div');
       t.className = 'translation';
       const isHiddenLine = translationHidden.has(lineIdx);
@@ -1386,16 +1425,7 @@ function render(){
         else translationHidden.add(lineIdx);
         render();
       });
-      row.appendChild(t);
-      if(typeof entry.start === 'number'){
-        const seekBtn = document.createElement('button');
-        seekBtn.className = 'translation-seek';
-        seekBtn.title = 'Jump video to this line';
-        seekBtn.textContent = '↵';
-        seekBtn.addEventListener('click', (e) => { e.stopPropagation(); jumpToLine(entry.start); });
-        row.appendChild(seekBtn);
-      }
-      block.appendChild(row);
+      block.appendChild(t);
       linesEl.appendChild(block);
       return;
     }
@@ -1435,9 +1465,18 @@ function render(){
       attachPress(w, tok, key);
       lineEl.appendChild(w);
     });
-    block.appendChild(lineEl);
-    const row = document.createElement('div');
-    row.className = 'translation-row';
+    const lineRow = document.createElement('div');
+    lineRow.className = 'line-row';
+    lineRow.appendChild(lineEl);
+    if(typeof entry.start === 'number'){
+      const seekBtn = document.createElement('button');
+      seekBtn.className = 'translation-seek';
+      seekBtn.title = 'Jump video to this line';
+      seekBtn.textContent = '↵';
+      seekBtn.addEventListener('click', (e) => { e.stopPropagation(); jumpToLine(entry.start); });
+      lineRow.appendChild(seekBtn);
+    }
+    block.appendChild(lineRow);
     const t = document.createElement('div');
     t.className = 'translation';
     const isHiddenLine = translationHidden.has(lineIdx);
@@ -1449,16 +1488,7 @@ function render(){
       else translationHidden.add(lineIdx);
       render();
     });
-    row.appendChild(t);
-    if(typeof entry.start === 'number'){
-      const seekBtn = document.createElement('button');
-      seekBtn.className = 'translation-seek';
-      seekBtn.title = 'Jump video to this line';
-      seekBtn.textContent = '↵';
-      seekBtn.addEventListener('click', (e) => { e.stopPropagation(); jumpToLine(entry.start); });
-      row.appendChild(seekBtn);
-    }
-    block.appendChild(row);
+    block.appendChild(t);
     linesEl.appendChild(block);
   });
   updateLevelLabels();
@@ -2260,17 +2290,8 @@ const MINI_ASPECT = 9/16;
 let miniRect = null;
 
 function computeDefaultMiniRect(){
-  // On a wide enough desktop screen, default into the empty side margin next
-  // to the centered reading column, rather than floating over content —
-  // falls back to the familiar bottom-right corner otherwise.
-  const contentMaxWidth = 1180;
-  const margin = (window.innerWidth - contentMaxWidth) / 2;
   const width = MINI_DEFAULT_WIDTH;
   const height = Math.round(width * MINI_ASPECT);
-  if(margin > width + 40){
-    const left = window.innerWidth - margin + (margin - width) / 2;
-    return { left: Math.round(left), top: 120, width, height };
-  }
   return { right: 20, bottom: 20, width, height };
 }
 
@@ -2289,7 +2310,6 @@ function applyMiniRect(){
   const outer = document.getElementById('videoOuter');
   const rect = getMiniRect();
   outer.style.width = rect.width + 'px';
-  outer.style.height = rect.height + 'px';
   if(rect.left !== undefined){
     outer.style.left = rect.left + 'px';
     outer.style.right = 'auto';
@@ -2320,6 +2340,9 @@ function setupMiniDragAndResize(){
   const outer = document.getElementById('videoOuter');
   const handle = document.getElementById('videoMiniHandle');
   const grip = document.getElementById('videoMiniResize');
+  const gripTL = document.getElementById('videoMiniResizeTL');
+  const gripTR = document.getElementById('videoMiniResizeTR');
+  const gripBL = document.getElementById('videoMiniResizeBL');
 
   let dragStartX, dragStartY, dragStartLeft, dragStartTop;
   function onDragMove(e){
@@ -2348,29 +2371,48 @@ function setupMiniDragAndResize(){
     document.addEventListener('pointerup', onDragEnd);
   });
 
-  let resizeStartX, resizeStartWidth;
-  function onResizeMove(e){
-    const dx = e.clientX - resizeStartX;
-    const newWidth = Math.max(MINI_MIN_WIDTH, Math.min(MINI_MAX_WIDTH, resizeStartWidth + dx));
-    const newHeight = Math.round(newWidth * MINI_ASPECT);
-    outer.style.width = newWidth + 'px';
-    outer.style.height = newHeight + 'px';
+  // One generic handler covers all four corners. anchorH/anchorV say which
+  // edge stays fixed in place (the opposite corner from the one being
+  // dragged); widthSign flips whether moving right (+1) or left (-1) is the
+  // direction that grows the box, since that differs by corner.
+  function setupResizeCorner(gripEl, anchorH, anchorV, widthSign){
+    let startX, startWidth, anchorX, anchorY;
+    function onMove(e){
+      const dx = e.clientX - startX;
+      const newWidth = Math.max(MINI_MIN_WIDTH, Math.min(MINI_MAX_WIDTH, startWidth + widthSign * dx));
+      outer.style.width = newWidth + 'px';
+      if(anchorH === 'left'){ outer.style.left = anchorX + 'px'; outer.style.right = 'auto'; }
+      else { outer.style.right = anchorX + 'px'; outer.style.left = 'auto'; }
+      if(anchorV === 'top'){ outer.style.top = anchorY + 'px'; outer.style.bottom = 'auto'; }
+      else { outer.style.bottom = anchorY + 'px'; outer.style.top = 'auto'; }
+    }
+    function onEnd(){
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onEnd);
+      const r = outer.getBoundingClientRect();
+      const next = { width: r.width, height: r.height };
+      if(anchorH === 'left') next.left = r.left; else next.right = window.innerWidth - r.right;
+      if(anchorV === 'top') next.top = r.top; else next.bottom = window.innerHeight - r.bottom;
+      miniRect = next;
+      saveMiniRect();
+    }
+    gripEl.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const r = outer.getBoundingClientRect();
+      startX = e.clientX;
+      startWidth = r.width;
+      anchorX = anchorH === 'left' ? r.left : window.innerWidth - r.right;
+      anchorY = anchorV === 'top' ? r.top : window.innerHeight - r.bottom;
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onEnd);
+    });
   }
-  function onResizeEnd(){
-    document.removeEventListener('pointermove', onResizeMove);
-    document.removeEventListener('pointerup', onResizeEnd);
-    const r = outer.getBoundingClientRect();
-    miniRect = { ...miniRect, width: r.width, height: r.height };
-    saveMiniRect();
-  }
-  grip.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    resizeStartX = e.clientX;
-    resizeStartWidth = outer.getBoundingClientRect().width;
-    document.addEventListener('pointermove', onResizeMove);
-    document.addEventListener('pointerup', onResizeEnd);
-  });
+
+  setupResizeCorner(grip, 'left', 'top', 1);      // bottom-right handle, anchors top-left
+  setupResizeCorner(gripTL, 'right', 'bottom', -1); // top-left handle, anchors bottom-right
+  setupResizeCorner(gripTR, 'left', 'bottom', 1);   // top-right handle, anchors bottom-left
+  setupResizeCorner(gripBL, 'right', 'top', -1);    // bottom-left handle, anchors top-right
 }
 setupMiniDragAndResize();
 
