@@ -573,22 +573,15 @@
     font-family:'Inter',sans-serif;
     font-size:13px;
     line-height:1.6;
-  }
-  .cons-cols{
-    display:flex;
-    gap:16px;
-    align-items:flex-start;
-  }
-  .cons-col-left{
-    flex-shrink:0;
     text-align:center;
-    min-width:80px;
   }
-  .cons-col-right{
-    flex:1;
-    min-width:0;
-    text-align:left;
-    padding-top:2px;
+  .cons-header{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    justify-content:center;
+    gap:8px;
+    margin-bottom:8px;
   }
   .popup-construction .cons-pattern{
     font-family:var(--font-han, 'Noto Serif SC', serif);
@@ -601,14 +594,31 @@
     font-family:'Inter',sans-serif;
     font-size:14px;
     color:var(--text-dim);
-    margin-top:2px;
   }
   .popup-construction .cons-gloss{
     font-family:'Inter',sans-serif;
     font-size:13px;
     line-height:1.6;
     color:var(--text);
+    text-align:center;
   }
+  .cons-sound{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    margin-top:10px;
+  }
+  .cons-sound button{
+    font-family:'Inter',sans-serif;
+    font-size:11px;
+    padding:5px 12px;
+    border-radius:14px;
+    border:1px solid var(--rule);
+    background:transparent;
+    color:var(--text-dim);
+    cursor:pointer;
+  }
+  .cons-sound button:hover{ border-color:var(--accent); color:var(--accent); }
   .popup-hint{
     margin-top:16px;
     text-align:center;
@@ -1385,25 +1395,29 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
   const cons = !tok.isConstruction && (constructionOverride || constructionForKey[key]);
   if(cons){
     const isConsSaved = saved.some(s => s.h === cons.construction.pattern && s.kind === 'construction');
+    const speakHanzi = cons.construction.pattern.replace(/\.{2,}|…+/g, '');
+    const speakPinyin = (cons.construction.pinyin || '').replace(/\s*…\s*|\.{2,}/g, ' ').trim();
     consEl.innerHTML = `
-      <div class="cons-cols">
-        <div class="cons-col-left">
-          <div class="cons-pattern">${cons.construction.pattern}</div>
-          ${cons.construction.pinyin ? `<div class="cons-pattern-pinyin">${cons.construction.pinyin}</div>` : ''}
-        </div>
-        <div class="cons-col-right">
-          <div class="cons-gloss">${cons.construction.gloss}</div>
-          ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
-        </div>
+      <div class="cons-header">
+        <span class="cons-pattern">${cons.construction.pattern}</span>
+        ${cons.construction.pinyin ? `<span class="cons-pattern-pinyin">${cons.construction.pinyin}</span>` : ''}
+      </div>
+      <div class="cons-gloss">${cons.construction.gloss}</div>
+      ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
+      <div class="cons-sound">
+        <button id="consSpeakNormal" title="Listen">🔊 Listen</button>
+        <button id="consSpeakSlow" title="Listen slowly">🐢 Slow</button>
       </div>
       <button id="popupConsSave" style="font-family:'JetBrains Mono',monospace; font-size:10px;
         padding:5px 10px; border-radius:12px; border:1px solid ${isConsSaved ? 'var(--accent)' : 'var(--rule)'};
         background:${isConsSaved ? 'rgba(184,134,58,.14)' : 'transparent'};
-        color:${isConsSaved ? 'var(--accent)' : 'var(--text-dim)'}; cursor:pointer; margin-top:8px;">
+        color:${isConsSaved ? 'var(--accent)' : 'var(--text-dim)'}; cursor:pointer; margin-top:10px;">
         ${isConsSaved ? '\u2605 saved' : '\u2606 save this construction'}
       </button>
     `;
     consEl.style.display = 'block';
+    document.getElementById('consSpeakNormal').addEventListener('click', () => speakWord(speakHanzi, 1, 1, speakPinyin, false));
+    document.getElementById('consSpeakSlow').addEventListener('click', () => speakWord(speakHanzi, 0.6, 0.3, speakPinyin, false));
     document.getElementById('popupConsSave').addEventListener('click', async () => {
       if(isConsSaved){
         await removeConstruction(cons.construction.pattern);
