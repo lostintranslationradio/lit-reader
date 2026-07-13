@@ -1702,8 +1702,12 @@ async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyl
         currentTtsAudio = audio;
         if(muteAfterFirstSyllable){
           const cutoff = (SANDHI_CUTOFFS[text[0]] || {})[cloudRate];
+          console.log('[TTS cutoff debug]', { text, cloudRate, cutoff, muteAfterFirstSyllable });
           if(cutoff){
-            setTimeout(() => { if(!audio.paused) audio.pause(); }, cutoff * 1000);
+            setTimeout(() => {
+              console.log('[TTS cutoff debug] timeout fired, paused:', audio.paused, 'currentTime:', audio.currentTime);
+              if(!audio.paused) audio.pause();
+            }, cutoff * 1000);
           }
         }
         await audio.play();
