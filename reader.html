@@ -1704,7 +1704,10 @@ async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyl
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if(audioCtx.state === 'suspended') await audioCtx.resume();
             const fullBuffer = await audioCtx.decodeAudioData(bytes.buffer);
-            const cutoffSample = Math.min(Math.floor(fullBuffer.duration * 0.45 * fullBuffer.sampleRate), fullBuffer.length);
+            // 不 and 一 don't take up the same proportion of a combined
+            // pair's total duration — 不 needs a noticeably bigger cut.
+            const cutoffRatio = text[0] === '不' ? 0.32 : 0.40;
+            const cutoffSample = Math.min(Math.floor(fullBuffer.duration * cutoffRatio * fullBuffer.sampleRate), fullBuffer.length);
             const trimmed = audioCtx.createBuffer(fullBuffer.numberOfChannels, cutoffSample, fullBuffer.sampleRate);
             for(let ch = 0; ch < fullBuffer.numberOfChannels; ch++){
               trimmed.copyToChannel(fullBuffer.getChannelData(ch).subarray(0, cutoffSample), ch);
