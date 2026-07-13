@@ -285,6 +285,19 @@
     background:rgba(0,0,0,.35);
     color:rgba(255,255,255,.85);
   }
+  .edit-btn{
+    position:absolute;
+    bottom:8px; left:8px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;
+    padding:4px 9px;
+    border-radius:10px;
+    border:1px solid var(--accent);
+    background:rgba(184,134,58,.85);
+    color:#fff;
+    cursor:pointer;
+  }
+  .edit-btn:hover{ background:var(--accent); }
   .card-body{
     padding:13px 15px 15px;
     display:flex;
@@ -452,6 +465,18 @@
     border-radius:10px;
     flex-shrink:0;
   }
+  .edit-btn-inline{
+    font-family:'JetBrains Mono',monospace;
+    font-size:9px;
+    padding:3px 8px;
+    border-radius:10px;
+    border:1px solid var(--accent);
+    background:transparent;
+    color:var(--accent);
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .edit-btn-inline:hover{ background:rgba(184,134,58,.1); }
 
   .empty-state{
     text-align:center;
@@ -636,6 +661,7 @@ function renderGrid(list){
     <a class="card" href="reader.html?song=${song.id}">
       <div class="cover" style="background:${coverColor(song.id)}22; border-bottom:1px solid var(--rule); ${song.coverUrl ? `background-image:url('${song.coverUrl}'); background-size:cover; background-position:center;` : ''}">
         ${creatorMode ? `<span class="status-pill">${song.status === 'draft' && song.publishAt && new Date(song.publishAt) > new Date() ? 'scheduled' : song.status}</span>` : ''}
+        ${creatorMode ? `<button class="edit-btn" title="Edit this song" onclick="event.preventDefault(); event.stopPropagation(); location.href='creator/add-song.html?edit=${song.id}';">✎ Edit</button>` : ''}
         ${song.coverUrl ? '' : `<div class="zh" style="color:${coverColor(song.id)}">${song.zh.slice(0,2)}</div>`}
       </div>
       <div class="card-body">
@@ -685,6 +711,7 @@ function renderList(list){
       <div class="row-tags">${song.tags.map(t=>`<span class="tag" data-filter="${t}">${t}</span>`).join('')}</div>
       <div class="row-hsk">${hskBarHTML(song.hsk)}</div>
       ${creatorMode ? `<span class="row-status">${song.status}</span>` : ''}
+      ${creatorMode ? `<button class="edit-btn-inline" title="Edit this song" onclick="event.preventDefault(); event.stopPropagation(); location.href='creator/add-song.html?edit=${song.id}';">✎ Edit</button>` : ''}
     </a>
   `).join('') + teaserRowHTML();
   wireFilterClicks();

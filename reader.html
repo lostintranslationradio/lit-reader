@@ -498,6 +498,15 @@
     background:var(--surface-raised); border-left:2px solid var(--accent);
     border-radius:4px; font-size:12px; line-height:1.5;
   }
+  .popup-classifier{
+    margin-top:10px; padding:8px 12px;
+    background:var(--surface-raised); border-left:2px solid var(--rule);
+    border-radius:4px; font-size:12px; line-height:1.5;
+  }
+  .popup-classifier .note-label{
+    font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--text-dim); margin-bottom:3px;
+  }
   #popupCreatorNote .note-label{
     font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:.05em;
     text-transform:uppercase; color:var(--accent); margin-bottom:3px;
@@ -986,6 +995,7 @@
     <div id="popupConstruction" style="display:none;"></div>
     <div class="popup-hsk-badge" id="popupHsk"></div>
     <div class="popup-defs" id="popupDefs"></div>
+    <div id="popupClassifier" class="popup-classifier" style="display:none;"></div>
     <div id="popupCreatorNote" style="display:none;"></div>
     <div id="popupUserNote">
       <div class="note-label">Your note (private to your account)</div>
@@ -1264,6 +1274,41 @@ function hskBadgeLabel(hsk){
 }
 
 let currentPopup = null;
+const TONE_MARKS = {
+  a:'āáǎàa', e:'ēéěèe', i:'īíǐìi', o:'ōóǒòo', u:'ūúǔùu', 'ü':'ǖǘǚǜü'
+};
+function numberedPinyinToAccented(syl){
+  const m = syl.match(/^([a-zü:]+)([1-5])$/i);
+  if(!m) return syl;
+  let [, base, tone] = m;
+  base = base.replace(/v/gi, 'ü');
+  tone = parseInt(tone, 10);
+  if(tone === 5) return base;
+  let idx = -1;
+  const low = base.toLowerCase();
+  if(low.includes('a')) idx = low.indexOf('a');
+  else if(low.includes('e')) idx = low.indexOf('e');
+  else if(low.includes('ou')) idx = low.indexOf('o');
+  else for(let i = low.length - 1; i >= 0; i--){ if('iuü'.includes(low[i])){ idx = i; break; } }
+  if(idx === -1 || !TONE_MARKS[low[idx]]) return base;
+  const marked = TONE_MARKS[low[idx]][tone - 1];
+  return base.slice(0, idx) + marked + base.slice(idx + 1);
+}
+
+// CC-CEDICT classifier notation looks like "CL:个[ge4]" or with multiple,
+// comma-separated: "CL:个[ge4],位[wei4]". Parse it into a friendly list.
+function parseClassifiers(text){
+  const inner = text.replace(/^\(?CL:/, '').replace(/\)$/, '');
+  const parts = inner.split(',').map(p => p.trim()).filter(Boolean);
+  return parts.map(p => {
+    const m = p.match(/^(.+?)\[([a-z0-9: ]+)\]$/i);
+    if(!m) return p;
+    const [, hanzi, pinyinRaw] = m;
+    const pinyin = pinyinRaw.split(' ').map(numberedPinyinToAccented).join(' ');
+    return `${hanzi} (${pinyin})`;
+  }).join(', ');
+}
+
 function openPopup(tok, key, el, constructionOverride, vocabIdx){
   currentPopup = { tok, key, el, vocabIdx };
   document.getElementById('popupHanzi').textContent = tok.h;
@@ -1273,12 +1318,23 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
   badge.style.color = `var(${HSK_VAR[tok.hsk]})`;
   badge.style.borderColor = `var(${HSK_VAR[tok.hsk]})`;
   const rawDefs = Array.isArray(tok.g) ? tok.g : (tok.g ? [tok.g] : []);
-  const defs = rawDefs.filter(Boolean).length ? rawDefs.filter(Boolean) : [tok.short].filter(Boolean);
+  const allDefs = rawDefs.filter(Boolean).length ? rawDefs.filter(Boolean) : [tok.short].filter(Boolean);
+  const classifierMatch = allDefs.find(d => /^\(?CL:/.test(d));
+  const defs = allDefs.filter(d => d !== classifierMatch);
   const posLabel = tok.pos ? `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim);
     text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">${tok.pos}</div>` : '';
   document.getElementById('popupDefs').innerHTML = posLabel + (defs.length
     ? '<ol>' + defs.map(d=>`<li>${d}</li>`).join('') + '</ol>'
     : '<div style="opacity:.6">(no definition yet)</div>');
+
+  const classifierEl = document.getElementById('popupClassifier');
+  if(classifierMatch){
+    const parsed = parseClassifiers(classifierMatch);
+    classifierEl.innerHTML = `<div class="note-label">Measure word</div><div>${parsed}</div>`;
+    classifierEl.style.display = 'block';
+  } else {
+    classifierEl.style.display = 'none';
+  }
 
   const creatorNoteEl = document.getElementById('popupCreatorNote');
   if(tok.note){

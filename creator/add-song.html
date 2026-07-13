@@ -287,14 +287,6 @@
       dictionary — fill in pinyin/gloss by hand, or leave it: it'll just render as a Beyond-tier word
       with no gloss until you do. The translation field is the only thing that was never automatic.
     </p>
-    <button class="btn secondary" id="btnRestoreDefs">Restore full definitions from dictionary</button>
-    <button class="btn secondary" id="btnResetAllShort">Reset all short glosses to dictionary defaults</button>
-    <div class="status-line" id="restoreDefsStatus" style="margin-top:6px;"></div>
-    <p class="note" style="margin-top:6px;">
-      Fixes an earlier bug where editing a word's gloss deleted its other dictionary definitions.
-      Safe to run any time — it keeps whatever you've typed as the main gloss and re-adds the
-      additional senses underneath it, without touching pinyin, HSK, or translations.
-    </p>
     <div id="linesContainer"></div>
   </div>
 
@@ -364,6 +356,8 @@ async function checkCreatorAccess(){
     populateExistingSongs();
     populateSuggestions();
     fetchKnownConstructions();
+    const editId = new URLSearchParams(location.search).get('edit');
+    if(editId) loadSongForEditing(editId);
   }
   if(user && !isCreator){
     const name = (profile && profile.username) ? profile.username : user.email;
@@ -478,8 +472,7 @@ async function populateExistingSongs(){
     }).join('');
 }
 
-document.getElementById('btnLoadExisting').addEventListener('click', async () => {
-  const id = document.getElementById('fExistingSong').value;
+async function loadSongForEditing(id){
   const statusEl = document.getElementById('loadExistingStatus');
   if(!id) return;
   statusEl.classList.remove('ok');
@@ -491,6 +484,7 @@ document.getElementById('btnLoadExisting').addEventListener('click', async () =>
     return;
   }
 
+  document.getElementById('fExistingSong').value = id;
   document.getElementById('fZh').value = song.zh || '';
   document.getElementById('fEn').value = song.en || '';
   document.getElementById('fArtist').value = song.artist || '';
@@ -538,11 +532,16 @@ document.getElementById('btnLoadExisting').addEventListener('click', async () =>
   statusEl.textContent = `Loaded "${song.zh}" — editing in place. Publishing will overwrite it.`;
   statusEl.classList.add('ok');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.getElementById('btnLoadExisting').addEventListener('click', () => {
+  loadSongForEditing(document.getElementById('fExistingSong').value);
 });
+
 
 document.getElementById('btnFixAllSongs').addEventListener('click', async () => {
   if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
-  if(!confirm('This rewrites the dictionary definitions for every word in every song, directly in the database. Short glosses are preserved. Continue?')) return;
+  if(!confirm('This rewrites dictionary definitions AND pinyin for every word in every song, directly in the database. Short glosses are preserved. Continue?')) return;
 
   const statusEl = document.getElementById('fixAllStatus');
   statusEl.classList.remove('ok');
@@ -554,7 +553,9 @@ document.getElementById('btnFixAllSongs').addEventListener('click', async () => 
     return;
   }
 
-  let songsFixed = 0, wordsFixed = 0;
+  const stripTones = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+  let songsFixed = 0, wordsFixed = 0, pinyinFixed = 0, needsReview = [];
 
   for(const song of songs){
     let changed = false;
@@ -576,6 +577,29 @@ document.getElementById('btnFixAllSongs').addEventListener('click', async () => 
             wordsFixed++;
           }
         }
+        if(entry){
+          if(!entry.readings || entry.readings.length <= 1){
+            // Only one possible reading — safe to resync pinyin directly.
+            if(entry.p && entry.p !== word.p){
+              word.p = entry.p;
+              changed = true;
+              pinyinFixed++;
+            }
+          } else {
+            // Polyphonic — only auto-fix if exactly one reading matches the
+            // current (possibly tone-broken) pinyin once tones are stripped.
+            // If it's ambiguous, leave it alone and flag it instead of guessing.
+            const currentBase = stripTones(word.p);
+            const matches = entry.readings.filter(r => stripTones(r.p) === currentBase);
+            if(matches.length === 1 && matches[0].p !== word.p){
+              word.p = matches[0].p;
+              changed = true;
+              pinyinFixed++;
+            } else if(matches.length !== 1){
+              needsReview.push(`${word.h} in "${song.zh}"`);
+            }
+          }
+        }
         if(PARTICLE_OVERRIDE.has(word.h) && word.short !== '(particle)'){
           word.short = '(particle)';
           changed = true;
@@ -594,7 +618,10 @@ document.getElementById('btnFixAllSongs').addEventListener('click', async () => 
     }
   }
 
-  statusEl.textContent = `Done — fixed ${wordsFixed} word${wordsFixed===1?'':'s'} across ${songsFixed} song${songsFixed===1?'':'s'}.`;
+  statusEl.textContent = `Done — fixed ${wordsFixed} definition${wordsFixed===1?'':'s'} and ${pinyinFixed} pinyin reading${pinyinFixed===1?'':'s'} across ${songsFixed} song${songsFixed===1?'':'s'}.` +
+    (needsReview.length > 0
+      ? ` ${needsReview.length} polyphonic word${needsReview.length===1?'':'s'} couldn't be auto-corrected safely — check by hand: ${needsReview.slice(0, 8).join(', ')}${needsReview.length > 8 ? ', …' : ''}`
+      : '');
   statusEl.classList.add('ok');
 });
 
@@ -1118,10 +1145,7 @@ function renderTokenCard(line, li, ti){
     ${tok.needsReadingPick && !tok.readingConfirmed ? '<div style="font-size:8px; color:var(--accent); margin-bottom:3px;">pick reading ↓</div>' : ''}
     ${readingPicker}
     <input type="text" value="${(tok.p||'').replace(/"/g,'&quot;')}" placeholder="pinyin" data-field="p">
-    <div style="display:flex; gap:2px; width:100%;">
-      <input type="text" value="${(tok.short||'').replace(/"/g,'&quot;')}" placeholder="short gloss" data-field="short" style="flex:1;">
-      <button data-action="reset-short" title="Reset to dictionary default" style="flex-shrink:0; font-size:10px; padding:2px 5px; border-radius:3px; border:1px solid var(--rule); background:transparent; color:var(--text-dim); cursor:pointer;">↺</button>
-    </div>
+    <input type="text" value="${(tok.short||'').replace(/"/g,'&quot;')}" placeholder="short gloss" data-field="short">
     <div class="token-hsk-row">
       <span style="font-size:9px;color:var(--text-dim);">HSK</span>
       <input type="text" value="${tok.hsk}" data-field="hsk">
@@ -1167,55 +1191,6 @@ function renderTokenCard(line, li, ti){
     });
   });
 
-document.getElementById('btnRestoreDefs').addEventListener('click', () => {
-  if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
-  let restored = 0;
-  lineData.forEach(line => {
-    line.tokens.forEach(tok => {
-      if(tok.isPunct) return;
-      // Migrate older data: if there's no separate short label yet, whatever was
-      // in g[0] before is preserved there first, so nothing gets lost.
-      if(!tok.short && tok.g && tok.g[0]) tok.short = tok.g[0];
-      const entry = lookup(tok.h);
-      if(!entry || !entry.g || entry.g.length === 0) return;
-      if(JSON.stringify(entry.g) !== JSON.stringify(tok.g)){
-        tok.g = entry.g;
-        if(!tok.short) tok.short = entry.g[0];
-        restored++;
-      }
-    });
-  });
-  renderLines();
-  const statusEl = document.getElementById('restoreDefsStatus');
-  statusEl.textContent = restored > 0
-    ? `Restored full dictionary definitions on ${restored} word${restored===1?'':'s'}, separate from your short gloss.`
-    : 'Nothing to restore — every word already has its full definitions.';
-  statusEl.classList.add('ok');
-});
-
-document.getElementById('btnResetAllShort').addEventListener('click', () => {
-  if(!dictReady){ alert('Dictionary is still loading — try again in a second.'); return; }
-  if(!confirm('This replaces every word\u2019s short gloss with the dictionary default, discarding any custom wording you\u2019ve typed. Continue?')) return;
-  let reset = 0;
-  lineData.forEach(line => {
-    line.tokens.forEach(tok => {
-      if(tok.isPunct) return;
-      const entry = lookup(tok.h);
-      const dictDefault = PARTICLE_OVERRIDE.has(tok.h) ? '(particle)' : (entry && entry.g && entry.g[0] ? entry.g[0] : '');
-      if(tok.short !== dictDefault){
-        tok.short = dictDefault;
-        reset++;
-      }
-    });
-  });
-  renderLines();
-  const statusEl = document.getElementById('restoreDefsStatus');
-  statusEl.textContent = reset > 0
-    ? `Reset ${reset} short gloss${reset===1?'':'es'} back to dictionary defaults.`
-    : 'Nothing to reset — every word already matches the dictionary default.';
-  statusEl.classList.add('ok');
-});
-
 function makeToken(hanzi){
   const entry = lookup(hanzi) || fallbackLookup(hanzi);
   const hasMultipleReadings = entry && entry.readings && entry.readings.length > 1;
@@ -1248,13 +1223,6 @@ if(applyNoteBtn) applyNoteBtn.addEventListener('click', () => {
   });
   renderLines();
   if(count === 0) alert('No other occurrences of this word found in this song.');
-});
-
-const resetShortBtn = card.querySelector('[data-action="reset-short"]');
-if(resetShortBtn) resetShortBtn.addEventListener('click', () => {
-  const entry = lookup(tok.h);
-  tok.short = PARTICLE_OVERRIDE.has(tok.h) ? '(particle)' : (entry && entry.g && entry.g[0] ? entry.g[0] : '');
-  renderLines();
 });
 
 const mergeBtn = card.querySelector('[data-action="merge"]');
