@@ -97,12 +97,12 @@
   }
 
   .sod-wrap{
-    max-width:1180px; margin:0 auto; padding:24px;
+    max-width:1180px; margin:0 auto; padding:24px 24px 0;
   }
   .sod-card{
-    display:flex; gap:24px; align-items:center;
+    display:flex; gap:28px; align-items:flex-start;
     background:var(--surface); border:1px solid var(--rule); border-radius:10px;
-    padding:20px 24px; position:relative; overflow:hidden;
+    padding:24px 28px; position:relative; overflow:hidden;
   }
   .sod-card::before{
     content:''; position:absolute; top:0; left:0; right:0; height:3px;
@@ -113,24 +113,26 @@
     color:var(--accent); margin-bottom:6px;
   }
   .sod-cover{
-    width:88px; height:88px; border-radius:8px; flex-shrink:0;
+    width:160px; height:160px; border-radius:10px; flex-shrink:0;
     background-size:cover; background-position:center;
     display:flex; align-items:center; justify-content:center;
-    font-family:var(--font-title); font-size:26px;
+    font-family:var(--font-title); font-size:44px;
   }
   .sod-body{ flex:1; min-width:0; }
-  .sod-title{ font-family:var(--font-title); font-size:20px; margin-bottom:2px; }
-  .sod-artist{ font-size:13px; color:var(--text-dim); margin-bottom:8px; }
-  .sod-about{ font-size:13px; line-height:1.55; color:var(--text); max-width:640px; }
+  .sod-title{ font-family:var(--font-title); font-size:22px; margin-bottom:2px; }
+  .sod-artist{ font-size:13px; color:var(--text-dim); margin-bottom:10px; }
+  .sod-about{ font-size:13px; line-height:1.6; color:var(--text); max-width:640px; margin-bottom:14px; }
+  .sod-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
   .sod-cta{
-    flex-shrink:0; align-self:center;
+    display:inline-block;
     font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.03em;
     padding:10px 18px; border-radius:20px; border:1px solid var(--accent);
     background:rgba(184,134,58,.12); color:var(--accent); text-decoration:none; white-space:nowrap;
   }
   .sod-cta:hover{ background:var(--accent); color:#fff; }
   @media (max-width:640px){
-    .sod-card{ flex-direction:column; align-items:flex-start; text-align:left; }
+    .sod-card{ flex-direction:column; align-items:center; text-align:center; }
+    .sod-tags{ justify-content:center; }
     .sod-cta{ align-self:stretch; text-align:center; }
   }
 
@@ -911,6 +913,13 @@ async function renderSongOfDay(){
   }
   if(!chosen) return;
 
+  function renderSimpleMarkdown(text){
+    const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return escaped
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+  }
+
   el.innerHTML = `
     <div class="sod-wrap">
       <div class="sod-card">
@@ -921,9 +930,10 @@ async function renderSongOfDay(){
           <div class="sod-eyebrow">Song of the Day</div>
           <div class="sod-title">${chosen.zh} · ${chosen.en}</div>
           <div class="sod-artist">${chosen.artist}${chosen.year ? ` · ${chosen.year}` : ''}</div>
-          ${chosen.context ? `<div class="sod-about">${chosen.context}</div>` : ''}
+          ${chosen.context ? `<div class="sod-about">${renderSimpleMarkdown(chosen.context)}</div>` : ''}
+          ${chosen.tags && chosen.tags.length ? `<div class="sod-tags">${chosen.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>` : ''}
+          <a class="sod-cta" href="reader.html?song=${chosen.id}">Read the lyrics →</a>
         </div>
-        <a class="sod-cta" href="reader.html?song=${chosen.id}">Read the lyrics →</a>
       </div>
     </div>
   `;
