@@ -97,7 +97,7 @@
   }
 
   .sod-wrap{
-    max-width:1180px; margin:0 auto; padding:24px 24px 0;
+    max-width:820px; margin:0 auto; padding:40px 24px 0;
   }
   .sod-card{
     display:flex; gap:28px; align-items:flex-start;
@@ -121,7 +121,7 @@
   .sod-body{ flex:1; min-width:0; }
   .sod-title{ font-family:var(--font-title); font-size:22px; margin-bottom:2px; }
   .sod-artist{ font-size:13px; color:var(--text-dim); margin-bottom:10px; }
-  .sod-about{ font-size:13px; line-height:1.6; color:var(--text); max-width:640px; margin-bottom:14px; }
+  .sod-about{ font-size:13px; line-height:1.6; color:var(--text); margin-bottom:14px; }
   .sod-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
   .sod-cta{
     display:inline-block;
@@ -130,6 +130,13 @@
     background:rgba(184,134,58,.12); color:var(--accent); text-decoration:none; white-space:nowrap;
   }
   .sod-cta:hover{ background:var(--accent); color:#fff; }
+  @media (min-width:769px){
+    /* On real desktop real estate, let the cover stretch to match the full
+       height of the text column beside it, rather than a small fixed square
+       pinned to the top with empty space below. */
+    .sod-card{ align-items:stretch; }
+    .sod-cover{ width:auto; aspect-ratio:1; height:auto; align-self:stretch; font-size:min(15vw, 90px); }
+  }
   @media (max-width:640px){
     .sod-card{ flex-direction:column; align-items:center; text-align:center; }
     .sod-tags{ justify-content:center; }
@@ -898,6 +905,9 @@ async function renderSongOfDay(){
   if(pool.length === 0) return;
 
   const todayStr = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, same for everyone that day
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
 
   let chosen = null;
   const { data: override } = await sb.from('song_of_day_overrides').select('song_id').eq('date', todayStr).maybeSingle();
@@ -908,7 +918,19 @@ async function renderSongOfDay(){
     // Deterministic pick seeded by today's date — same song for every visitor,
     // no override row needed unless the creator wants to hand-pick one.
     const sorted = [...pool].sort((a, b) => a.id.localeCompare(b.id));
-    const idx = simpleHash(todayStr) % sorted.length;
+    let idx = simpleHash(todayStr) % sorted.length;
+
+    if(sorted.length > 1){
+      // Figure out what actually showed yesterday (an override takes
+      // priority there too, same as today), and if today's pick would
+      // repeat it, deterministically move to the next song instead —
+      // still identical for every visitor, just never a repeat.
+      const { data: yesterdayOverride } = await sb.from('song_of_day_overrides').select('song_id').eq('date', yesterdayStr).maybeSingle();
+      const yesterdayId = (yesterdayOverride && yesterdayOverride.song_id) || sorted[simpleHash(yesterdayStr) % sorted.length].id;
+      if(sorted[idx].id === yesterdayId){
+        idx = (idx + 1) % sorted.length;
+      }
+    }
     chosen = sorted[idx];
   }
   if(!chosen) return;
@@ -932,7 +954,7 @@ async function renderSongOfDay(){
           <div class="sod-artist">${chosen.artist}${chosen.year ? ` · ${chosen.year}` : ''}</div>
           ${chosen.context ? `<div class="sod-about">${renderSimpleMarkdown(chosen.context)}</div>` : ''}
           ${chosen.tags && chosen.tags.length ? `<div class="sod-tags">${chosen.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>` : ''}
-          <a class="sod-cta" href="reader.html?song=${chosen.id}">Read the lyrics →</a>
+          <a class="sod-cta" href="reader.html?song=${chosen.id}">Lyrics →</a>
         </div>
       </div>
     </div>
