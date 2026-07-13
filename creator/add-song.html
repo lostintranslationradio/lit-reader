@@ -156,6 +156,11 @@
 
 <main id="unlockedMain" style="display:none;">
 
+<div id="floatingSave" style="position:fixed; bottom:20px; right:20px; z-index:100; display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+  <button id="btnFloatingSave" class="btn" style="box-shadow:0 2px 10px rgba(0,0,0,.15);">Save</button>
+  <div id="floatingSaveStatus" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--accent); text-align:right;"></div>
+</div>
+
   <div class="panel">
     <h2>0 · Edit an existing song (optional)</h2>
     <p class="note">Pick a song to load it back into the form below — everything, including word tags and constructions, gets refilled so you can change and republish it.</p>
@@ -345,6 +350,7 @@
 injectAuthModal();
 let currentUser = null;
 
+let hasAutoLoadedFromUrl = false;
 async function checkCreatorAccess(){
   const user = await authGetUser();
   currentUser = user;
@@ -356,8 +362,11 @@ async function checkCreatorAccess(){
     populateExistingSongs();
     populateSuggestions();
     fetchKnownConstructions();
-    const editId = new URLSearchParams(location.search).get('edit');
-    if(editId) loadSongForEditing(editId);
+    if(!hasAutoLoadedFromUrl){
+      hasAutoLoadedFromUrl = true;
+      const editId = new URLSearchParams(location.search).get('edit');
+      if(editId) loadSongForEditing(editId);
+    }
   }
   if(user && !isCreator){
     const name = (profile && profile.username) ? profile.username : user.email;
@@ -611,6 +620,9 @@ document.getElementById('btnFixAllSongs').addEventListener('click', async () => 
         if(PARTICLE_OVERRIDE.has(word.h) && word.short !== '(particle)'){
           word.short = '(particle)';
           changed = true;
+        } else if(entry && entry.pos === 'M' && word.short !== '(classifier)'){
+          word.short = '(classifier)';
+          changed = true;
         }
         return word;
       })
@@ -714,6 +726,12 @@ function applyParticleOverride(tok){
     // The full dictionary definitions (tok.g) are left completely untouched —
     // the popup should always show the real, complete entry.
     tok.short = '(particle)';
+    tok.unresolved = false;
+  } else if(tok.pos === 'M'){
+    // Same idea for classifiers/measure words (个, 只, 张, 位, etc) — the compact
+    // label says "(classifier)" instead of whatever verbose gloss the
+    // dictionary has, while tok.g keeps the real definitions untouched.
+    tok.short = '(classifier)';
     tok.unresolved = false;
   }
   return tok;
@@ -1369,14 +1387,16 @@ document.getElementById('btnGenerate').addEventListener('click', () => {
   a.click();
 });
 
-document.getElementById('btnPublish').addEventListener('click', async () => {
+async function publishSong(){
   const song = buildSongObject();
   const statusEl = document.getElementById('publishStatus');
+  const floatingStatusEl = document.getElementById('floatingSaveStatus');
   if(!song.id){ alert('Set a Song ID first.'); return; }
   if(!currentUser){ alert('Sign in as the creator first.'); return; }
 
   statusEl.classList.remove('ok');
   statusEl.textContent = 'Publishing…';
+  if(floatingStatusEl) floatingStatusEl.textContent = 'Saving…';
 
   const { error } = await sb.from('songs').upsert({
     id: song.id, zh: song.zh, en: song.en, artist: song.artist,
@@ -1387,6 +1407,7 @@ document.getElementById('btnPublish').addEventListener('click', async () => {
   if(error){
     statusEl.textContent = 'Failed: ' + error.message;
     console.error(error);
+    if(floatingStatusEl) floatingStatusEl.textContent = 'Failed — see status below';
   } else {
     const link = document.createElement('a');
     link.href = `../reader.html?song=${song.id}`;
@@ -1397,6 +1418,21 @@ document.getElementById('btnPublish').addEventListener('click', async () => {
       (song.status === 'published' ? 'It\u2019s live now. ' : 'Only your creator account can see it. ');
     statusEl.appendChild(link);
     statusEl.classList.add('ok');
+    if(floatingStatusEl){
+      floatingStatusEl.textContent = 'Saved ✓';
+      setTimeout(() => { if(floatingStatusEl.textContent === 'Saved ✓') floatingStatusEl.textContent = ''; }, 2500);
+    }
+  }
+}
+
+document.getElementById('btnPublish').addEventListener('click', publishSong);
+document.getElementById('btnFloatingSave').addEventListener('click', publishSong);
+
+document.addEventListener('keydown', (e) => {
+  const isSaveShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's';
+  if(isSaveShortcut && document.getElementById('unlockedMain').style.display !== 'none'){
+    e.preventDefault();
+    publishSong();
   }
 });
 </script>
