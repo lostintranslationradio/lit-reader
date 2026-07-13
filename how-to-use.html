@@ -76,7 +76,17 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
 .word.holding .ring circle{ transition:stroke-dashoffset .6s linear; stroke-dashoffset:0; }
 .word.holding{ background:var(--surface-raised); }
 
-.translation{ margin-top:10px; font-family:var(--font-en); font-style:italic; font-size:14px; color:var(--text); opacity:.75; border-left:2px solid var(--rule); padding-left:12px; text-align:left; }
+.translation-row{ display:flex; align-items:flex-start; gap:8px; margin-top:10px; }
+.translation{ flex:1; min-width:0; font-family:var(--font-en); font-style:italic; font-size:14px; color:var(--text); opacity:.75; border-left:2px solid var(--rule); padding-left:12px; text-align:left; cursor:pointer; }
+.translation:hover{ opacity:1; }
+.translation.trans-hidden{ opacity:.4; }
+.translation-seek{
+  flex-shrink:0; margin-top:2px; width:22px; height:22px;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:5px; border:1px solid var(--rule);
+  background:transparent; color:var(--text-dim); cursor:pointer; font-size:12px;
+}
+.translation-seek:hover{ border-color:var(--accent); color:var(--accent); }
 
 .level-control{ display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-dim); }
 .level-control input[type=range]{ flex:1; accent-color:var(--accent); }
@@ -200,11 +210,14 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
 
   <div class="lesson">
     <div class="lesson-num">07</div>
-    <h2>The translation is always underneath</h2>
-    <p>Below every line sits the actual line-by-line translation — the real, singable rendering, distinct from the word-by-word glosses above it. You can turn it off with the "lyrics translation" switch in Settings if you'd rather work it out yourself first. On a real song page, if that song has timestamps, clicking the translation jumps the video straight to that moment — a quick way to hear exactly how a line sounds.</p>
+    <h2>Tap the translation to hide it</h2>
+    <p>Below every line sits the actual line-by-line translation — the real, singable rendering, distinct from the word-by-word glosses above it. Tap it to hide it, if you'd rather try recalling the meaning yourself first — it collapses down to a small "|" marker rather than disappearing entirely, so you always know exactly where to tap again to bring it back. This is separate from the "lyrics translation" switch in Settings, which hides translations everywhere at once; tapping a single line is just for that one line, whenever you want to test yourself. On a real song page, if that line has a timestamp, the small ⇥ button beside it jumps the video straight to that moment.</p>
     <div class="demo-box">
       <div class="line" id="demo6"></div>
-      <div class="translation" id="demo6t"></div>
+      <div class="translation-row">
+        <div class="translation" id="demo6t"></div>
+        <button class="translation-seek" id="demo6seek" title="Jump video to this line">⇥</button>
+      </div>
     </div>
   </div>
 
@@ -415,6 +428,20 @@ function renderAll(){
   renderDemoLine('demo6', demo6Words, {});
   renderDemoLine('demo7', demo7Words, {});
   document.getElementById('demo6t').textContent = 'This moment, return to zero, begin again';
+  let demo6Hidden = false;
+  const demo6tEl = document.getElementById('demo6t');
+  demo6tEl.title = 'Tap to hide';
+  demo6tEl.addEventListener('click', () => {
+    demo6Hidden = !demo6Hidden;
+    demo6tEl.classList.toggle('trans-hidden', demo6Hidden);
+    demo6tEl.textContent = demo6Hidden ? '|' : 'This moment, return to zero, begin again';
+    demo6tEl.title = demo6Hidden ? 'Tap to reveal' : 'Tap to hide';
+  });
+  document.getElementById('demo6seek').addEventListener('click', function(){
+    this.style.borderColor = 'var(--accent)';
+    this.style.color = 'var(--accent)';
+    setTimeout(() => { this.style.borderColor = ''; this.style.color = ''; }, 300);
+  });
 }
 
 document.getElementById('demoSlider').addEventListener('input', function(){

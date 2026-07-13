@@ -226,6 +226,24 @@ create policy "Users manage their own reminder prefs"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- Reading preferences (gloss level, pinyin/HSK/translation toggles, font
+-- choice, text size). One JSONB blob rather than a column per setting, so
+-- adding new preferences later doesn't need a schema change. Guests keep
+-- working entirely off localStorage; signing in just makes it follow them
+-- across devices.
+create table reading_prefs (
+  user_id uuid primary key references auth.users on delete cascade,
+  settings jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table reading_prefs enable row level security;
+
+create policy "Users manage their own reading prefs"
+  on reading_prefs for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 -- Manual override for "Song of the Day." Absence of a row for a given date
 -- means the picker falls back to a deterministic random pick, seeded by that
 -- date, so everyone sees the same song without needing a row for every day —

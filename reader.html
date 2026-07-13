@@ -182,13 +182,35 @@
     top:auto;
     bottom:20px;
     right:20px;
-    width:min(300px, 40vw);
-    padding-top:min(168.75px, 22.5vw);
     margin-bottom:0;
     z-index:45;
     box-shadow:0 10px 30px rgba(0,0,0,.35);
     border:1px solid var(--rule);
   }
+  .video-mini-handle{
+    display:none;
+    position:absolute; top:0; left:0; right:0; height:20px; z-index:2;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,.55);
+    cursor:move;
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:rgba(255,255,255,.8);
+    letter-spacing:.15em;
+    user-select:none;
+    -webkit-user-select:none;
+    touch-action:none;
+  }
+  .video-wrap.mini .video-mini-handle{ display:flex; }
+  .video-mini-resize{
+    display:none;
+    position:absolute; bottom:0; right:0; width:18px; height:18px; z-index:3;
+    cursor:nwse-resize;
+    touch-action:none;
+  }
+  .video-mini-resize::after{
+    content:''; position:absolute; bottom:3px; right:3px; width:9px; height:9px;
+    border-right:2px solid rgba(255,255,255,.75); border-bottom:2px solid rgba(255,255,255,.75);
+  }
+  .video-wrap.mini .video-mini-resize{ display:block; }
   .video-mini-spacer{ display:none; }
   .video-wrap.mini + .video-mini-spacer{
     display:block;
@@ -331,8 +353,15 @@
     color:var(--text);
     padding:4px 0;
   }
-  .translation{
+  .translation-row{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
     margin-top:8px;
+  }
+  .translation{
+    flex:1;
+    min-width:0;
     font-family:var(--font-en);
     font-style:italic;
     font-size:calc(14px * var(--font-scale));
@@ -340,10 +369,21 @@
     opacity:.75;
     border-left:2px solid var(--rule);
     padding-left:12px;
+    cursor:pointer;
   }
-  .translation.seekable{ cursor:pointer; }
-  .translation.seekable:hover{ opacity:1; color:var(--accent); border-left-color:var(--accent); }
-  body.hide-translation .translation{ display:none; }
+  .translation:hover{ opacity:1; }
+  .translation.trans-hidden{ opacity:.4; }
+  .translation-seek{
+    flex-shrink:0;
+    margin-top:2px;
+    width:22px; height:22px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:5px; border:1px solid var(--rule);
+    background:transparent; color:var(--text-dim);
+    cursor:pointer; font-size:12px;
+  }
+  .translation-seek:hover{ border-color:var(--accent); color:var(--accent); }
+  body.hide-translation .translation-row{ display:none; }
   body.hide-pinyin .pinyin{ display:none !important; }
   body.hide-word-gloss .gloss{ display:none !important; }
   .word{
@@ -990,7 +1030,9 @@
     <div id="videoSentinel" style="height:1px;"></div>
     <div class="video-wrap" id="videoOuter">
       <div id="videoWrap" style="position:absolute; inset:0;"></div>
+      <div class="video-mini-handle" id="videoMiniHandle" title="Drag to move">⠿⠿</div>
       <button class="video-mini-close" id="videoMiniClose" title="Close mini player">✕</button>
+      <div class="video-mini-resize" id="videoMiniResize" title="Drag to resize"></div>
     </div>
     <div class="video-mini-spacer" id="videoMiniSpacer"></div>
     <details class="context-block" id="contextBlock">
@@ -1314,6 +1356,8 @@ function renderCreatorNotes(){
   section.style.display = 'block';
 }
 
+let translationHidden = new Set();
+
 function render(){
   linesEl.innerHTML = '';
   const CJK_RE = /[\u4e00-\u9fff]/;
@@ -1329,15 +1373,29 @@ function render(){
       lineEl.className = 'line original-english-line';
       lineEl.textContent = entry.words.map(w => w.h).join(' ');
       block.appendChild(lineEl);
+      const row = document.createElement('div');
+      row.className = 'translation-row';
       const t = document.createElement('div');
       t.className = 'translation';
-      t.textContent = entry.translation;
+      const isHiddenLine = translationHidden.has(lineIdx);
+      if(isHiddenLine) t.classList.add('trans-hidden');
+      t.textContent = isHiddenLine ? '|' : entry.translation;
+      t.title = isHiddenLine ? 'Tap to reveal' : 'Tap to hide';
+      t.addEventListener('click', () => {
+        if(translationHidden.has(lineIdx)) translationHidden.delete(lineIdx);
+        else translationHidden.add(lineIdx);
+        render();
+      });
+      row.appendChild(t);
       if(typeof entry.start === 'number'){
-        t.classList.add('seekable');
-        t.title = 'Jump video to this line';
-        t.addEventListener('click', () => jumpToLine(entry.start));
+        const seekBtn = document.createElement('button');
+        seekBtn.className = 'translation-seek';
+        seekBtn.title = 'Jump video to this line';
+        seekBtn.textContent = '⇥';
+        seekBtn.addEventListener('click', (e) => { e.stopPropagation(); jumpToLine(entry.start); });
+        row.appendChild(seekBtn);
       }
-      block.appendChild(t);
+      block.appendChild(row);
       linesEl.appendChild(block);
       return;
     }
@@ -1378,15 +1436,29 @@ function render(){
       lineEl.appendChild(w);
     });
     block.appendChild(lineEl);
+    const row = document.createElement('div');
+    row.className = 'translation-row';
     const t = document.createElement('div');
     t.className = 'translation';
-    t.textContent = entry.translation;
+    const isHiddenLine = translationHidden.has(lineIdx);
+    if(isHiddenLine) t.classList.add('trans-hidden');
+    t.textContent = isHiddenLine ? '|' : entry.translation;
+    t.title = isHiddenLine ? 'Tap to reveal' : 'Tap to hide';
+    t.addEventListener('click', () => {
+      if(translationHidden.has(lineIdx)) translationHidden.delete(lineIdx);
+      else translationHidden.add(lineIdx);
+      render();
+    });
+    row.appendChild(t);
     if(typeof entry.start === 'number'){
-      t.classList.add('seekable');
-      t.title = 'Jump video to this line';
-      t.addEventListener('click', () => jumpToLine(entry.start));
+      const seekBtn = document.createElement('button');
+      seekBtn.className = 'translation-seek';
+      seekBtn.title = 'Jump video to this line';
+      seekBtn.textContent = '⇥';
+      seekBtn.addEventListener('click', (e) => { e.stopPropagation(); jumpToLine(entry.start); });
+      row.appendChild(seekBtn);
     }
-    block.appendChild(t);
+    block.appendChild(row);
     linesEl.appendChild(block);
   });
   updateLevelLabels();
@@ -1585,6 +1657,7 @@ function buildFlatWordList(){
   const flat = [];
   SONG.lines.forEach((entry, lineIdx) => {
     entry.words.forEach((tok, wordIdx) => {
+      if(!tok.h || !tok.h.trim()) return; // empty/whitespace token — same skip as when rendering
       if(!tok.isPunct && !(tok.h.length===1 && /[。，！？]/.test(tok.h))){
         flat.push({ tok, lineIdx, wordIdx });
       }
@@ -1995,15 +2068,67 @@ const FONT_PAIRS = {
   'sans-inter': { han: "'Noto Sans SC', sans-serif", en: "'Inter', sans-serif" },
   'serif-lora': { han: "'Noto Serif SC', serif", en: "'Lora', serif" }
 };
+const DEFAULT_READING_SETTINGS = {
+  level: 0, hidePinyin: false, hideWordGloss: false, hideTranslation: false,
+  hideHsk: false, textScaleIndex: 1, fontChoice: 'sans-inter'
+};
+function loadLocalReadingSettings(){
+  const stored = JSON.parse(localStorage.getItem('readingSettings') || 'null');
+  if(stored) return { ...DEFAULT_READING_SETTINGS, ...stored };
+  // One-time migration from the older, separate localStorage keys, so
+  // nobody's existing preferences get silently reset by this change.
+  const scaleSteps = [0.85, 1, 1.15, 1.3, 1.5];
+  const scaleIdx = scaleSteps.indexOf(parseFloat(localStorage.getItem('textScale')) || 1);
+  return {
+    ...DEFAULT_READING_SETTINGS,
+    hidePinyin: localStorage.getItem('showPinyin') === 'off',
+    hideWordGloss: localStorage.getItem('showWordGloss') === 'off',
+    textScaleIndex: scaleIdx === -1 ? 1 : scaleIdx,
+    fontChoice: localStorage.getItem('fontChoice') || 'sans-inter'
+  };
+}
+let readingSettings = loadLocalReadingSettings();
+
+function saveReadingSettings(){
+  localStorage.setItem('readingSettings', JSON.stringify(readingSettings));
+  if(currentUser){
+    sb.from('reading_prefs').upsert({
+      user_id: currentUser.id, settings: readingSettings, updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+  }
+}
+
+async function loadReadingPrefsFromSupabase(){
+  const { data, error } = await sb.from('reading_prefs').select('settings').eq('user_id', currentUser.id).maybeSingle();
+  if(error){ console.error(error); return; }
+  if(data && data.settings){
+    readingSettings = { ...DEFAULT_READING_SETTINGS, ...data.settings };
+    localStorage.setItem('readingSettings', JSON.stringify(readingSettings));
+  } else {
+    saveReadingSettings(); // no account prefs yet — upload the local ones as a starting point
+  }
+  applyAllReadingSettings();
+}
+
+function applyAllReadingSettings(){
+  applyStoredVisibility();
+  document.getElementById('levelSlider').value = readingSettings.level;
+  currentLevel = readingSettings.level;
+  document.getElementById('fontPicker').value = readingSettings.fontChoice;
+  applyFontChoice(readingSettings.fontChoice);
+  textScaleIndex = readingSettings.textScaleIndex;
+  applyTextScale();
+  render();
+}
+
 function applyFontChoice(choice){
   const pair = FONT_PAIRS[choice] || FONT_PAIRS['serif-inter'];
   document.documentElement.style.setProperty('--font-han', pair.han);
   document.documentElement.style.setProperty('--font-en', pair.en);
   localStorage.setItem('fontChoice', choice);
 }
-const savedFontChoice = localStorage.getItem('fontChoice') || 'sans-inter';
-document.getElementById('fontPicker').value = savedFontChoice;
-applyFontChoice(savedFontChoice);
+document.getElementById('fontPicker').value = readingSettings.fontChoice;
+applyFontChoice(readingSettings.fontChoice);
 
 if(!localStorage.getItem('hasSeenHowToUse')){
   document.getElementById('howToUseLink').classList.add('glow');
@@ -2012,40 +2137,52 @@ document.getElementById('howToUseLink').addEventListener('click', () => {
   localStorage.setItem('hasSeenHowToUse', '1');
 });
 document.getElementById('fontPicker').addEventListener('change', function(){
+  readingSettings.fontChoice = this.value;
   applyFontChoice(this.value);
+  saveReadingSettings();
 });
 
+document.getElementById('levelSlider').value = readingSettings.level;
+currentLevel = readingSettings.level;
 document.getElementById('levelSlider').addEventListener('input', function(){
   currentLevel = parseInt(this.value, 10);
+  readingSettings.level = currentLevel;
   overrides = {};
   render();
+  saveReadingSettings();
 });
 document.getElementById('hskToggle').addEventListener('click', function(){
-  document.body.classList.toggle('hide-hsk');
-  this.querySelector('.switch').classList.toggle('on');
+  readingSettings.hideHsk = document.body.classList.toggle('hide-hsk');
+  this.querySelector('.switch').classList.toggle('on', !readingSettings.hideHsk);
+  saveReadingSettings();
 });
 document.getElementById('translationToggle').addEventListener('click', function(){
-  document.body.classList.toggle('hide-translation');
-  this.querySelector('.switch').classList.toggle('on');
+  readingSettings.hideTranslation = document.body.classList.toggle('hide-translation');
+  this.querySelector('.switch').classList.toggle('on', !readingSettings.hideTranslation);
+  saveReadingSettings();
 });
 
 function applyStoredVisibility(){
-  const pinyinOn = localStorage.getItem('showPinyin') !== 'off';
-  const wordGlossOn = localStorage.getItem('showWordGloss') !== 'off';
-  document.body.classList.toggle('hide-pinyin', !pinyinOn);
-  document.body.classList.toggle('hide-word-gloss', !wordGlossOn);
-  document.querySelector('#pinyinVisToggle .switch').classList.toggle('on', pinyinOn);
-  document.querySelector('#wordGlossToggle .switch').classList.toggle('on', wordGlossOn);
+  document.body.classList.toggle('hide-pinyin', readingSettings.hidePinyin);
+  document.body.classList.toggle('hide-word-gloss', readingSettings.hideWordGloss);
+  document.body.classList.toggle('hide-translation', readingSettings.hideTranslation);
+  document.body.classList.toggle('hide-hsk', readingSettings.hideHsk);
+  document.querySelector('#pinyinVisToggle .switch').classList.toggle('on', !readingSettings.hidePinyin);
+  document.querySelector('#wordGlossToggle .switch').classList.toggle('on', !readingSettings.hideWordGloss);
+  document.querySelector('#translationToggle .switch').classList.toggle('on', !readingSettings.hideTranslation);
+  document.querySelector('#hskToggle .switch').classList.toggle('on', !readingSettings.hideHsk);
 }
 document.getElementById('pinyinVisToggle').addEventListener('click', function(){
   const nowHidden = document.body.classList.toggle('hide-pinyin');
+  readingSettings.hidePinyin = nowHidden;
   this.querySelector('.switch').classList.toggle('on', !nowHidden);
-  localStorage.setItem('showPinyin', nowHidden ? 'off' : 'on');
+  saveReadingSettings();
 });
 document.getElementById('wordGlossToggle').addEventListener('click', function(){
   const nowHidden = document.body.classList.toggle('hide-word-gloss');
+  readingSettings.hideWordGloss = nowHidden;
   this.querySelector('.switch').classList.toggle('on', !nowHidden);
-  localStorage.setItem('showWordGloss', nowHidden ? 'off' : 'on');
+  saveReadingSettings();
 });
 applyStoredVisibility();
 
@@ -2116,6 +2253,128 @@ function renderVideo(){
 let miniPlayerDismissed = false;
 let miniObserver = null;
 
+const MINI_DEFAULT_WIDTH = 300;
+const MINI_MIN_WIDTH = 200;
+const MINI_MAX_WIDTH = 480;
+const MINI_ASPECT = 9/16;
+const MINI_HANDLE_HEIGHT = 20;
+let miniRect = null;
+
+function computeDefaultMiniRect(){
+  // On a wide enough desktop screen, default into the empty side margin next
+  // to the centered reading column, rather than floating over content —
+  // falls back to the familiar bottom-right corner otherwise.
+  const contentMaxWidth = 1180;
+  const margin = (window.innerWidth - contentMaxWidth) / 2;
+  const width = MINI_DEFAULT_WIDTH;
+  const height = Math.round(width * MINI_ASPECT) + MINI_HANDLE_HEIGHT;
+  if(margin > width + 40){
+    const left = window.innerWidth - margin + (margin - width) / 2;
+    return { left: Math.round(left), top: 120, width, height };
+  }
+  return { right: 20, bottom: 20, width, height };
+}
+
+function getMiniRect(){
+  if(miniRect) return miniRect;
+  const stored = JSON.parse(localStorage.getItem('miniPlayerRect') || 'null');
+  miniRect = stored || computeDefaultMiniRect();
+  return miniRect;
+}
+
+function saveMiniRect(){
+  localStorage.setItem('miniPlayerRect', JSON.stringify(miniRect));
+}
+
+function applyMiniRect(){
+  const outer = document.getElementById('videoOuter');
+  const rect = getMiniRect();
+  outer.style.width = rect.width + 'px';
+  outer.style.height = rect.height + 'px';
+  if(rect.left !== undefined){
+    outer.style.left = rect.left + 'px';
+    outer.style.right = 'auto';
+  } else {
+    outer.style.right = (rect.right ?? 20) + 'px';
+    outer.style.left = 'auto';
+  }
+  if(rect.top !== undefined){
+    outer.style.top = rect.top + 'px';
+    outer.style.bottom = 'auto';
+  } else {
+    outer.style.bottom = (rect.bottom ?? 20) + 'px';
+    outer.style.top = 'auto';
+  }
+}
+
+function clearMiniRectStyles(){
+  const outer = document.getElementById('videoOuter');
+  outer.style.width = '';
+  outer.style.height = '';
+  outer.style.left = '';
+  outer.style.right = '';
+  outer.style.top = '';
+  outer.style.bottom = '';
+}
+
+function setupMiniDragAndResize(){
+  const outer = document.getElementById('videoOuter');
+  const handle = document.getElementById('videoMiniHandle');
+  const grip = document.getElementById('videoMiniResize');
+
+  let dragStartX, dragStartY, dragStartLeft, dragStartTop;
+  function onDragMove(e){
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    let newLeft = Math.max(0, Math.min(dragStartLeft + dx, window.innerWidth - outer.offsetWidth));
+    let newTop = Math.max(0, Math.min(dragStartTop + dy, window.innerHeight - outer.offsetHeight));
+    outer.style.left = newLeft + 'px';
+    outer.style.top = newTop + 'px';
+    outer.style.right = 'auto';
+    outer.style.bottom = 'auto';
+  }
+  function onDragEnd(){
+    document.removeEventListener('pointermove', onDragMove);
+    document.removeEventListener('pointerup', onDragEnd);
+    const r = outer.getBoundingClientRect();
+    miniRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+    saveMiniRect();
+  }
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const r = outer.getBoundingClientRect();
+    dragStartX = e.clientX; dragStartY = e.clientY;
+    dragStartLeft = r.left; dragStartTop = r.top;
+    document.addEventListener('pointermove', onDragMove);
+    document.addEventListener('pointerup', onDragEnd);
+  });
+
+  let resizeStartX, resizeStartWidth;
+  function onResizeMove(e){
+    const dx = e.clientX - resizeStartX;
+    const newWidth = Math.max(MINI_MIN_WIDTH, Math.min(MINI_MAX_WIDTH, resizeStartWidth + dx));
+    const newHeight = Math.round(newWidth * MINI_ASPECT) + MINI_HANDLE_HEIGHT;
+    outer.style.width = newWidth + 'px';
+    outer.style.height = newHeight + 'px';
+  }
+  function onResizeEnd(){
+    document.removeEventListener('pointermove', onResizeMove);
+    document.removeEventListener('pointerup', onResizeEnd);
+    const r = outer.getBoundingClientRect();
+    miniRect = { ...miniRect, width: r.width, height: r.height };
+    saveMiniRect();
+  }
+  grip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resizeStartX = e.clientX;
+    resizeStartWidth = outer.getBoundingClientRect().width;
+    document.addEventListener('pointermove', onResizeMove);
+    document.addEventListener('pointerup', onResizeEnd);
+  });
+}
+setupMiniDragAndResize();
+
 function setupMiniPlayer(){
   const outer = document.getElementById('videoOuter');
   const sentinel = document.getElementById('videoSentinel');
@@ -2130,10 +2389,12 @@ function setupMiniPlayer(){
       if(!outer.classList.contains('mini')){
         spacer.style.height = outer.getBoundingClientRect().height + 'px';
         outer.classList.add('mini');
+        applyMiniRect();
         fab.classList.add('shift-up');
       }
     } else if(!scrolledPast){
       outer.classList.remove('mini');
+      clearMiniRectStyles();
       spacer.style.height = '0';
       fab.classList.remove('shift-up');
       miniPlayerDismissed = false; // scrolling back up re-enables mini mode next time
@@ -2147,6 +2408,7 @@ document.getElementById('videoMiniClose').addEventListener('click', () => {
   const outer = document.getElementById('videoOuter');
   const spacer = document.getElementById('videoMiniSpacer');
   outer.classList.remove('mini');
+  clearMiniRectStyles();
   spacer.style.height = '0';
   document.getElementById('mobileVocabFab').classList.remove('shift-up');
   miniPlayerDismissed = true;
@@ -2225,24 +2487,24 @@ document.getElementById('followToggle').addEventListener('click', function(){
 });
 
 const TEXT_SCALE_STEPS = [0.85, 1, 1.15, 1.3, 1.5];
-let textScaleIndex = TEXT_SCALE_STEPS.indexOf(
-  parseFloat(localStorage.getItem('textScale')) || 1
-);
-if(textScaleIndex === -1) textScaleIndex = 1;
+let textScaleIndex = readingSettings.textScaleIndex;
 
 function applyTextScale(){
   const scale = TEXT_SCALE_STEPS[textScaleIndex];
   document.documentElement.style.setProperty('--font-scale', scale);
   document.getElementById('textSizeLabel').textContent = Math.round(scale * 100) + '%';
-  localStorage.setItem('textScale', scale);
 }
 document.getElementById('textSizeUp').addEventListener('click', () => {
   textScaleIndex = Math.min(textScaleIndex + 1, TEXT_SCALE_STEPS.length - 1);
+  readingSettings.textScaleIndex = textScaleIndex;
   applyTextScale();
+  saveReadingSettings();
 });
 document.getElementById('textSizeDown').addEventListener('click', () => {
   textScaleIndex = Math.max(textScaleIndex - 1, 0);
+  readingSettings.textScaleIndex = textScaleIndex;
   applyTextScale();
+  saveReadingSettings();
 });
 applyTextScale();
 
@@ -2543,10 +2805,15 @@ function renderFlashcard(){
     <div class="fc-test-cta">
       <div class="fc-heading" style="font-size:15px;">Ready to test yourself?</div>
       <p class="fc-mode-note">
-        Pick a skill and quiz yourself on it. Sound, characters, pinyin, and meaning are tracked
-        separately with their own spaced-repetition schedule — words you consistently know come back
-        less often, words you're shaky on come back sooner. Studying sound today doesn't stop you from
-        quizzing the characters too, and once a word's schedule comes back around, you can quiz it again.
+        This isn't a one-and-done test — it's designed to be revisited. The idea: if you can still
+        recall something after a few days, you've actually learned it. If you forget it fast, it needs
+        more practice.
+      </p>
+      <p class="fc-mode-note">
+        Pick one skill to test: sound, characters, pinyin, or meaning. You'll see only that piece; try
+        to recall the rest before revealing the answer, then rate yourself honestly. Your response will
+        determine when you'll be tested on that skill again. Check back here daily (or every few days)
+        to requiz yourself to see if you have mastered the content.
       </p>
       <div class="fc-field-picker">
         Quiz me on:
@@ -2773,6 +3040,7 @@ window.onAuthSuccess = async function(user){
   await loadUserNotesFromSupabase();
   await loadKnownWordsFromSupabase();
   await loadFlashcardProgressFromSupabase();
+  await loadReadingPrefsFromSupabase();
   checkAndShowReviewReminder();
 };
 
@@ -2803,6 +3071,7 @@ authOnChange(async (user) => {
     await loadUserNotesFromSupabase();
     await loadKnownWordsFromSupabase();
     await loadFlashcardProgressFromSupabase();
+  await loadReadingPrefsFromSupabase();
   checkAndShowReviewReminder();
   }
 });
