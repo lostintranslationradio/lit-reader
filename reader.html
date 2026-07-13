@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <title>Lyric Reader</title>
+<meta property="og:title" content="Lost In Translation Radio">
+<meta property="og:description" content="Mandopop lyrics translated line by line, with pinyin, HSK-leveled vocabulary, and grammar notes — built for Chinese learners.">
+<meta property="og:image" content="https://lostintranslationradio.com/assets/social-preview.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Lost In Translation Radio">
+<meta name="twitter:description" content="Mandopop lyrics translated line by line, with pinyin, HSK-leveled vocabulary, and grammar notes — built for Chinese learners.">
+<meta name="twitter:image" content="https://lostintranslationradio.com/assets/social-preview.png">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
@@ -1359,7 +1367,7 @@ function renderCreatorNotes(){
     const jumpAttrs = target ? `class="note-jumpable" data-line="${target[0]}" data-word="${target[1]}"` : '';
     return `
     <div class="creator-note-item">
-      <div class="cni-hanzi" style="color:var(--accent); font-size:15px;">${c.pattern}</div>
+      <div class="cni-hanzi" style="color:var(--accent);">${c.pattern}</div>
       <div class="cni-text">
         <div ${jumpAttrs}>${c.gloss || ''}</div>
         ${c.note ? `<div style="margin-top:2px; opacity:.85;">${c.note}</div>` : ''}
@@ -2847,7 +2855,7 @@ function renderFlashcard(){
   const content = document.getElementById('fcModalContent');
   const s = fcQueue[fcIdx];
   const gloss = getWordGloss(s);
-  const fieldOptions = { h: 'Hanzi', p: 'Pinyin', g: 'Definition', s: 'Listen' };
+  const fieldOptions = { h: 'Characters', p: 'Pinyin', g: 'Definition', s: 'Listen' };
   const fieldPicker = `
     <div class="fc-field-picker">
       Front shows:
