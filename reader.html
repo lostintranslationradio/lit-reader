@@ -1678,31 +1678,18 @@ function speakWithBrowserVoice(text, rate){
   window.speechSynthesis.speak(utter);
 }
 
+// Measured once, hardcoded to avoid an extra API call (and its cost) on
+// every single click. 不's slow value is an estimate extrapolated from 一's
+// measured normal→slow ratio, not a live measurement — flag it if it ever
+// sounds slightly early or late, since it may need a small manual nudge.
+const SANDHI_CUTOFFS = {
+  '不': { 1: 0.624, 0.6: 0.864 },
+  '一': { 1: 0.648, 0.6: 0.888 }
+};
+
 async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyllable){
   if(!text) return;
   try{
-    let cutoffPromise = null;
-    if(muteAfterFirstSyllable){
-      // Measure how long the isolated first character takes on its own (the
-      // tone will be wrong in isolation, but duration is a solid proxy for
-      // where the real, correctly-toned combined audio should be cut).
-      cutoffPromise = fetch('/.netlify/functions/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hanzi: text[0], rate: cloudRate })
-      }).then(r => r.ok ? r.json() : null).then(d => {
-        if(!d || !d.audioContent) return null;
-        return new Promise(resolve => {
-          const probe = new Audio('data:audio/mp3;base64,' + d.audioContent);
-          probe.addEventListener('loadedmetadata', () => {
-            console.log(`[TTS cutoff measurement] rate=${cloudRate} → ${probe.duration.toFixed(3)}s — report this back so it can be hardcoded`);
-            resolve(probe.duration);
-          });
-          probe.addEventListener('error', () => resolve(null));
-        });
-      }).catch(() => null);
-    }
-
     const res = await fetch('/.netlify/functions/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1713,8 +1700,8 @@ async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyl
       if(data.audioContent){
         const audio = new Audio('data:audio/mp3;base64,' + data.audioContent);
         currentTtsAudio = audio;
-        if(cutoffPromise){
-          const cutoff = await cutoffPromise;
+        if(muteAfterFirstSyllable){
+          const cutoff = (SANDHI_CUTOFFS[text[0]] || {})[cloudRate];
           if(cutoff){
             audio.addEventListener('timeupdate', () => {
               if(audio.currentTime >= cutoff) audio.pause();
@@ -1736,7 +1723,7 @@ if(!window.speechSynthesis){
   document.getElementById('popupSpeakSlow').disabled = true;
 }
 const SANDHI_CHARS = new Set(['不', '一']);
-const MUTE_AFTER_FIRST_CHARS = new Set(['不']); // only 不 for now, per request
+const MUTE_AFTER_FIRST_CHARS = new Set(['不', '一']);
 
 function getTtsContext(tok, key){
   if(!SANDHI_CHARS.has(tok.h) || !key) return { hanzi: tok.h, pinyin: tok.p, muteAfterFirst: false };
