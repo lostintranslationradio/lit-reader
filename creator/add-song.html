@@ -512,11 +512,19 @@ async function loadSongForEditing(id){
   }
 
   lineData = (song.lines || []).map(line => ({
-    tokens: line.words.map(w => ({
-      h: w.h, p: w.p, g: w.g, short: w.short || (w.g && w.g[0]) || '', hsk: w.hsk, pos: w.pos || null, note: w.note || '',
-      isPunct: PUNCT_RE.test(w.h), unresolved: false,
-      reading_options: null, selected_reading: null, needsReadingPick: false
-    })),
+    tokens: line.words.map(w => {
+      const isPunct = PUNCT_RE.test(w.h);
+      const entry = isPunct ? null : lookup(w.h);
+      const hasMultipleReadings = entry && entry.readings && entry.readings.length > 1;
+      return {
+        h: w.h, p: w.p, g: w.g, short: w.short || (w.g && w.g[0]) || '', hsk: w.hsk, pos: w.pos || null, note: w.note || '',
+        isPunct, unresolved: false,
+        reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: r.g[0] || '' })) : null,
+        selected_reading: hasMultipleReadings ? w.p : null,
+        needsReadingPick: hasMultipleReadings,
+        readingConfirmed: hasMultipleReadings // already published with a specific reading chosen — don't nag about it again
+      };
+    }),
     translation: line.translation || '',
     start: typeof line.start === 'number' ? line.start : null,
     end: typeof line.end === 'number' ? line.end : null
