@@ -1703,9 +1703,7 @@ async function speakWord(text, cloudRate, browserRate, pinyin, muteAfterFirstSyl
         if(muteAfterFirstSyllable){
           const cutoff = (SANDHI_CUTOFFS[text[0]] || {})[cloudRate];
           if(cutoff){
-            audio.addEventListener('timeupdate', () => {
-              if(audio.currentTime >= cutoff) audio.pause();
-            });
+            setTimeout(() => { if(!audio.paused) audio.pause(); }, cutoff * 1000);
           }
         }
         await audio.play();
