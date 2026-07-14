@@ -524,13 +524,19 @@
     max-width:320px;
     width:100%;
     max-height:calc(100vh - 40px);
-    overflow-y:auto;
-    -webkit-overflow-scrolling:touch;
     -webkit-user-select:none;
     user-select:none;
     -webkit-touch-callout:none;
     padding:26px 22px 20px;
     position:relative;
+    display:flex;
+    flex-direction:column;
+  }
+  .popup-card-inner{
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    flex:1;
+    min-height:0;
   }
   .popup-close{
     position:absolute; top:12px; left:14px;
@@ -581,8 +587,8 @@
   .popup-nav:hover{ border-color:var(--accent); color:var(--accent); }
   .popup-nav:disabled{ opacity:.3; cursor:not-allowed; }
   .popup-nav:disabled:hover{ border-color:var(--rule); color:var(--text-dim); }
-  .popup-nav-prev{ left:6px; }
-  .popup-nav-next{ right:6px; }
+  .popup-nav-prev{ left:-15px; }
+  .popup-nav-next{ right:-15px; }
   @media (max-width:400px){
     .popup-nav-prev{ left:4px; }
     .popup-nav-next{ right:4px; }
@@ -1247,6 +1253,11 @@
       </div>
     </div>
 
+    <div id="masteredToast" style="display:none; position:fixed; top:24px; left:50%; transform:translateX(-50%); z-index:200;
+      background:var(--surface); border:1px solid var(--accent); border-radius:20px; padding:10px 18px;
+      font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--accent); box-shadow:0 4px 16px rgba(0,0,0,.25);
+      white-space:nowrap;"></div>
+
     <div id="reviewReminderBanner" style="display:none; position:fixed; bottom:20px; left:20px; z-index:150; max-width:280px;
       background:var(--surface); border:1px solid var(--accent); border-radius:10px; padding:14px 16px;
       box-shadow:0 4px 16px rgba(0,0,0,.2); font-family:'Inter',sans-serif;">
@@ -1308,6 +1319,7 @@
     <button class="popup-known" id="popupKnown" title="Mark as already known">✓ I know this</button>
     <button class="popup-nav popup-nav-prev" id="popupPrev" title="Previous">‹</button>
     <button class="popup-nav popup-nav-next" id="popupNext" title="Next">›</button>
+    <div class="popup-card-inner">
     <div class="popup-hanzi" id="popupHanzi"></div>
     <div class="popup-pinyin" id="popupPinyin"></div>
     <div class="popup-sound">
@@ -1346,6 +1358,7 @@
     </div>
     <div id="popupReadings" style="display:none;"></div>
     <div class="popup-hint">tap the star to save · tap outside to close</div>
+    </div>
   </div>
 </div>
 
@@ -1829,14 +1842,14 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
     backBtn.style.display = 'none';
   }
   const badge = document.getElementById('popupHsk');
-  if(tok.isConstruction){
-    badge.textContent = 'Construction';
-    badge.style.color = 'var(--accent)';
-    badge.style.borderColor = 'var(--accent)';
-  } else if(tok.isVocabulary){
+  if(tok.isVocabulary){
     badge.textContent = 'Vocabulary';
     badge.style.color = 'var(--text-dim)';
     badge.style.borderColor = 'var(--rule)';
+  } else if(tok.isConstruction){
+    badge.textContent = 'Construction';
+    badge.style.color = 'var(--accent)';
+    badge.style.borderColor = 'var(--accent)';
   } else {
     badge.textContent = hskBadgeLabel(tok.hsk);
     badge.style.color = `var(${HSK_VAR[tok.hsk]})`;
@@ -2133,7 +2146,8 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
     consEl.style.display = 'none';
   }
 
-  const isSaved = saved.some(s=>s.h===tok.h);
+  const starKind = tok.isConstruction ? (tok.kind || 'construction') : 'word';
+  const isSaved = saved.some(s => s.h === tok.h && s.kind === starKind);
   document.getElementById('popupStar').classList.toggle('starred', isSaved);
   document.getElementById('popupKnown').classList.toggle('known', knownWords.has(tok.h));
   if(vocabIdx !== undefined && vocabIdx !== null){
@@ -2151,7 +2165,11 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
 }
 function buildFlatWordList(){
   const flat = [];
+  const CJK_RE = /[\u4e00-\u9fff]/;
   SONG.lines.forEach((entry, lineIdx) => {
+    const isOriginalEnglish = entry.words.length > 0 &&
+      entry.words.every(w => w.isPunct || !CJK_RE.test(w.h));
+    if(isOriginalEnglish) return; // these lines render as one plain-text block, no individual .word elements to navigate to
     entry.words.forEach((tok, wordIdx) => {
       if(!tok.h || !tok.h.trim()) return; // empty/whitespace token — same skip as when rendering
       if(!tok.isPunct && !(tok.h.length===1 && /[。，！？]/.test(tok.h))){
@@ -2376,20 +2394,26 @@ document.getElementById('popupKnown').addEventListener('click', async function()
   updateKnownWordsCount();
 });
 
-document.getElementById('popupStar').addEventListener('click', function(){
+document.getElementById('popupStar').addEventListener('click', async function(){
   if(!currentPopup) return;
   const { tok, el } = currentPopup;
-  const isSaved = saved.some(s=>s.h===tok.h);
+  const kind = tok.isConstruction ? (tok.kind || 'construction') : 'word';
+  const isSaved = saved.some(s => s.h === tok.h && s.kind === kind);
   if(isSaved){
-    removeWord(tok.h);
+    if(tok.isConstruction) await removeConstruction(tok.h);
+    else removeWord(tok.h);
     el.classList.remove('saved');
+    this.classList.remove('starred');
   } else {
-    saveWord(tok, el);
+    if(tok.isConstruction){
+      await saveConstruction({ pattern: tok.h, gloss: tok.g, note: tok.note, pinyin: tok.p, kind });
+    } else {
+      saveWord(tok, el);
+    }
     closePopup();
     flyToSavedTarget(el, tok.h);
     return;
   }
-  this.classList.toggle('starred', !isSaved);
 });
 const ACCENT_TO_TONE = {
   'ā':['a',1],'á':['a',2],'ǎ':['a',3],'à':['a',4],
@@ -3200,6 +3224,23 @@ function rateCard(hanzi, aspect, rating){
   const days = BOX_INTERVAL_DAYS[newBox];
   const nextReview = new Date(Date.now() + days * 86400000).toISOString();
   saveFlashcardProgress(hanzi, aspect, newBox, nextReview);
+
+  // Reaching box 5 on characters specifically means you've consistently
+  // recognized the word at its longest review interval — treat that as
+  // "known" for reading purposes and move it out of the default gloss view,
+  // same as manually marking it known.
+  if(aspect === 'h' && newBox === 5 && prog.box < 5 && !knownWords.has(hanzi)){
+    addKnownWords([hanzi]);
+    showMasteredToast(hanzi);
+  }
+}
+
+function showMasteredToast(hanzi){
+  const toast = document.getElementById('masteredToast');
+  toast.textContent = `✓ ${hanzi} moved to "words you know" — mastered!`;
+  toast.style.display = 'block';
+  clearTimeout(showMasteredToast._timer);
+  showMasteredToast._timer = setTimeout(() => { toast.style.display = 'none'; }, 3200);
 }
 
 // Constructions used to store a single gloss string before multi-definition
