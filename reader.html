@@ -351,6 +351,12 @@
     justify-content:space-between;
     gap:10px;
   }
+  #readerEditLink{
+    font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:400;
+    padding:4px 10px; border-radius:12px; border:1px solid var(--rule);
+    color:var(--text-dim); text-decoration:none; white-space:nowrap; flex-shrink:0;
+  }
+  #readerEditLink:hover{ border-color:var(--accent); color:var(--accent); }
   #readerHeadingEn{
     font-size:17px;
     font-weight:500;
@@ -418,6 +424,28 @@
     cursor:pointer; font-size:12px;
   }
   .translation-seek:hover{ border-color:var(--accent); color:var(--accent); }
+  .translation-row{ display:flex; align-items:flex-start; gap:6px; }
+  .translation-row .translation{ flex:1; min-width:0; }
+  .translation-edit-btn{
+    flex-shrink:0; margin-top:8px; width:20px; height:20px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:5px; border:1px solid var(--rule);
+    background:transparent; color:var(--text-dim);
+    cursor:pointer; font-size:11px;
+  }
+  .translation-edit-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .translation-edit-input{
+    width:100%; box-sizing:border-box; background:var(--surface-raised);
+    border:1px solid var(--rule); border-radius:4px; padding:8px 10px;
+    color:var(--text); font-family:var(--font-en); font-style:italic;
+    font-size:calc(14px * var(--font-scale)); resize:vertical;
+  }
+  .translation-edit-save, .translation-edit-cancel{
+    font-family:'JetBrains Mono',monospace; font-size:10px; padding:4px 10px;
+    border-radius:12px; border:1px solid var(--rule); background:transparent;
+    color:var(--text-dim); cursor:pointer;
+  }
+  .translation-edit-save{ border-color:var(--accent); color:var(--accent); background:rgba(184,134,58,.12); }
   body.hide-translation .translation{ display:none; }
   body.hide-pinyin .pinyin{ display:none !important; }
   body.hide-word-gloss .gloss{ display:none !important; }
@@ -575,6 +603,27 @@
     font-size:13px;
     line-height:1.6;
   }
+  #popupEditBtn{
+    margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:10px;
+    padding:4px 10px; border-radius:12px; border:1px solid var(--rule);
+    background:transparent; color:var(--text-dim); cursor:pointer;
+  }
+  #popupEditBtn:hover{ border-color:var(--accent); color:var(--accent); }
+  #popupEditForm{
+    margin-top:10px; padding:10px 12px; background:var(--surface-raised);
+    border-radius:6px; font-family:'Inter',sans-serif; font-size:12px;
+  }
+  #popupEditForm input, #popupEditForm textarea{
+    width:100%; box-sizing:border-box; background:var(--surface); border:1px solid var(--rule);
+    border-radius:4px; padding:6px 8px; color:var(--text); font-family:'Inter',sans-serif;
+    font-size:12px; resize:vertical; margin-top:2px;
+  }
+  #popupEditForm button{
+    font-family:'JetBrains Mono',monospace; font-size:10px; padding:5px 12px;
+    border-radius:12px; border:1px solid var(--rule); background:transparent;
+    color:var(--text-dim); cursor:pointer;
+  }
+  #popupEditSave{ border-color:var(--accent); color:var(--accent); background:rgba(184,134,58,.12); }
   .popup-defs ol{ margin:0; padding-left:18px; }
   #popupCreatorNote{
     margin-top:12px; padding:10px 12px;
@@ -1059,6 +1108,7 @@
   <div class="reader">
     <div class="reader-heading" id="readerHeading">
       <span><span id="readerHeadingZh"></span><span id="readerHeadingEn"></span></span>
+      <a id="readerEditLink" href="#" style="display:none;" title="Edit this song">✎ Edit</a>
       <button id="mobileSettingsFab" title="Settings">⚙️</button>
     </div>
     <div class="reader-sub" id="readerSub"></div>
@@ -1233,6 +1283,26 @@
     </div>
     <div class="popup-hsk-badge" id="popupHsk"></div>
     <div class="popup-defs" id="popupDefs"></div>
+    <button id="popupEditBtn" style="display:none;">✎ Edit</button>
+    <div id="popupEditForm" style="display:none;">
+      <div class="note-label">Pinyin</div>
+      <input type="text" id="popupEditPinyin">
+      <div class="note-label" style="margin-top:8px;">Short label (shown under the word in the lyrics)</div>
+      <input type="text" id="popupEditShort">
+      <div class="note-label" style="margin-top:8px;">Definition(s) — one per line</div>
+      <textarea id="popupEditGloss" rows="3"></textarea>
+      <div class="note-label" style="margin-top:8px;">Note for this song (shown to everyone reading it)</div>
+      <textarea id="popupEditSongNote" rows="2"></textarea>
+      <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:11px; color:var(--text-dim); cursor:pointer;">
+        <input type="checkbox" id="popupEditGlobal">
+        Also fix this in the dictionary everywhere (leave unchecked for a fix specific to just this line — e.g. tone sandhi)
+      </label>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button id="popupEditSave">Save</button>
+        <button id="popupEditCancel">Cancel</button>
+      </div>
+      <p class="note" id="popupEditStatus" style="margin-top:6px; margin-bottom:0;"></p>
+    </div>
     <div id="popupConstruction" class="popup-construction" style="display:none;"></div>
     <div id="popupClassifier" class="popup-classifier" style="display:none;"></div>
     <div id="popupCreatorNote" style="display:none;"></div>
@@ -1250,6 +1320,7 @@
 const SONG_ID = new URLSearchParams(location.search).get('song') || 'song-1';
 let SONG = null;       // the current song's full data
 let SONG_TITLES = {};  // id -> zh title, for labeling cross-song vocab sources
+let DICT_OVERRIDES = {}; // hanzi -> {pinyin, gloss} — creator corrections that apply everywhere
 
 const HSK_VAR = {0:'--beyond',1:'--hsk1',2:'--hsk2',3:'--hsk3',4:'--hsk4',5:'--hsk5',6:'--hsk6',7:'--hsk79',8:'--hsk79',9:'--hsk79'};
 const linesEl = document.getElementById('lines');
@@ -1369,7 +1440,7 @@ function renderCreatorNotes(){
     <div class="creator-note-item">
       <div class="cni-hanzi" style="color:var(--accent);">${c.pattern}</div>
       <div class="cni-text">
-        <div ${jumpAttrs}>${c.gloss || ''}</div>
+        <div ${jumpAttrs}>${consGlossArray(c.gloss).join(' / ')}</div>
         ${c.note ? `<div style="margin-top:2px; opacity:.85;">${c.note}</div>` : ''}
       </div>
     </div>
@@ -1395,6 +1466,71 @@ function renderCreatorNotes(){
 }
 
 let translationHidden = new Set();
+
+// Shared by both line-rendering paths below, so the translation display,
+// click-to-hide, and creator-only inline edit only need to be written once.
+function renderTranslationBlock(block, entry, lineIdx){
+  const row = document.createElement('div');
+  row.className = 'translation-row';
+
+  const t = document.createElement('div');
+  t.className = 'translation';
+  const isHiddenLine = translationHidden.has(lineIdx);
+  if(isHiddenLine) t.classList.add('trans-hidden');
+  t.textContent = isHiddenLine ? '\u00a0' : entry.translation;
+  t.title = isHiddenLine ? 'Tap to reveal' : 'Tap to hide';
+  t.addEventListener('click', () => {
+    if(translationHidden.has(lineIdx)) translationHidden.delete(lineIdx);
+    else translationHidden.add(lineIdx);
+    render();
+  });
+  row.appendChild(t);
+
+  if(currentProfile && currentProfile.is_creator){
+    const editBtn = document.createElement('button');
+    editBtn.className = 'translation-edit-btn';
+    editBtn.title = "Edit this line's translation";
+    editBtn.textContent = '✎';
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      row.innerHTML = '';
+      const textarea = document.createElement('textarea');
+      textarea.value = entry.translation || '';
+      textarea.rows = 2;
+      textarea.className = 'translation-edit-input';
+      row.appendChild(textarea);
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex; gap:6px; margin-top:6px;';
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'translation-edit-save';
+      saveBtn.textContent = 'Save';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'translation-edit-cancel';
+      cancelBtn.textContent = 'Cancel';
+      btnRow.appendChild(saveBtn);
+      btnRow.appendChild(cancelBtn);
+      row.appendChild(btnRow);
+      textarea.focus();
+
+      cancelBtn.addEventListener('click', () => render());
+      saveBtn.addEventListener('click', async () => {
+        entry.translation = textarea.value.trim();
+        saveBtn.textContent = 'Saving…';
+        saveBtn.disabled = true;
+        const { error } = await sb.from('songs').update({ lines: SONG.lines }).eq('id', SONG_ID);
+        if(error){
+          saveBtn.textContent = 'Failed — try again';
+          saveBtn.disabled = false;
+          return;
+        }
+        render();
+      });
+    });
+    row.appendChild(editBtn);
+  }
+
+  block.appendChild(row);
+}
 
 function render(){
   linesEl.innerHTML = '';
@@ -1422,18 +1558,7 @@ function render(){
         lineRow.appendChild(seekBtn);
       }
       block.appendChild(lineRow);
-      const t = document.createElement('div');
-      t.className = 'translation';
-      const isHiddenLine = translationHidden.has(lineIdx);
-      if(isHiddenLine) t.classList.add('trans-hidden');
-      t.textContent = isHiddenLine ? ' ' : entry.translation;
-      t.title = isHiddenLine ? 'Tap to reveal' : 'Tap to hide';
-      t.addEventListener('click', () => {
-        if(translationHidden.has(lineIdx)) translationHidden.delete(lineIdx);
-        else translationHidden.add(lineIdx);
-        render();
-      });
-      block.appendChild(t);
+      renderTranslationBlock(block, entry, lineIdx);
       linesEl.appendChild(block);
       return;
     }
@@ -1485,18 +1610,7 @@ function render(){
       lineRow.appendChild(seekBtn);
     }
     block.appendChild(lineRow);
-    const t = document.createElement('div');
-    t.className = 'translation';
-    const isHiddenLine = translationHidden.has(lineIdx);
-    if(isHiddenLine) t.classList.add('trans-hidden');
-    t.textContent = isHiddenLine ? ' ' : entry.translation;
-    t.title = isHiddenLine ? 'Tap to reveal' : 'Tap to hide';
-    t.addEventListener('click', () => {
-      if(translationHidden.has(lineIdx)) translationHidden.delete(lineIdx);
-      else translationHidden.add(lineIdx);
-      render();
-    });
-    block.appendChild(t);
+    renderTranslationBlock(block, entry, lineIdx);
     linesEl.appendChild(block);
   });
   updateLevelLabels();
@@ -1602,6 +1716,96 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
     ? '<ol>' + defs.map(d=>`<li>${d}</li>`).join('') + '</ol>'
     : '<div style="opacity:.6">(no definition yet)</div>');
 
+  const editBtn = document.getElementById('popupEditBtn');
+  const editForm = document.getElementById('popupEditForm');
+  editForm.style.display = 'none';
+  if(currentProfile && currentProfile.is_creator && !tok.isConstruction && !tok.isPunct){
+    editBtn.style.display = 'inline-block';
+    editBtn.onclick = () => {
+      document.getElementById('popupEditPinyin').value = tok.p || '';
+      document.getElementById('popupEditShort').value = tok.short || '';
+      document.getElementById('popupEditGloss').value = (Array.isArray(tok.g) ? tok.g : (tok.g ? [tok.g] : [])).join('\n');
+      document.getElementById('popupEditSongNote').value = tok.note || '';
+      document.getElementById('popupEditGlobal').checked = false;
+      document.getElementById('popupEditStatus').textContent = '';
+      editForm.style.display = 'block';
+      editBtn.style.display = 'none';
+    };
+  } else {
+    editBtn.style.display = 'none';
+  }
+
+  document.getElementById('popupEditCancel').onclick = () => {
+    editForm.style.display = 'none';
+    editBtn.style.display = 'inline-block';
+  };
+
+  document.getElementById('popupEditSave').onclick = async () => {
+    const pinyin = document.getElementById('popupEditPinyin').value.trim();
+    const short = document.getElementById('popupEditShort').value.trim();
+    const glossArr = document.getElementById('popupEditGloss').value.split('\n').map(s => s.trim()).filter(Boolean);
+    const songNote = document.getElementById('popupEditSongNote').value.trim();
+    const applyEverywhere = document.getElementById('popupEditGlobal').checked;
+    const statusEl = document.getElementById('popupEditStatus');
+    statusEl.textContent = 'Saving…';
+
+    // Default scope: just THIS specific occurrence, in this song only —
+    // right for things like tone sandhi (不 reads differently depending on
+    // what follows it, so a fix here shouldn't change every other 不 in
+    // every other song). tok is the actual object from SONG.lines, so
+    // mutating it targets exactly this one instance.
+    tok.p = pinyin || tok.p;
+    tok.short = short || tok.short;
+    tok.g = glossArr.length ? glossArr : tok.g;
+
+    // The note still applies to every occurrence of this word within the
+    // song — a contextual note tends to hold across a whole song, unlike
+    // pronunciation, which can genuinely vary line to line.
+    SONG.lines.forEach(entry => {
+      (entry.words || []).forEach(t => {
+        if(t.h === tok.h) t.note = songNote;
+      });
+    });
+
+    const { error: songErr } = await sb.from('songs').update({ lines: SONG.lines }).eq('id', SONG_ID);
+
+    // Opt-in only: a genuine dictionary-wide correction (like 心灵's missing
+    // definitions), which applies to every occurrence of this word in every
+    // song, not just this one line.
+    let dictErr = null;
+    if(applyEverywhere){
+      const res = await sb.from('dictionary_overrides').upsert({
+        hanzi: tok.h, pinyin, gloss: glossArr,
+        updated_at: new Date().toISOString(), updated_by: currentUser.id
+      }, { onConflict: 'hanzi' });
+      dictErr = res.error;
+      if(!dictErr) DICT_OVERRIDES[tok.h] = { hanzi: tok.h, pinyin, gloss: glossArr };
+    }
+
+    if(songErr || dictErr){
+      statusEl.textContent = 'Failed to save — try again.';
+      return;
+    }
+
+    // If this was a genuine dictionary-wide fix, reflect it across every
+    // occurrence of the word in this song too, not just the one clicked.
+    if(applyEverywhere){
+      SONG.lines.forEach(entry => {
+        (entry.words || []).forEach(t => {
+          if(t.h === tok.h){
+            t.p = pinyin || t.p;
+            t.g = glossArr.length ? glossArr : t.g;
+            t.short = short || t.short;
+          }
+        });
+      });
+    }
+
+    statusEl.textContent = 'Saved.';
+    render();
+    openPopup(tok, key, el, constructionOverride, vocabIdx);
+  };
+
   const classifierEl = document.getElementById('popupClassifier');
   if(classifierMatch){
     const parsed = parseClassifiers(classifierMatch);
@@ -1637,9 +1841,10 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
   const consEl = document.getElementById('popupConstruction');
   const cons = !tok.isConstruction && (constructionOverride || constructionForKey[key]);
   if(cons){
-    const isConsSaved = saved.some(s => s.h === cons.construction.pattern && s.kind === 'construction');
+    let isConsSaved = saved.some(s => s.h === cons.construction.pattern && s.kind === 'construction');
     const speakHanzi = cons.construction.pattern.replace(/\.{2,}|…+/g, '');
     const speakPinyin = (cons.construction.pinyin || '').replace(/\s*…\s*|\.{2,}/g, ' ').trim();
+    const canEditCons = currentProfile && currentProfile.is_creator;
     consEl.innerHTML = `
       <div class="cons-header">
         <span class="cons-pattern">${cons.construction.pattern}</span>
@@ -1649,8 +1854,31 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
         <button id="consSpeakNormal" title="Listen">🔊 Listen</button>
         <button id="consSpeakSlow" title="Listen slowly">🐢 Slow</button>
       </div>
-      <div class="cons-gloss"><ol><li>${cons.construction.gloss}</li></ol></div>
+      <div class="cons-gloss"><ol>${consGlossArray(cons.construction.gloss).map(g => `<li>${g}</li>`).join('')}</ol></div>
       ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
+      ${canEditCons ? `
+        <button id="consEditBtn" style="font-family:'JetBrains Mono',monospace; font-size:10px;
+          padding:4px 10px; border-radius:12px; border:1px solid var(--rule); background:transparent;
+          color:var(--text-dim); cursor:pointer; margin-top:8px;">✎ Edit</button>
+        <div id="consEditForm" style="display:none; margin-top:8px; padding:10px 12px; background:var(--surface-raised); border-radius:6px;">
+          <div class="note-label">Pinyin</div>
+          <input type="text" id="consEditPinyin" value="${(cons.construction.pinyin||'').replace(/"/g,'&quot;')}"
+            style="width:100%; box-sizing:border-box; background:var(--surface); border:1px solid var(--rule); border-radius:4px; padding:6px 8px; color:var(--text); font-size:12px; margin-top:2px;">
+          <div class="note-label" style="margin-top:8px;">Definition(s) — one per line</div>
+          <textarea id="consEditGloss" rows="3"
+            style="width:100%; box-sizing:border-box; background:var(--surface); border:1px solid var(--rule); border-radius:4px; padding:6px 8px; color:var(--text); font-size:12px; margin-top:2px; resize:vertical;">${consGlossArray(cons.construction.gloss).join('\n')}</textarea>
+          <div class="note-label" style="margin-top:8px;">Note</div>
+          <textarea id="consEditNote" rows="2"
+            style="width:100%; box-sizing:border-box; background:var(--surface); border:1px solid var(--rule); border-radius:4px; padding:6px 8px; color:var(--text); font-size:12px; margin-top:2px; resize:vertical;">${cons.construction.note || ''}</textarea>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button id="consEditSave" style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:5px 12px;
+              border-radius:12px; border:1px solid var(--accent); background:rgba(184,134,58,.12); color:var(--accent); cursor:pointer;">Save</button>
+            <button id="consEditCancel" style="font-family:'JetBrains Mono',monospace; font-size:10px; padding:5px 12px;
+              border-radius:12px; border:1px solid var(--rule); background:transparent; color:var(--text-dim); cursor:pointer;">Cancel</button>
+          </div>
+          <p class="note" id="consEditStatus" style="margin-top:6px; margin-bottom:0;"></p>
+        </div>
+      ` : ''}
       <button id="popupConsSave" style="font-family:'JetBrains Mono',monospace; font-size:10px;
         padding:5px 10px; border-radius:12px; border:1px solid ${isConsSaved ? 'var(--accent)' : 'var(--rule)'};
         background:${isConsSaved ? 'rgba(184,134,58,.14)' : 'transparent'};
@@ -1671,6 +1899,81 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
         flyToSavedTarget(el, cons.construction.pattern);
       }
     });
+
+    if(canEditCons){
+      document.getElementById('consEditBtn').addEventListener('click', () => {
+        document.getElementById('consEditForm').style.display = 'block';
+        document.getElementById('consEditBtn').style.display = 'none';
+      });
+      document.getElementById('consEditCancel').addEventListener('click', () => {
+        document.getElementById('consEditForm').style.display = 'none';
+        document.getElementById('consEditBtn').style.display = 'inline-block';
+      });
+      document.getElementById('consEditSave').addEventListener('click', async () => {
+        const newPinyin = document.getElementById('consEditPinyin').value.trim();
+        const newGloss = document.getElementById('consEditGloss').value.split('\n').map(s => s.trim()).filter(Boolean);
+        const newNote = document.getElementById('consEditNote').value.trim();
+        const statusEl = document.getElementById('consEditStatus');
+        statusEl.textContent = 'Saving…';
+        const pattern = cons.construction.pattern;
+
+        // Update this song's copy in memory + on the server.
+        cons.construction.pinyin = newPinyin;
+        cons.construction.gloss = newGloss;
+        cons.construction.note = newNote;
+        const { error: thisErr } = await sb.from('songs').update({ constructions: SONG.constructions }).eq('id', SONG_ID);
+
+        // Constructions are stored per-song, so the same pattern used in a
+        // different song (like 在……之前 in both 归零 and 永远不回头) has its
+        // own separate copy — propagate the edit to every song that has one,
+        // the same way the dictionary edit applies everywhere for a word.
+        let otherErr = null;
+        const { data: otherSongs } = await sb.from('songs').select('id, constructions').neq('id', SONG_ID);
+        if(otherSongs){
+          for(const s of otherSongs){
+            const matches = (s.constructions || []).filter(c => c.pattern === pattern);
+            if(matches.length === 0) continue;
+            matches.forEach(c => { c.pinyin = newPinyin; c.gloss = newGloss; c.note = newNote; });
+            const { error } = await sb.from('songs').update({ constructions: s.constructions }).eq('id', s.id);
+            if(error) otherErr = error;
+          }
+        }
+
+        if(thisErr || otherErr){
+          statusEl.textContent = 'Failed to save — try again.';
+          return;
+        }
+        statusEl.textContent = 'Saved.';
+        openPopup(tok, key, el, constructionOverride, vocabIdx);
+      });
+    }
+
+    // The button above renders instantly from the local cache, which can be
+    // stale right after navigating from a different song where this same
+    // construction was just saved. Double-check against the server and
+    // correct the button (and what a click on it will do) if it disagrees —
+    // this is what was causing a construction saved in one song to still
+    // show as unsaved when opened from another.
+    if(currentUser){
+      sb.from('saved_words').select('hanzi').eq('user_id', currentUser.id)
+        .eq('hanzi', cons.construction.pattern).eq('kind', 'construction').maybeSingle()
+        .then(({ data }) => {
+          const actuallySaved = !!data;
+          if(actuallySaved === isConsSaved) return;
+          isConsSaved = actuallySaved;
+          const btn = document.getElementById('popupConsSave');
+          if(!btn) return; // popup may have closed by the time this resolves
+          btn.style.borderColor = isConsSaved ? 'var(--accent)' : 'var(--rule)';
+          btn.style.background = isConsSaved ? 'rgba(184,134,58,.14)' : 'transparent';
+          btn.style.color = isConsSaved ? 'var(--accent)' : 'var(--text-dim)';
+          btn.textContent = isConsSaved ? '\u2605 saved' : '\u2606 save this construction';
+          // Also fix the in-memory list so the rest of the UI (star icon,
+          // saved-words sidebar) agrees with the server too.
+          if(isConsSaved && !saved.some(s => s.h === cons.construction.pattern && s.kind === 'construction')){
+            loadVocabFromSupabase();
+          }
+        });
+    }
   } else {
     consEl.style.display = 'none';
   }
@@ -1773,15 +2076,16 @@ async function removeWord(h){
 
 async function saveConstruction(cons){
   const existing = saved.find(s => s.h === cons.pattern && s.kind === 'construction');
+  const glossArray = [...consGlossArray(cons.gloss), cons.note].filter(Boolean);
   if(existing){
     if(!existing.sources.includes(SONG_ID)) existing.sources.push(SONG_ID);
   } else {
-    saved.push({ h: cons.pattern, p: cons.pinyin || '', g: [cons.gloss, cons.note].filter(Boolean), hsk: 0, kind: 'construction', sources: [SONG_ID] });
+    saved.push({ h: cons.pattern, p: cons.pinyin || '', g: glossArray, hsk: 0, kind: 'construction', sources: [SONG_ID] });
   }
   if(currentUser){
     await sb.from('saved_words').upsert({
       user_id: currentUser.id, kind: 'construction', hanzi: cons.pattern, pinyin: cons.pinyin || '',
-      gloss: [cons.gloss, cons.note].filter(Boolean), hsk: 0,
+      gloss: glossArray, hsk: 0,
       sources: existing ? existing.sources : [SONG_ID]
     }, { onConflict: 'user_id,hanzi' });
   } else {
@@ -2600,6 +2904,12 @@ applyTextScale();
 
 injectAuthModal();
 
+function refreshCreatorEditLink(){
+  const link = document.getElementById('readerEditLink');
+  if(!link) return;
+  link.style.display = (currentProfile && currentProfile.is_creator) ? 'inline-block' : 'none';
+}
+
 function refreshVocabAuthUI(){
   const statusEl = document.getElementById('vocabAuthStatus');
   const linkEl = document.getElementById('vocabAuthLink');
@@ -2731,6 +3041,13 @@ function rateCard(hanzi, aspect, rating){
   const days = BOX_INTERVAL_DAYS[newBox];
   const nextReview = new Date(Date.now() + days * 86400000).toISOString();
   saveFlashcardProgress(hanzi, aspect, newBox, nextReview);
+}
+
+// Constructions used to store a single gloss string before multi-definition
+// support; this normalizes either shape so old saved data still displays.
+function consGlossArray(g){
+  if(Array.isArray(g)) return g.filter(Boolean);
+  return g ? [g] : [];
 }
 
 function getWordGloss(s){
@@ -3126,6 +3443,8 @@ window.onAuthSuccess = async function(user){
   currentUser = user;
   currentProfile = await authGetProfile(user.id);
   refreshVocabAuthUI();
+  refreshCreatorEditLink();
+  if(SONG) render();
   await loadVocabFromSupabase();
   await loadUserNotesFromSupabase();
   await loadKnownWordsFromSupabase();
@@ -3145,6 +3464,8 @@ document.getElementById('vocabAuthLink').addEventListener('click', async (e) => 
     flashcardProgress = JSON.parse(localStorage.getItem('flashcardProgress') || '{}');
     updateKnownWordsCount();
     refreshVocabAuthUI();
+  refreshCreatorEditLink();
+  if(SONG) render();
     renderVocab();
     render();
   } else {
@@ -3156,6 +3477,8 @@ authOnChange(async (user) => {
   currentUser = user;
   currentProfile = user ? await authGetProfile(user.id) : null;
   refreshVocabAuthUI();
+  refreshCreatorEditLink();
+  if(SONG) render();
   if(user){
     await loadVocabFromSupabase();
     await loadUserNotesFromSupabase();
@@ -3168,9 +3491,10 @@ authOnChange(async (user) => {
 
 async function init(){
   try{
-    const [songRes, titlesRes] = await Promise.all([
+    const [songRes, titlesRes, overridesRes] = await Promise.all([
       sb.from('songs').select('*').eq('id', SONG_ID).single(),
-      sb.from('songs').select('id, zh')
+      sb.from('songs').select('id, zh'),
+      sb.from('dictionary_overrides').select('*')
     ]);
     if(songRes.error || !songRes.data) throw new Error('song not found');
     SONG = songRes.data;
@@ -3178,7 +3502,21 @@ async function init(){
     SONG.youtubeId = SONG.youtube_id; // keep the camelCase name the rest of the script expects
     (titlesRes.data || []).forEach(s => { SONG_TITLES[s.id] = s.zh; });
 
+    (overridesRes.data || []).forEach(o => { DICT_OVERRIDES[o.hanzi] = o; });
+    SONG.lines.forEach(entry => {
+      (entry.words || []).forEach(tok => {
+        const o = DICT_OVERRIDES[tok.h];
+        if(!o) return;
+        tok.p = o.pinyin || tok.p;
+        tok.g = (o.gloss && o.gloss.length) ? o.gloss : tok.g;
+        tok.short = (o.gloss && o.gloss[0]) || tok.short;
+      });
+    });
+
     document.title = SONG.zh + ' — Lyric Reader';
+    document.getElementById('readerEditLink').href = `creator/add-song.html?edit=${encodeURIComponent(SONG_ID)}`;
+    refreshCreatorEditLink();
+  if(SONG) render();
     document.getElementById('howToUseLink').href = `how-to-use.html?from=${encodeURIComponent(SONG_ID)}`;
     document.getElementById('readerHeadingZh').textContent = SONG.zh;
     document.getElementById('readerHeadingEn').textContent = SONG.en ? ' ' + SONG.en : '';

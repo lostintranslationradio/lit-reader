@@ -317,6 +317,7 @@
       dictionary — fill in pinyin/gloss by hand, or leave it: it'll just render as a Beyond-tier word
       with no gloss until you do. The translation field is the only thing that was never automatic.
     </p>
+    <button class="btn secondary" id="btnUndo" disabled style="margin-bottom:10px;">↩ Undo</button>
     <div id="linesContainer"></div>
   </div>
 
@@ -340,8 +341,8 @@
       </div>
       <div class="row2">
         <div class="field">
-          <label>Short gloss</label>
-          <input type="text" id="consGloss" placeholder="before">
+          <label>Definition(s) — one per line if there's more than one sense</label>
+          <textarea id="consGloss" placeholder="before" rows="2" style="resize:vertical;"></textarea>
         </div>
         <div class="field">
           <label>Note (optional)</label>
@@ -353,6 +354,16 @@
     </div>
 
     <div id="suggestedConstructions" style="margin-top:14px;"></div>
+
+    <div style="margin-top:14px;">
+      <button class="btn secondary small" id="btnFindSplitTerms">🔍 Find split terms</button>
+      <p class="note" style="margin-top:4px; margin-bottom:0;">
+        Scans this song for adjacent words that, combined, match a real dictionary entry — catches
+        cases where a term like 归零 got split into 归 + 零 by the auto-segmenter. Works on already-published
+        songs too, not just new ones.
+      </p>
+      <div id="splitTermCandidates" style="margin-top:8px;"></div>
+    </div>
 
     <div id="constructionsList" style="margin-top:14px;"></div>
   </div>
@@ -496,6 +507,90 @@ function scanForSuggestedConstructions(){
   });
 }
 
+let dismissedSplitSuggestions = new Set();
+const MAX_SPLIT_SPAN = 6; // tokens, not characters — generous enough for any real idiom
+
+function findSplitTermCandidates(){
+  const currentPatterns = new Set(constructions.map(c => c.pattern));
+  const seen = new Set();
+  const candidates = [];
+  lineData.forEach((line, li) => {
+    const tokens = line.tokens;
+    for(let start = 0; start < tokens.length; start++){
+      if(tokens[start].isPunct) continue;
+      let combined = '';
+      for(let end = start; end < Math.min(tokens.length, start + MAX_SPLIT_SPAN); end++){
+        if(tokens[end].isPunct) break;
+        combined += tokens[end].h;
+        const span = end - start + 1;
+        if(span < 2) continue; // need at least 2 tokens for this to be a "split" case at all
+        // Only a genuine dictionary hit counts — lookup() alone, not the
+        // fallbackLookup() character-stitching, which is exactly the
+        // "(from characters)" case that shouldn't trigger a suggestion.
+        const entry = lookup(combined);
+        if(entry && !currentPatterns.has(combined) && !dismissedSplitSuggestions.has(combined) && !seen.has(combined)){
+          seen.add(combined);
+          candidates.push({
+            pattern: combined,
+            gloss: entry.g,
+            pinyin: entry.p,
+            note: '',
+            members: Array.from({ length: span }, (_, i) => [li, start + i])
+          });
+        }
+      }
+    }
+  });
+  return candidates;
+}
+
+function renderSplitTermCandidates(){
+  const el = document.getElementById('splitTermCandidates');
+  const candidates = findSplitTermCandidates();
+  if(candidates.length === 0){
+    el.innerHTML = `<p class="note">No split dictionary terms found — everything with a real dictionary entry is already tagged as one word.</p>`;
+    return;
+  }
+  el.innerHTML = `<p class="note" style="margin-bottom:8px;">
+    Found ${candidates.length} term${candidates.length===1?'':'s'} that has a real dictionary definition but is currently split into separate words:
+  </p>` + candidates.map((c, i) => `
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;
+      padding:8px 10px; margin-bottom:6px; background:rgba(184,134,58,.08); border:1px solid var(--accent); border-radius:4px;">
+      <div>
+        <span style="font-family:'Noto Serif SC',serif; color:var(--accent);">${c.pattern}</span>
+        <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${c.pinyin} · ${c.gloss.join(' / ')}</span>
+      </div>
+      <div style="display:flex; gap:6px; flex-shrink:0;">
+        <button class="btn secondary small" data-add-split="${i}">add as construction</button>
+        <button class="btn secondary small" data-dismiss-split="${i}">dismiss</button>
+      </div>
+    </div>
+  `).join('');
+
+  el.querySelectorAll('[data-add-split]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const c = candidates[parseInt(btn.dataset.addSplit, 10)];
+      constructions.push({
+        id: 'c' + Date.now() + Math.random().toString(36).slice(2),
+        pattern: c.pattern, gloss: c.gloss, note: c.note,
+        pinyin: c.pinyin, members: c.members
+      });
+      renderConstructionsList();
+      renderLines();
+      renderSplitTermCandidates();
+    });
+  });
+  el.querySelectorAll('[data-dismiss-split]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const c = candidates[parseInt(btn.dataset.dismissSplit, 10)];
+      dismissedSplitSuggestions.add(c.pattern);
+      renderSplitTermCandidates();
+    });
+  });
+}
+
+document.getElementById('btnFindSplitTerms').addEventListener('click', renderSplitTermCandidates);
+
 async function populateExistingSongs(){
   const { data, error } = await sb.from('songs').select('id, zh, en, status, publish_at').order('added', { ascending: false });
   if(error || !data) return;
@@ -556,6 +651,8 @@ async function loadSongForEditing(id){
   if(!id) return;
   statusEl.classList.remove('ok');
   statusEl.textContent = 'Loading…';
+  undoStack = [];
+  updateUndoButton();
 
   const { data: song, error } = await sb.from('songs').select('*').eq('id', id).single();
   if(error || !song){
@@ -773,16 +870,51 @@ function applyParticleOverride(tok){
   return tok;
 }
 
+// Forward maximum matching: at each position, try the longest substring
+// that exists as its own dictionary entry before falling back to shorter
+// ones. This means a word like 归零 — which IS in CC-CEDICT with its own
+// correct definition — gets recognized as one word automatically, instead
+// of a generic linguistic segmenter splitting it into 归 + 零 before the
+// dictionary ever gets a chance to look up the whole thing. Only spans with
+// no dictionary entry at any length fall through to single characters.
+const MAX_WORD_LEN = 8;
+
 function segmentLine(text){
   const seg = new Intl.Segmenter('zh', { granularity: 'word' });
+  const chars = Array.from(text);
   const tokens = [];
-  for(const { segment } of seg.segment(text)){
-    if(!segment || !segment.trim()) continue;
-    if(PUNCT_RE.test(segment)){
-      tokens.push({ h: segment, p: '', g: [], hsk: 0, isPunct: true });
+  let i = 0;
+  while(i < chars.length){
+    const remaining = chars.slice(i).join('');
+    if(!remaining.trim()){ i++; continue; }
+    if(PUNCT_RE.test(chars[i])){
+      let j = i + 1;
+      while(j < chars.length && PUNCT_RE.test(chars[j])) j++;
+      tokens.push({ h: chars.slice(i, j).join(''), p: '', g: [], hsk: 0, isPunct: true });
+      i = j;
       continue;
     }
-    let entry = lookup(segment) || fallbackLookup(segment);
+    let matchLen = 0;
+    const maxLen = Math.min(MAX_WORD_LEN, chars.length - i);
+    for(let len = maxLen; len >= 1; len--){
+      const candidate = chars.slice(i, i + len).join('');
+      if(DICT[candidate]){
+        matchLen = len;
+        break;
+      }
+    }
+    let segment, entry;
+    if(matchLen > 0){
+      segment = chars.slice(i, i + matchLen).join('');
+      entry = lookup(segment);
+    } else {
+      // Nothing in the dictionary at any length starting here (rare) —
+      // fall back to the generic segmenter for just this one word so we
+      // still get a sensible boundary, then try character-stitching.
+      const iter = seg.segment(remaining)[Symbol.iterator]().next();
+      segment = (iter.value && iter.value.segment) || chars[i];
+      entry = fallbackLookup(segment);
+    }
     const hasMultipleReadings = entry && entry.readings && entry.readings.length > 1;
     tokens.push(applyParticleOverride({
       h: segment,
@@ -797,12 +929,40 @@ function segmentLine(text){
       selected_reading: hasMultipleReadings ? entry.p : null,
       needsReadingPick: hasMultipleReadings
     }));
+    i += Array.from(segment).length;
   }
   return tokens;
 }
 
 let lineData = []; // [{tokens:[...], translation:''}]
 let constructions = []; // [{id, pattern, gloss, note, members:[[li,ti],...]}]
+
+// General-purpose undo for destructive line/word edits (merge, delete,
+// split, paste, propagate) — call pushUndoSnapshot() right before making
+// the change. Capped so it can't grow unbounded across a long session.
+let undoStack = [];
+const UNDO_STACK_LIMIT = 20;
+function pushUndoSnapshot(){
+  undoStack.push(JSON.parse(JSON.stringify({ lineData, constructions })));
+  if(undoStack.length > UNDO_STACK_LIMIT) undoStack.shift();
+  updateUndoButton();
+}
+function undoLastEdit(){
+  if(undoStack.length === 0) return;
+  const snap = undoStack.pop();
+  lineData = snap.lineData;
+  constructions = snap.constructions;
+  renderConstructionsList();
+  renderLines();
+  updateUndoButton();
+}
+function updateUndoButton(){
+  const btn = document.getElementById('btnUndo');
+  if(!btn) return;
+  btn.disabled = undoStack.length === 0;
+  btn.textContent = undoStack.length > 0 ? `↩ Undo (${undoStack.length})` : '↩ Undo';
+}
+document.getElementById('btnUndo').addEventListener('click', undoLastEdit);
 let linkMode = false;
 let selectedMembers = [];
 
@@ -849,7 +1009,7 @@ function renderConstructionsList(){
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
           <div>
             <span style="font-family:'Noto Serif SC',serif; color:var(--accent);">${c.pattern}</span>
-            <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${c.gloss} · ${words}</span>
+            <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${glossToArray(c.gloss).join(' / ')} · ${words}</span>
           </div>
           <div style="display:flex; gap:6px; flex-shrink:0;">
             <button class="btn secondary small" data-edit-cons="${ci}">edit</button>
@@ -860,7 +1020,7 @@ function renderConstructionsList(){
         <div data-edit-form="${ci}" style="display:none; margin-top:8px; padding:10px; background:var(--surface-raised); border-radius:4px;">
           <input type="text" data-edit-field="pattern" value="${(c.pattern||'').replace(/"/g,'&quot;')}" placeholder="Pattern" style="margin-bottom:6px;">
           <input type="text" data-edit-field="pinyin" value="${(c.pinyin||'').replace(/"/g,'&quot;')}" placeholder="Pinyin (e.g. zài … zhīqián)" style="margin-bottom:6px;">
-          <input type="text" data-edit-field="gloss" value="${(c.gloss||'').replace(/"/g,'&quot;')}" placeholder="Short gloss" style="margin-bottom:6px;">
+          <textarea data-edit-field="gloss" placeholder="Definition(s) - one per line" rows="2" style="margin-bottom:6px; resize:vertical;">${glossToTextarea(c.gloss).replace(/</g,'&lt;')}</textarea>
           <textarea data-edit-field="note" placeholder="Note (optional)" rows="3" style="margin-bottom:8px; resize:vertical;">${(c.note||'').replace(/</g,'&lt;')}</textarea>
           <div style="display:flex; gap:6px;">
             <button class="btn secondary small" data-save-cons="${ci}">save</button>
@@ -900,7 +1060,7 @@ function renderConstructionsList(){
       const form = el.querySelector(`[data-edit-form="${ci}"]`);
       const newPattern = form.querySelector('[data-edit-field="pattern"]').value.trim();
       const newPinyin = form.querySelector('[data-edit-field="pinyin"]').value.trim();
-      const newGloss = form.querySelector('[data-edit-field="gloss"]').value.trim();
+      const newGloss = glossFromTextarea(form.querySelector('[data-edit-field="gloss"]').value);
       const newNote = form.querySelector('[data-edit-field="note"]').value.trim();
       if(!newPattern){ alert('Pattern can\u2019t be empty.'); return; }
       const originalPattern = constructions[ci].pattern;
@@ -1013,11 +1173,25 @@ function getMemberPinyin(members){
   return contiguous ? pinyinList.join(' ') : pinyinList.join(' … ');
 }
 
+// Constructions used to store a single gloss string; this normalizes either
+// shape to an array so older songs saved before multi-definition support
+// still display correctly.
+function glossToArray(g){
+  if(Array.isArray(g)) return g.filter(Boolean);
+  return g ? [g] : [];
+}
+function glossToTextarea(g){
+  return glossToArray(g).join('\n');
+}
+function glossFromTextarea(text){
+  return text.split('\n').map(s => s.trim()).filter(Boolean);
+}
+
 document.getElementById('btnSaveConstruction').addEventListener('click', () => {
   const pattern = document.getElementById('consPattern').value.trim();
-  const gloss = document.getElementById('consGloss').value.trim();
+  const gloss = glossFromTextarea(document.getElementById('consGloss').value);
   const note = document.getElementById('consNote').value.trim();
-  if(!pattern || !gloss){ alert('Fill in at least the pattern and gloss.'); return; }
+  if(!pattern || gloss.length === 0){ alert('Fill in at least the pattern and a definition.'); return; }
   constructions.push({
     id: 'c' + Date.now(),
     pattern, gloss, note,
@@ -1036,6 +1210,7 @@ document.getElementById('btnSaveConstruction').addEventListener('click', () => {
 });
 
 function deleteLine(li){
+  pushUndoSnapshot();
   // Drop any construction members that pointed at the deleted line, and shift
   // line indices down for everything after it. If a construction ends up with
   // fewer than 2 members, it's no longer a meaningful pairing — drop it too.
@@ -1054,6 +1229,7 @@ function deleteLine(li){
 }
 
 function mergeLines(li){
+  pushUndoSnapshot();
   const a = lineData[li];
   const b = lineData[li + 1];
   const aWordCount = a.tokens.length;
@@ -1174,6 +1350,7 @@ function copyLine(li){
 
 function pasteLine(li){
   if(!copiedLine) return;
+  pushUndoSnapshot();
   lineData[li] = {
     ...lineData[li],
     tokens: JSON.parse(JSON.stringify(copiedLine.tokens)),
@@ -1181,6 +1358,36 @@ function pasteLine(li){
   };
   renderConstructionsList();
   renderLines();
+}
+
+// Finds every OTHER line whose Chinese text is an exact match for this one
+// (e.g. a repeated chorus line) and applies this line's full tagging —
+// words, pinyin, glosses, translation — to all of them at once, instead of
+// needing to copy/paste line by line while scrolling to find each one.
+function propagateLine(li){
+  const sourceText = lineData[li].tokens.map(t => t.h).join('');
+  const matches = lineData
+    .map((line, i) => ({ i, text: line.tokens.map(t => t.h).join('') }))
+    .filter(m => m.i !== li && m.text === sourceText);
+
+  if(matches.length === 0){
+    alert('No other lines with this exact Chinese text were found.');
+    return;
+  }
+
+  pushUndoSnapshot();
+  const sourceTokens = JSON.parse(JSON.stringify(lineData[li].tokens));
+  const sourceTranslation = lineData[li].translation;
+  matches.forEach(({ i }) => {
+    lineData[i] = {
+      ...lineData[i],
+      tokens: JSON.parse(JSON.stringify(sourceTokens)),
+      translation: sourceTranslation
+    };
+  });
+  renderConstructionsList();
+  renderLines();
+  alert(`Applied to ${matches.length} other line${matches.length===1?'':'s'} with matching text.`);
 }
 
 function renderLines(){
@@ -1211,6 +1418,14 @@ function renderLines(){
     copyBtn.style.marginRight = '6px';
     copyBtn.addEventListener('click', () => copyLine(li));
     headBtns.appendChild(copyBtn);
+
+    const propagateBtn = document.createElement('button');
+    propagateBtn.className = 'btn secondary small';
+    propagateBtn.textContent = 'apply to identical lines';
+    propagateBtn.title = 'Find every other line with the exact same Chinese text and apply this line\'s tagging to all of them at once';
+    propagateBtn.style.marginRight = '6px';
+    propagateBtn.addEventListener('click', () => propagateLine(li));
+    headBtns.appendChild(propagateBtn);
 
     if(copiedLine && copiedLineIndex !== li){
       const pasteBtn = document.createElement('button');
@@ -1366,6 +1581,7 @@ const mergeBtn = card.querySelector('[data-action="merge"]');
   if(mergeBtn) mergeBtn.addEventListener('click', () => {
     const next = line.tokens[ti + 1];
     if(!next) return;
+    pushUndoSnapshot();
     line.tokens.splice(ti, 2, makeToken(tok.h + next.h));
     renderLines();
   });
@@ -1374,6 +1590,7 @@ const mergeBtn = card.querySelector('[data-action="merge"]');
   if(splitBtn) splitBtn.addEventListener('click', () => {
     const chars = Array.from(tok.h);
     const first = chars[0], rest = chars.slice(1).join('');
+    pushUndoSnapshot();
     line.tokens.splice(ti, 1, makeToken(first), makeToken(rest));
     renderLines();
   });

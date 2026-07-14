@@ -244,6 +244,30 @@ create policy "Users manage their own reading prefs"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- dictionary.json is a static file bundled with the site, so it can't be
+-- edited directly from a live page. This table lets the creator correct a
+-- word's pinyin or definitions from the reader itself; the reader checks
+-- this table at render time and uses it in place of the bundled dictionary
+-- entry wherever that word appears, across every song, for every visitor.
+create table dictionary_overrides (
+  hanzi text primary key,
+  pinyin text,
+  gloss jsonb default '[]'::jsonb,
+  updated_at timestamptz default now(),
+  updated_by uuid references auth.users
+);
+
+alter table dictionary_overrides enable row level security;
+
+create policy "Anyone can read dictionary overrides"
+  on dictionary_overrides for select
+  using (true);
+
+create policy "Creator can manage dictionary overrides"
+  on dictionary_overrides for all
+  using (exists (select 1 from profiles where id = auth.uid() and is_creator = true))
+  with check (exists (select 1 from profiles where id = auth.uid() and is_creator = true));
+
 -- Manual override for "Song of the Day." Absence of a row for a given date
 -- means the picker falls back to a deterministic random pick, seeded by that
 -- date, so everyone sees the same song without needing a row for every day —
