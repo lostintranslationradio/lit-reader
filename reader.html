@@ -541,6 +541,17 @@
     cursor:pointer;
   }
   .popup-close:hover{ color:var(--text); }
+  .popup-back-btn{
+    position:absolute; top:34px; left:14px;
+    background:none; border:none;
+    color:var(--text-dim);
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    cursor:pointer;
+    text-align:left;
+    max-width:150px;
+  }
+  .popup-back-btn:hover{ color:var(--accent); }
   .popup-star{
     position:absolute; top:10px; right:12px;
     background:none; border:none;
@@ -570,8 +581,8 @@
   .popup-nav:hover{ border-color:var(--accent); color:var(--accent); }
   .popup-nav:disabled{ opacity:.3; cursor:not-allowed; }
   .popup-nav:disabled:hover{ border-color:var(--rule); color:var(--text-dim); }
-  .popup-nav-prev{ left:-15px; }
-  .popup-nav-next{ right:-15px; }
+  .popup-nav-prev{ left:6px; }
+  .popup-nav-next{ right:6px; }
   @media (max-width:400px){
     .popup-nav-prev{ left:4px; }
     .popup-nav-next{ right:4px; }
@@ -748,8 +759,8 @@
   .cons-reveal-btn{
     display:block; width:100%; text-align:left;
     font-family:'Inter',sans-serif; font-style:italic; font-size:12px;
-    color:var(--text-dim); background:transparent; border:none; border-top:1px solid var(--rule);
-    padding:12px 0 0; margin-top:4px; cursor:pointer;
+    color:var(--text-dim); background:transparent; border:none;
+    padding:0; margin-top:12px; cursor:pointer;
   }
   .cons-reveal-btn:hover{ color:var(--accent); }
   .cons-sound{
@@ -1293,6 +1304,7 @@
   <div class="popup-card">
     <button class="popup-close" id="popupClose">✕ CLOSE</button>
     <button class="popup-star" id="popupStar">★</button>
+    <button id="popupBackBtn" class="popup-back-btn" style="display:none;"></button>
     <button class="popup-known" id="popupKnown" title="Mark as already known">✓ I know this</button>
     <button class="popup-nav popup-nav-prev" id="popupPrev" title="Previous">‹</button>
     <button class="popup-nav popup-nav-next" id="popupNext" title="Next">›</button>
@@ -1804,10 +1816,18 @@ function parseClassifiers(text){
   }).join(', ');
 }
 
-function openPopup(tok, key, el, constructionOverride, vocabIdx){
+function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   currentPopup = { tok, key, el, vocabIdx };
   document.getElementById('popupHanzi').textContent = tok.h;
   document.getElementById('popupPinyin').textContent = tok.p;
+  const backBtn = document.getElementById('popupBackBtn');
+  if(returnTo){
+    backBtn.textContent = `← back to ${returnTo.tok.h}`;
+    backBtn.style.display = 'block';
+    backBtn.onclick = () => openPopup(returnTo.tok, returnTo.key, returnTo.el);
+  } else {
+    backBtn.style.display = 'none';
+  }
   const badge = document.getElementById('popupHsk');
   if(tok.isConstruction){
     badge.textContent = 'Construction';
@@ -2006,17 +2026,22 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
       </button>
     `;
     consEl.innerHTML = isVocab
-      ? `<button id="consRevealBtn" class="cons-reveal-btn">· · · also part of ${cons.construction.pattern}</button>
-         <div id="consRevealBody" style="display:none;">${bodyHtml}</div>`
+      ? `<button id="consRevealBtn" class="cons-reveal-btn">· · · also part of ${cons.construction.pattern}</button>`
       : bodyHtml;
     consEl.style.display = 'block';
+
     if(isVocab){
       document.getElementById('consRevealBtn').addEventListener('click', () => {
-        document.getElementById('consRevealBody').style.display = 'block';
-        document.getElementById('consRevealBtn').style.display = 'none';
+        const g = consGlossArray(cons.construction.gloss);
+        const vocabTok = {
+          h: cons.construction.pattern, p: cons.construction.pinyin || '',
+          g, short: g[0] || '', hsk: 0, note: cons.construction.note || '',
+          kind: consKind, isConstruction: true, isVocabulary: true
+        };
+        openPopup(vocabTok, 'vocab_' + cons.construction.pattern, el, null, null, { tok, key, el });
       });
-    }
-    document.getElementById('consSpeakNormal').addEventListener('click', () => speakWord(speakHanzi, 1, 1, speakPinyin, false));
+    } else {
+      document.getElementById('consSpeakNormal').addEventListener('click', () => speakWord(speakHanzi, 1, 1, speakPinyin, false));
     document.getElementById('consSpeakSlow').addEventListener('click', () => speakWord(speakHanzi, 0.6, 0.3, speakPinyin, false));
     document.getElementById('popupConsSave').addEventListener('click', async () => {
       if(isConsSaved){
@@ -2075,6 +2100,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
         statusEl.textContent = 'Saved.';
         openPopup(tok, key, el, constructionOverride, vocabIdx);
       });
+    }
     }
 
     // The button above renders instantly from the local cache, which can be
@@ -2206,16 +2232,18 @@ async function removeWord(h){
 async function saveConstruction(cons){
   const kind = cons.kind || 'construction';
   const existing = saved.find(s => s.h === cons.pattern && s.kind === kind);
-  const glossArray = [...consGlossArray(cons.gloss), cons.note].filter(Boolean);
+  const glossArray = consGlossArray(cons.gloss);
+  const note = cons.note || '';
   if(existing){
     if(!existing.sources.includes(SONG_ID)) existing.sources.push(SONG_ID);
+    existing.note = note;
   } else {
-    saved.push({ h: cons.pattern, p: cons.pinyin || '', g: glossArray, hsk: 0, kind, sources: [SONG_ID] });
+    saved.push({ h: cons.pattern, p: cons.pinyin || '', g: glossArray, note, hsk: 0, kind, sources: [SONG_ID] });
   }
   if(currentUser){
     await sb.from('saved_words').upsert({
       user_id: currentUser.id, kind, hanzi: cons.pattern, pinyin: cons.pinyin || '',
-      gloss: glossArray, hsk: 0,
+      gloss: glossArray, note, hsk: 0,
       sources: existing ? existing.sources : [SONG_ID]
     }, { onConflict: 'user_id,hanzi' });
   } else {
@@ -2284,7 +2312,7 @@ function renderVocab(){
 function openVocabPopup(s, el, vocabIdx){
   if(s.kind === 'construction' || s.kind === 'vocabulary'){
     const g = Array.isArray(s.g) ? s.g : (s.g ? [s.g] : []);
-    const tok = { h: s.h, p: s.p || '', g, short: g[0] || '', hsk: 0, note: '', kind: s.kind,
+    const tok = { h: s.h, p: s.p || '', g, short: g[0] || '', hsk: 0, note: s.note || '', kind: s.kind,
       isConstruction: true, isVocabulary: s.kind === 'vocabulary' };
     openPopup(tok, 'vocab_' + s.h, el, null, vocabIdx);
   } else {
@@ -3060,7 +3088,7 @@ function refreshVocabAuthUI(){
 async function loadVocabFromSupabase(){
   const { data, error } = await sb.from('saved_words').select('*').eq('user_id', currentUser.id);
   if(error){ console.error(error); return; }
-  const remote = (data || []).map(r => ({ h: r.hanzi, p: r.pinyin, g: r.gloss, hsk: r.hsk, sources: r.sources || [] }));
+  const remote = (data || []).map(r => ({ h: r.hanzi, p: r.pinyin, g: r.gloss, note: r.note || '', hsk: r.hsk, kind: r.kind || 'word', sources: r.sources || [] }));
 
   // merge: any word saved locally as a guest but not yet in the account gets uploaded once
   const localOnly = saved.filter(s => !remote.some(r => r.h === s.h));

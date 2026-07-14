@@ -52,6 +52,7 @@ create table saved_words (
   hanzi text not null,
   pinyin text,
   gloss jsonb default '[]'::jsonb,
+  note text,
   hsk int default 0,
   sources jsonb default '[]'::jsonb,
   created_at timestamp default now(),
