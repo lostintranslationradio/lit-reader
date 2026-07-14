@@ -590,8 +590,10 @@
   .popup-nav-prev{ left:-15px; }
   .popup-nav-next{ right:-15px; }
   @media (max-width:400px){
-    .popup-nav-prev{ left:4px; }
-    .popup-nav-next{ right:4px; }
+    .popup-card{ padding-left:32px; padding-right:32px; }
+    .popup-nav{ width:24px; height:24px; font-size:15px; }
+    .popup-nav-prev{ left:2px; }
+    .popup-nav-next{ right:2px; }
   }
   .popup-hanzi{
     font-family:'Noto Serif SC',serif;
@@ -763,12 +765,13 @@
   }
   .popup-construction .cons-gloss ol{ margin:0; padding-left:18px; }
   .cons-reveal-btn{
-    display:block; width:100%; text-align:left;
-    font-family:'Inter',sans-serif; font-style:italic; font-size:12px;
-    color:var(--text-dim); background:transparent; border:none;
-    padding:0; margin-top:12px; cursor:pointer;
+    display:flex; align-items:center; gap:6px; width:100%; text-align:left;
+    font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500;
+    color:var(--accent); background:rgba(184,134,58,.12); border:1px solid var(--accent);
+    border-radius:8px; padding:10px 12px; margin-top:12px; cursor:pointer;
   }
-  .cons-reveal-btn:hover{ color:var(--accent); }
+  .cons-reveal-btn::before{ content:'＋'; font-size:14px; flex-shrink:0; }
+  .cons-reveal-btn:hover{ background:rgba(184,134,58,.22); }
   .cons-sound{
     display:flex;
     justify-content:center;
@@ -1345,6 +1348,7 @@
       <div style="display:flex; gap:8px; margin-top:8px;">
         <button id="popupEditSave">Save</button>
         <button id="popupEditCancel">Cancel</button>
+        <button id="popupEditRevert" style="margin-left:auto; color:#c0392b; border-color:#c0392b44;" title="Erase any override/edit for this word and re-pull straight from the current dictionary">↺ Revert to dictionary</button>
       </div>
       <p class="note" id="popupEditStatus" style="margin-top:6px; margin-bottom:0;"></p>
     </div>
@@ -1367,6 +1371,16 @@ const SONG_ID = new URLSearchParams(location.search).get('song') || 'song-1';
 let SONG = null;       // the current song's full data
 let SONG_TITLES = {};  // id -> zh title, for labeling cross-song vocab sources
 let DICT_OVERRIDES = {}; // hanzi -> {pinyin, gloss} — creator corrections that apply everywhere
+let FULL_DICT_CACHE = null;
+async function getFullDictionaryEntry(hanzi){
+  if(!FULL_DICT_CACHE){
+    const res = await fetch('data/dictionary.json');
+    FULL_DICT_CACHE = await res.json();
+  }
+  const d = FULL_DICT_CACHE[hanzi];
+  if(!d) return null;
+  return { p: d.p || '', g: d.g || [] };
+}
 
 const HSK_VAR = {0:'--beyond',1:'--hsk1',2:'--hsk2',3:'--hsk3',4:'--hsk4',5:'--hsk5',6:'--hsk6',7:'--hsk79',8:'--hsk79',9:'--hsk79'};
 const linesEl = document.getElementById('lines');
@@ -1422,8 +1436,10 @@ function indexConstructions(){
   let colorSlot = 0;
   (SONG.constructions || []).forEach((c) => {
     if(!(c.pattern in patternColors)){
-      patternColors[c.pattern] = CONSTRUCTION_COLORS[colorSlot % CONSTRUCTION_COLORS.length];
-      colorSlot++;
+      patternColors[c.pattern] = c.kind === 'vocabulary'
+        ? '--hsk2' // fixed, dedicated color for vocabulary — not part of the rotating pool
+        : CONSTRUCTION_COLORS[colorSlot % CONSTRUCTION_COLORS.length];
+      if(c.kind !== 'vocabulary') colorSlot++;
     }
     const colorVar = patternColors[c.pattern];
     const isDiscontinuous = /\.{2,}|…+/.test(c.pattern);
@@ -1525,7 +1541,7 @@ function renderCreatorNotes(){
     <div class="creator-note-item">
       <div class="cni-hanzi" style="color:var(--accent);">${c.pattern}</div>
       <div class="cni-text">
-        ${isVocabNoteOnly ? '' : `<div ${jumpAttrs}>${consGlossArray(c.gloss).join(' / ')}</div>`}        ${c.note ? `<div style="margin-top:2px; opacity:.85;">${c.note}</div>` : ''}
+        ${isVocabNoteOnly ? '' : `<div ${jumpAttrs}>${humanizeDefs(consGlossArray(c.gloss)).join(' / ')}</div>`}        ${c.note ? `<div style="margin-top:2px; opacity:.85;">${c.note}</div>` : ''}
       </div>
     </div>
   `;}).join('');
@@ -1567,7 +1583,7 @@ function renderVocabularySection(){
     if(c.kind !== 'vocabulary') return;
     if(seenHanzi.has(c.pattern)) return;
     seenHanzi.add(c.pattern);
-    items.push({ hanzi: c.pattern, pinyin: c.pinyin || '', gloss: consGlossArray(c.gloss) });
+    items.push({ hanzi: c.pattern, pinyin: c.pinyin || '', gloss: humanizeDefs(consGlossArray(c.gloss)) });
   });
 
   const CJK_RE_VOCAB = /[\u4e00-\u9fff]/;
@@ -1580,7 +1596,7 @@ function renderVocabularySection(){
       if(seenHanzi.has(tok.h)) return;
       seenHanzi.add(tok.h);
       const g = Array.isArray(tok.g) ? tok.g : (tok.g ? [tok.g] : []);
-      items.push({ hanzi: tok.h, pinyin: tok.p || '', gloss: g.length ? g : (tok.short ? [tok.short] : []) });
+      items.push({ hanzi: tok.h, pinyin: tok.p || '', gloss: humanizeDefs(g.length ? g : (tok.short ? [tok.short] : [])) });
     });
   });
 
@@ -1817,6 +1833,23 @@ function numberedPinyinToAccented(syl){
 
 // CC-CEDICT classifier notation looks like "CL:个[ge4]" or with multiple,
 // comma-separated: "CL:个[ge4],位[wei4]". Parse it into a friendly list.
+// CC-CEDICT shorthand ("sb"/"sth") reads like internet slang out of context —
+// spell it out everywhere a definition gets shown. Also folds any embedded
+// "CL:..." classifier notation into a plain "Measuring word: ..." line,
+// for places (like the Vocabulary section) that don't have the main popup's
+// dedicated classifier sub-section.
+function humanizeDefs(defs){
+  const out = [];
+  (defs || []).forEach(d => {
+    if(/^\(?CL:/.test(d)){
+      out.push('Measuring word: ' + parseClassifiers(d));
+      return;
+    }
+    out.push(d.replace(/\bsb\.?\b/g, 'someone').replace(/\bsth\.?\b/g, 'something'));
+  });
+  return out;
+}
+
 function parseClassifiers(text){
   const inner = text.replace(/^\(?CL:/, '').replace(/\)$/, '');
   const parts = inner.split(',').map(p => p.trim()).filter(Boolean);
@@ -1858,7 +1891,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   const rawDefs = Array.isArray(tok.g) ? tok.g : (tok.g ? [tok.g] : []);
   const allDefs = rawDefs.filter(Boolean).length ? rawDefs.filter(Boolean) : [tok.short].filter(Boolean);
   const classifierMatch = allDefs.find(d => /^\(?CL:/.test(d));
-  const defs = allDefs.filter(d => d !== classifierMatch);
+  const defs = humanizeDefs(allDefs.filter(d => d !== classifierMatch));
   const posLabel = tok.pos ? `<div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim);
     text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">${tok.pos}</div>` : '';
   document.getElementById('popupDefs').innerHTML = posLabel + (defs.length
@@ -1887,6 +1920,37 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   document.getElementById('popupEditCancel').onclick = () => {
     editForm.style.display = 'none';
     editBtn.style.display = 'inline-block';
+  };
+
+  document.getElementById('popupEditRevert').onclick = async () => {
+    const statusEl = document.getElementById('popupEditStatus');
+    statusEl.textContent = 'Reverting…';
+    try{
+      const fresh = await getFullDictionaryEntry(tok.h);
+      if(!fresh){
+        statusEl.textContent = 'This word isn\'t in the dictionary — nothing to revert to.';
+        return;
+      }
+      // Erase the global override, if any.
+      if(currentUser){
+        await sb.from('dictionary_overrides').delete().eq('hanzi', tok.h);
+      }
+      delete DICT_OVERRIDES[tok.h];
+      // Reset every occurrence of this word in this song back to the fresh values.
+      SONG.lines.forEach(entry => {
+        (entry.words || []).forEach(t => {
+          if(t.h === tok.h){
+            t.p = fresh.p; t.g = fresh.g; t.short = fresh.g[0] || '';
+          }
+        });
+      });
+      await sb.from('songs').update({ lines: SONG.lines }).eq('id', SONG_ID);
+      statusEl.textContent = 'Reverted to dictionary.';
+      render();
+      openPopup(SONG.lines.flatMap(l=>l.words).find(t=>t.h===tok.h) || tok, key, el, constructionOverride, vocabIdx);
+    } catch(e){
+      statusEl.textContent = 'Failed to revert — try again.';
+    }
   };
 
   document.getElementById('popupEditSave').onclick = async () => {
@@ -2006,7 +2070,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
         <button id="consSpeakNormal" title="Listen">🔊 Listen</button>
         <button id="consSpeakSlow" title="Listen slowly">🐢 Slow</button>
       </div>
-      <div class="cons-gloss"><ol>${consGlossArray(cons.construction.gloss).map(g => `<li>${g}</li>`).join('')}</ol></div>
+      <div class="cons-gloss"><ol>${humanizeDefs(consGlossArray(cons.construction.gloss)).map(g => `<li>${g}</li>`).join('')}</ol></div>
       ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
       ${canEditCons ? `
         <button id="consEditBtn" style="font-family:'JetBrains Mono',monospace; font-size:10px;
@@ -2039,7 +2103,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
       </button>
     `;
     consEl.innerHTML = isVocab
-      ? `<button id="consRevealBtn" class="cons-reveal-btn">· · · also part of ${cons.construction.pattern}</button>`
+      ? `<button id="consRevealBtn" class="cons-reveal-btn">Also part of ${cons.construction.pattern} — tap to see</button>`
       : bodyHtml;
     consEl.style.display = 'block';
 

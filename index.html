@@ -975,6 +975,18 @@ async function renderSongOfDay(){
   `;
   el.style.display = 'block';
   wireFilterClicks();
+
+  // If showing this card pushes the search/sort toolbar below the fold,
+  // hide it — people should be able to see the library controls at a
+  // glance, without scrolling first, especially on narrower screens where
+  // there's less vertical room to begin with.
+  const toolbar = document.querySelector('.toolbar');
+  if(toolbar){
+    const rect = toolbar.getBoundingClientRect();
+    if(rect.top > window.innerHeight || rect.bottom < 0){
+      el.style.display = 'none';
+    }
+  }
 }
 
 document.getElementById('randomSongBtn').addEventListener('click', () => {

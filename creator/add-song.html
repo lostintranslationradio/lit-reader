@@ -719,6 +719,7 @@ async function loadSongForEditing(id){
         isPunct, unresolved: false,
         reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: pickShortGloss(r.g) })) : null,
         selected_reading: hasMultipleReadings ? w.p : null,
+        selected_reading_index: hasMultipleReadings ? findReadingIndex(entry.readings, w.p, w.g) : null,
         needsReadingPick: hasMultipleReadings,
         readingConfirmed: hasMultipleReadings // already published with a specific reading chosen — don't nag about it again
       };
@@ -774,7 +775,12 @@ document.getElementById('btnFixAllSongs').addEventListener('click', async () => 
           word.short = (word.g && word.g[0]) || '';
         }
         const entry = lookup(word.h);
-        if(entry && entry.g && entry.g.length > 0){
+        if(word.reading_options && word.reading_options.length > 1){
+          // This word has multiple possible readings and a specific one was
+          // chosen — leave its definitions alone rather than silently
+          // reverting to whichever reading lookup() happens to consider
+          // primary, which could discard a deliberate choice.
+        } else if(entry && entry.g && entry.g.length > 0){
           if(JSON.stringify(entry.g) !== JSON.stringify(word.g)){
             word.g = entry.g;
             changed = true;
@@ -845,6 +851,17 @@ function pickShortGloss(defs){
   return substantive || defs[0];
 }
 
+// Matches by pinyin AND gloss content, not pinyin alone — two readings can
+// share the same pronunciation but mean completely different things (e.g.
+// 冲's water-related "chōng" vs its general "chōng" meaning thoroughfare).
+function findReadingIndex(readings, pinyin, gloss){
+  if(!readings) return -1;
+  const glossKey = JSON.stringify(gloss || []);
+  let idx = readings.findIndex(r => r.p === pinyin && JSON.stringify(r.g) === glossKey);
+  if(idx === -1) idx = readings.findIndex(r => r.p === pinyin); // fall back to pinyin-only match
+  return idx;
+}
+
 function lookup(word){
   if(DICT[word]){
     const d = DICT[word];
@@ -913,6 +930,7 @@ function segmentLine(text){
       unresolved: !entry,
       reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: pickShortGloss(r.g) })) : null,
       selected_reading: hasMultipleReadings ? entry.p : null,
+      selected_reading_index: hasMultipleReadings ? findReadingIndex(entry.readings, entry.p, entry.g) : null,
       needsReadingPick: hasMultipleReadings
     }));
   }
@@ -1477,7 +1495,7 @@ function renderTokenCard(line, li, ti){
   const readingPicker = tok.reading_options ? `
     <select data-field="reading" style="width:100%; margin-bottom:5px; background:var(--bg); border:1px solid var(--rule);
       border-radius:3px; font-size:10px; padding:2px; color:var(--text);">
-      ${tok.reading_options.map((r, ri) => `<option value="${ri}" ${r.pinyin === tok.selected_reading ? 'selected' : ''}>${r.pinyin} — ${r.gloss_short}</option>`).join('')}
+      ${tok.reading_options.map((r, ri) => `<option value="${ri}" ${ri === tok.selected_reading_index ? 'selected' : ''}>${r.pinyin} — ${r.gloss_short}</option>`).join('')}
     </select>
   ` : '';
 
@@ -1504,10 +1522,12 @@ function renderTokenCard(line, li, ti){
   const readingSelect = card.querySelector('[data-field="reading"]');
   if(readingSelect){
     readingSelect.addEventListener('change', () => {
-      const chosen = tok.reading_options[parseInt(readingSelect.value, 10)];
+      const idx = parseInt(readingSelect.value, 10);
+      const chosen = tok.reading_options[idx];
       tok.p = chosen.pinyin;
       tok.g = chosen.definitions;
       tok.selected_reading = chosen.pinyin;
+      tok.selected_reading_index = idx;
       tok.readingConfirmed = true;
       renderLines();
     });
@@ -1546,6 +1566,7 @@ function makeToken(hanzi){
     unresolved: !entry,
     reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: pickShortGloss(r.g) })) : null,
     selected_reading: hasMultipleReadings ? entry.p : null,
+    selected_reading_index: hasMultipleReadings ? findReadingIndex(entry.readings, entry.p, entry.g) : null,
     needsReadingPick: hasMultipleReadings
   });
 }
