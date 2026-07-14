@@ -720,11 +720,16 @@ function teaserCardHTML(){
   `;
 }
 
+function songStatusLabel(song){
+  const isScheduled = song.status === 'draft' && song.publishAt && new Date(song.publishAt) > new Date();
+  return isScheduled ? 'scheduled' : song.status;
+}
+
 function renderGrid(list){
   document.getElementById('grid').innerHTML = list.map(song => `
     <a class="card" href="reader.html?song=${song.id}">
       <div class="cover" style="background:${coverColor(song.id)}22; border-bottom:1px solid var(--rule); ${song.coverUrl ? `background-image:url('${song.coverUrl}'); background-size:cover; background-position:center;` : ''}">
-        ${creatorMode ? `<span class="status-pill">${song.status === 'draft' && song.publishAt && new Date(song.publishAt) > new Date() ? 'scheduled' : song.status}</span>` : ''}
+        ${creatorMode ? `<span class="status-pill">${songStatusLabel(song)}</span>` : ''}
         ${creatorMode ? `<button class="edit-btn" title="Edit this song" onclick="event.preventDefault(); event.stopPropagation(); location.href='creator/add-song.html?edit=${song.id}';">✎ Edit</button>` : ''}
         ${song.coverUrl ? '' : `<div class="zh" style="color:${coverColor(song.id)}">${song.zh.slice(0,2)}</div>`}
       </div>
@@ -774,7 +779,7 @@ function renderList(list){
       </div>
       <div class="row-tags">${song.tags.map(t=>`<span class="tag" data-filter="${t}">${t}</span>`).join('')}</div>
       <div class="row-hsk">${hskBarHTML(song.hsk)}</div>
-      ${creatorMode ? `<span class="row-status">${song.status}</span>` : ''}
+      ${creatorMode ? `<span class="row-status">${songStatusLabel(song)}</span>` : ''}
       ${creatorMode ? `<button class="edit-btn-inline" title="Edit this song" onclick="event.preventDefault(); event.stopPropagation(); location.href='creator/add-song.html?edit=${song.id}';">✎ Edit</button>` : ''}
     </a>
   `).join('') + teaserRowHTML();

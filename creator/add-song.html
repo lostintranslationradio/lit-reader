@@ -810,8 +810,19 @@ let dictReady = false;
 
 fetch('../data/dictionary.json')
   .then(r => r.json())
-  .then(d => {
+  .then(async d => {
     DICT = d;
+    // Apply any global corrections set via the reader's "fix in dictionary
+    // everywhere" flow, so a custom default also applies here going
+    // forward — otherwise it would only ever show up in the reader's
+    // display, and every new song would need the same word fixed again.
+    try{
+      const { data: overrides } = await sb.from('dictionary_overrides').select('hanzi, pinyin, gloss');
+      (overrides || []).forEach(o => {
+        if(!o.gloss || !o.gloss.length) return;
+        DICT[o.hanzi] = { ...(DICT[o.hanzi] || {}), p: o.pinyin || (DICT[o.hanzi] || {}).p, g: o.gloss };
+      });
+    } catch(e){ /* overrides are a nice-to-have; don't block on failure */ }
     dictReady = true;
     document.getElementById('dictStatus').textContent =
       `Dictionary loaded — ${Object.keys(DICT).length.toLocaleString()} entries.`;
