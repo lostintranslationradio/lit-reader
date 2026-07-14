@@ -768,7 +768,7 @@
     display:flex; align-items:center; gap:6px; width:100%; text-align:left;
     font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500;
     color:var(--accent); background:rgba(184,134,58,.12); border:1px solid var(--accent);
-    border-radius:8px; padding:10px 12px; margin-top:12px; cursor:pointer;
+    border-radius:8px; padding:10px 12px; margin-top:0; cursor:pointer;
   }
   .cons-reveal-btn::before{ content:'＋'; font-size:14px; flex-shrink:0; }
   .cons-reveal-btn:hover{ background:rgba(184,134,58,.22); }
@@ -1352,8 +1352,10 @@
       </div>
       <p class="note" id="popupEditStatus" style="margin-top:6px; margin-bottom:0;"></p>
     </div>
-    <div id="popupConstruction" class="popup-construction" style="display:none;"></div>
     <div id="popupClassifier" class="popup-classifier" style="display:none;"></div>
+    <button id="popupMainSave" style="display:none; font-family:'JetBrains Mono',monospace; font-size:11px;
+      padding:6px 12px; border-radius:12px; cursor:pointer; margin-top:8px; width:100%;"></button>
+    <div id="popupConstruction" class="popup-construction" style="display:none;"></div>
     <div id="popupCreatorNote" style="display:none;"></div>
     <div id="popupUserNote">
       <div class="note-label">Your note (private to your account)</div>
@@ -1877,8 +1879,8 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   const badge = document.getElementById('popupHsk');
   if(tok.isVocabulary){
     badge.textContent = 'Vocabulary';
-    badge.style.color = 'var(--text-dim)';
-    badge.style.borderColor = 'var(--rule)';
+    badge.style.color = 'var(--hsk2)';
+    badge.style.borderColor = 'var(--hsk2)';
   } else if(tok.isConstruction){
     badge.textContent = 'Construction';
     badge.style.color = 'var(--accent)';
@@ -2214,6 +2216,20 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   const isSaved = saved.some(s => s.h === tok.h && s.kind === starKind);
   document.getElementById('popupStar').classList.toggle('starred', isSaved);
   document.getElementById('popupKnown').classList.toggle('known', knownWords.has(tok.h));
+
+  const mainSaveBtn = document.getElementById('popupMainSave');
+  if(tok.isConstruction){
+    const label = tok.isVocabulary ? 'vocabulary' : 'construction';
+    mainSaveBtn.style.display = 'block';
+    mainSaveBtn.textContent = isSaved ? `★ saved` : `☆ save this ${label}`;
+    mainSaveBtn.style.border = `1px solid ${isSaved ? 'var(--accent)' : 'var(--rule)'}`;
+    mainSaveBtn.style.background = isSaved ? 'rgba(184,134,58,.14)' : 'transparent';
+    mainSaveBtn.style.color = isSaved ? 'var(--accent)' : 'var(--text-dim)';
+    mainSaveBtn.onclick = () => document.getElementById('popupStar').click();
+  } else {
+    mainSaveBtn.style.display = 'none';
+  }
+
   if(vocabIdx !== undefined && vocabIdx !== null){
     document.getElementById('popupPrev').disabled = vocabIdx <= 0;
     document.getElementById('popupNext').disabled = vocabIdx >= saved.length - 1;
