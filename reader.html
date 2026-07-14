@@ -341,36 +341,6 @@
     color:var(--text);
     opacity:.9;
   }
-  .vocab-card-grid{
-    display:flex; flex-wrap:wrap; gap:8px;
-  }
-  .vocab-card{
-    flex:0 0 auto;
-    min-width:64px;
-    padding:10px 12px;
-    border:1px solid var(--rule);
-    border-radius:6px;
-    background:var(--surface);
-    cursor:pointer;
-    text-align:center;
-    transition:background .15s;
-  }
-  .vocab-card:hover{ border-color:var(--accent); }
-  .vocab-card-front{
-    font-family:var(--font-han, 'Noto Serif SC', serif);
-    font-size:18px;
-    color:var(--text);
-  }
-  .vocab-card.flipped{ background:var(--surface-raised); text-align:left; }
-  .vocab-card.flipped .vocab-card-front{ display:none; }
-  .vocab-card-back{ display:none; max-width:220px; }
-  .vocab-card.flipped .vocab-card-back{ display:block; }
-  .vocab-card-pinyin{
-    font-family:'Inter',sans-serif; font-size:12px; color:var(--text-dim); margin-bottom:3px;
-  }
-  .vocab-card-gloss{
-    font-family:'Inter',sans-serif; font-size:12px; line-height:1.5; color:var(--text);
-  }
   .reader-heading{
     font-family:var(--font-title);
     font-size:26px;
@@ -775,6 +745,13 @@
     text-align:left;
   }
   .popup-construction .cons-gloss ol{ margin:0; padding-left:18px; }
+  .cons-reveal-btn{
+    display:block; width:100%; text-align:left;
+    font-family:'Inter',sans-serif; font-style:italic; font-size:12px;
+    color:var(--text-dim); background:transparent; border:none; border-top:1px solid var(--rule);
+    padding:12px 0 0; margin-top:4px; cursor:pointer;
+  }
+  .cons-reveal-btn:hover{ color:var(--accent); }
   .cons-sound{
     display:flex;
     justify-content:center;
@@ -1487,7 +1464,7 @@ function renderCreatorNotes(){
   const seenPatterns = new Set();
   const consItems = [];
   (SONG.constructions || []).forEach(c => {
-    if(c.kind === 'vocabulary') return; // shown in its own "Vocabulary" section instead
+    if(c.kind === 'vocabulary' && !c.note) return; // no note to show here; the term itself lives in the Vocabulary section
     if(!seenPatterns.has(c.pattern)){
       seenPatterns.add(c.pattern);
       consItems.push(c);
@@ -1518,12 +1495,12 @@ function renderCreatorNotes(){
   const consHtml = consItems.map(c => {
     const target = (c.members && c.members[0]) || null;
     const jumpAttrs = target ? `class="note-jumpable" data-line="${target[0]}" data-word="${target[1]}"` : '';
+    const isVocabNoteOnly = c.kind === 'vocabulary';
     return `
     <div class="creator-note-item">
       <div class="cni-hanzi" style="color:var(--accent);">${c.pattern}</div>
       <div class="cni-text">
-        <div ${jumpAttrs}>${consGlossArray(c.gloss).join(' / ')}</div>
-        ${c.note ? `<div style="margin-top:2px; opacity:.85;">${c.note}</div>` : ''}
+        ${isVocabNoteOnly ? '' : `<div ${jumpAttrs}>${consGlossArray(c.gloss).join(' / ')}</div>`}        ${c.note ? `<div style="margin-top:2px; opacity:.85;">${c.note}</div>` : ''}
       </div>
     </div>
   `;}).join('');
@@ -1568,9 +1545,11 @@ function renderVocabularySection(){
     items.push({ hanzi: c.pattern, pinyin: c.pinyin || '', gloss: consGlossArray(c.gloss) });
   });
 
+  const CJK_RE_VOCAB = /[\u4e00-\u9fff]/;
   SONG.lines.forEach((entry, li) => {
     entry.words.forEach((tok, wi) => {
       if(tok.isPunct || !tok.h || !tok.h.trim()) return;
+      if(!CJK_RE_VOCAB.test(tok.h)) return; // skip English words — not what this section is for
       if(tok.hsk !== 0) return;
       if(coveredPositions.has(li + '_' + wi)) return;
       if(seenHanzi.has(tok.h)) return;
@@ -1585,18 +1564,15 @@ function renderVocabularySection(){
     return;
   }
 
-  body.innerHTML = `<div class="vocab-card-grid">` + items.map((it, i) => `
-    <div class="vocab-card" data-idx="${i}">
-      <div class="vocab-card-front">${it.hanzi}</div>
-      <div class="vocab-card-back">
-        ${it.pinyin ? `<div class="vocab-card-pinyin">${it.pinyin}</div>` : ''}
-        <div class="vocab-card-gloss">${it.gloss.join(' / ') || '(no definition yet)'}</div>
+  body.innerHTML = items.map(it => `
+    <div class="creator-note-item">
+      <div class="cni-hanzi" style="color:var(--text-dim);">${it.hanzi}</div>
+      <div class="cni-text">
+        ${it.pinyin ? `<div style="font-family:'Inter',sans-serif; color:var(--text-dim); margin-bottom:2px;">${it.pinyin}</div>` : ''}
+        <div>${it.gloss.join(' / ') || '(no definition yet)'}</div>
       </div>
     </div>
-  `).join('') + `</div>`;
-  body.querySelectorAll('.vocab-card').forEach(card => {
-    card.addEventListener('click', () => card.classList.toggle('flipped'));
-  });
+  `).join('');
   details.style.display = 'block';
 }
 
@@ -1982,12 +1958,13 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
   const cons = !tok.isConstruction && (constructionOverride || constructionForKey[key]);
   if(cons){
     const consKind = cons.construction.kind || 'construction';
+    const isVocab = consKind === 'vocabulary';
     let isConsSaved = saved.some(s => s.h === cons.construction.pattern && s.kind === consKind);
     const speakHanzi = cons.construction.pattern.replace(/\.{2,}|…+/g, '');
     const speakPinyin = (cons.construction.pinyin || '').replace(/\s*…\s*|\.{2,}/g, ' ').trim();
     const canEditCons = currentProfile && currentProfile.is_creator;
-    consEl.innerHTML = `
-      <div class="cons-kind-badge">${consKind === 'vocabulary' ? 'Vocabulary' : 'Construction'}</div>
+    const bodyHtml = `
+      <div class="cons-kind-badge">${isVocab ? 'Vocabulary' : 'Construction'}</div>
       <div class="cons-header">
         <span class="cons-pattern">${cons.construction.pattern}</span>
         ${cons.construction.pinyin ? `<span class="cons-pattern-pinyin">${cons.construction.pinyin}</span>` : ''}
@@ -2028,7 +2005,17 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
         ${isConsSaved ? '\u2605 saved' : '\u2606 save this construction'}
       </button>
     `;
+    consEl.innerHTML = isVocab
+      ? `<button id="consRevealBtn" class="cons-reveal-btn">· · · also part of ${cons.construction.pattern}</button>
+         <div id="consRevealBody" style="display:none;">${bodyHtml}</div>`
+      : bodyHtml;
     consEl.style.display = 'block';
+    if(isVocab){
+      document.getElementById('consRevealBtn').addEventListener('click', () => {
+        document.getElementById('consRevealBody').style.display = 'block';
+        document.getElementById('consRevealBtn').style.display = 'none';
+      });
+    }
     document.getElementById('consSpeakNormal').addEventListener('click', () => speakWord(speakHanzi, 1, 1, speakPinyin, false));
     document.getElementById('consSpeakSlow').addEventListener('click', () => speakWord(speakHanzi, 0.6, 0.3, speakPinyin, false));
     document.getElementById('popupConsSave').addEventListener('click', async () => {
