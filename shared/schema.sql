@@ -72,7 +72,7 @@ create table songs (
   id text primary key,
   zh text not null,
   en text,
-  artist text,
+  artist jsonb default '[]'::jsonb,
   status text default 'draft',
   tags jsonb default '[]'::jsonb,
   year int,

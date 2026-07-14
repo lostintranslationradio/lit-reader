@@ -218,8 +218,11 @@
         <input type="text" id="fEn" placeholder="Red Bean">
       </div>
       <div class="field">
-        <label>Artist</label>
-        <input type="text" id="fArtist" placeholder="Faye Wong" list="artistSuggestions" autocomplete="off">
+        <label>Artist(s) — type one, then press comma or Enter to add it</label>
+        <div class="tag-input-box" id="artistInputBox">
+          <div class="tag-chips" id="artistChips"></div>
+          <input type="text" id="artistTextInput" list="artistSuggestions" autocomplete="off" placeholder="Wu Bai & China Blue">
+        </div>
         <datalist id="artistSuggestions"></datalist>
       </div>
     </div>
@@ -406,7 +409,7 @@ checkCreatorAccess();
 async function populateSuggestions(){
   const { data, error } = await sb.from('songs').select('artist, tags');
   if(error || !data) return;
-  const artists = [...new Set(data.map(s => s.artist).filter(Boolean))].sort();
+  const artists = [...new Set(data.flatMap(s => Array.isArray(s.artist) ? s.artist : (s.artist ? [s.artist] : [])))].sort();
   const tags = [...new Set(data.flatMap(s => s.tags || []))].sort();
   document.getElementById('artistSuggestions').innerHTML =
     artists.map(a => `<option value="${a.replace(/"/g,'&quot;')}">`).join('');
@@ -563,7 +566,8 @@ async function loadSongForEditing(id){
   document.getElementById('fExistingSong').value = id;
   document.getElementById('fZh').value = song.zh || '';
   document.getElementById('fEn').value = song.en || '';
-  document.getElementById('fArtist').value = song.artist || '';
+  artistList = Array.isArray(song.artist) ? [...song.artist] : (song.artist ? [song.artist] : []);
+  renderArtistChips();
   document.getElementById('fYear').value = song.year || '';
   document.getElementById('fId').value = song.id;
   document.getElementById('fId').dataset.touched = '1'; // don't let the slug auto-fill overwrite it
@@ -1115,6 +1119,44 @@ document.getElementById('tagTextInput').addEventListener('blur', commitTagInput)
 document.getElementById('tagInputBox').addEventListener('click', (e) => {
   if(e.target.id === 'tagInputBox') document.getElementById('tagTextInput').focus();
 });
+
+let artistList = [];
+
+function renderArtistChips(){
+  document.getElementById('artistChips').innerHTML = artistList.map((a, i) =>
+    `<span class="tag-chip">${a}<button type="button" data-idx="${i}">×</button></span>`
+  ).join('');
+  document.querySelectorAll('#artistChips [data-idx]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      artistList.splice(parseInt(btn.dataset.idx, 10), 1);
+      renderArtistChips();
+    });
+  });
+}
+
+function commitArtistInput(){
+  const inp = document.getElementById('artistTextInput');
+  const val = inp.value.replace(/,$/, '').trim();
+  if(val && !artistList.includes(val)){
+    artistList.push(val);
+    renderArtistChips();
+  }
+  inp.value = '';
+}
+
+document.getElementById('artistTextInput').addEventListener('keydown', (e) => {
+  if(e.key === ',' || e.key === 'Enter'){
+    e.preventDefault();
+    commitArtistInput();
+  } else if(e.key === 'Backspace' && e.target.value === '' && artistList.length){
+    artistList.pop();
+    renderArtistChips();
+  }
+});
+document.getElementById('artistTextInput').addEventListener('blur', commitArtistInput);
+document.getElementById('artistInputBox').addEventListener('click', (e) => {
+  if(e.target.id === 'artistInputBox') document.getElementById('artistTextInput').focus();
+});
 let copiedLineIndex = null;
 
 // Copy an entire line's word tags and translation, then paste it onto whichever
@@ -1411,12 +1453,14 @@ document.getElementById('btnSegment').addEventListener('click', () => {
 });
 
 function buildSongObject(){
+  commitArtistInput();
+  commitTagInput();
   const id = document.getElementById('fId').value.trim();
   return {
     id,
     zh: document.getElementById('fZh').value.trim(),
     en: document.getElementById('fEn').value.trim(),
-    artist: document.getElementById('fArtist').value.trim(),
+    artist: [...artistList],
     year: document.getElementById('fYear').value ? parseInt(document.getElementById('fYear').value, 10) : null,
     status: document.getElementById('fStatus').value,
     publishAt: document.getElementById('fPublishAt').value

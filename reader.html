@@ -3184,13 +3184,15 @@ async function init(){
     document.getElementById('readerHeadingEn').textContent = SONG.en ? ' ' + SONG.en : '';
     const subEl = document.getElementById('readerSub');
     subEl.innerHTML = '';
-    if(SONG.artist){
+    const artistList = Array.isArray(SONG.artist) ? SONG.artist : (SONG.artist ? [SONG.artist] : []);
+    artistList.forEach((name, i) => {
+      if(i > 0) subEl.append(', ');
       const a = document.createElement('a');
-      a.href = 'index.html?q=' + encodeURIComponent(SONG.artist);
+      a.href = 'index.html?q=' + encodeURIComponent(name);
       a.className = 'sub-link';
-      a.textContent = SONG.artist;
+      a.textContent = name;
       subEl.appendChild(a);
-    }
+    });
     if(SONG.year){
       if(subEl.children.length > 0) subEl.append(' · ');
       const a = document.createElement('a');
