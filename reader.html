@@ -341,6 +341,36 @@
     color:var(--text);
     opacity:.9;
   }
+  .vocab-card-grid{
+    display:flex; flex-wrap:wrap; gap:8px;
+  }
+  .vocab-card{
+    flex:0 0 auto;
+    min-width:64px;
+    padding:10px 12px;
+    border:1px solid var(--rule);
+    border-radius:6px;
+    background:var(--surface);
+    cursor:pointer;
+    text-align:center;
+    transition:background .15s;
+  }
+  .vocab-card:hover{ border-color:var(--accent); }
+  .vocab-card-front{
+    font-family:var(--font-han, 'Noto Serif SC', serif);
+    font-size:18px;
+    color:var(--text);
+  }
+  .vocab-card.flipped{ background:var(--surface-raised); text-align:left; }
+  .vocab-card.flipped .vocab-card-front{ display:none; }
+  .vocab-card-back{ display:none; max-width:220px; }
+  .vocab-card.flipped .vocab-card-back{ display:block; }
+  .vocab-card-pinyin{
+    font-family:'Inter',sans-serif; font-size:12px; color:var(--text-dim); margin-bottom:3px;
+  }
+  .vocab-card-gloss{
+    font-family:'Inter',sans-serif; font-size:12px; line-height:1.5; color:var(--text);
+  }
   .reader-heading{
     font-family:var(--font-title);
     font-size:26px;
@@ -352,9 +382,11 @@
     gap:10px;
   }
   #readerEditLink{
+    position:fixed; top:16px; right:16px; z-index:70;
     font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:400;
-    padding:4px 10px; border-radius:12px; border:1px solid var(--rule);
-    color:var(--text-dim); text-decoration:none; white-space:nowrap; flex-shrink:0;
+    padding:6px 12px; border-radius:14px; border:1px solid var(--rule);
+    background:var(--surface); color:var(--text-dim); text-decoration:none;
+    white-space:nowrap; box-shadow:0 2px 10px rgba(0,0,0,.15);
   }
   #readerEditLink:hover{ border-color:var(--accent); color:var(--accent); }
   #readerHeadingEn{
@@ -521,6 +553,9 @@
     border-radius:8px;
     max-width:320px;
     width:100%;
+    max-height:calc(100vh - 40px);
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
     -webkit-user-select:none;
     user-select:none;
     -webkit-touch-callout:none;
@@ -706,6 +741,11 @@
     font-size:13px;
     line-height:1.6;
     text-align:center;
+  }
+  .cons-kind-badge{
+    text-align:center;
+    font-family:'JetBrains Mono',monospace; font-size:9px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--text-dim); margin-bottom:6px;
   }
   .cons-header{
     display:flex;
@@ -1129,6 +1169,10 @@
     </details>
     <div id="lines"></div>
     <div id="creatorNotesSection" style="display:none;"></div>
+    <details class="context-block" id="vocabSection" style="display:none;">
+      <summary>Vocabulary not covered by HSK</summary>
+      <div class="context-body" id="vocabSectionBody"></div>
+    </details>
   </div>
 
   <aside>
@@ -1380,9 +1424,46 @@ function indexConstructions(){
       colorSlot++;
     }
     const colorVar = patternColors[c.pattern];
-    (c.members || []).forEach(([li, wi]) => {
-      constructionForKey[li + '_' + wi] = { construction: c, colorVar };
-    });
+    const isDiscontinuous = /\.{2,}|…+/.test(c.pattern);
+
+    if(isDiscontinuous){
+      // Can only be found via its stored positions — a gapped pattern like
+      // 在……之前 can't be located by scanning text alone.
+      (c.members || []).forEach(([li, wi]) => {
+        constructionForKey[li + '_' + wi] = { construction: c, colorVar };
+      });
+    } else {
+      // Re-scan the actual current text for a contiguous match, rather than
+      // only trusting stored [line, word] positions. This makes the index
+      // self-healing: if a line gets edited after a construction was added,
+      // or the stored positions are ever wrong for any reason, the popup
+      // still finds the right words by what they actually say right now.
+      let found = false;
+      SONG.lines.forEach((entry, li) => {
+        for(let start = 0; start < entry.words.length; start++){
+          let combined = '';
+          let end = start;
+          while(end < entry.words.length && combined.length < c.pattern.length){
+            if(entry.words[end].isPunct) break;
+            combined += entry.words[end].h;
+            end++;
+          }
+          if(combined === c.pattern){
+            found = true;
+            for(let wi = start; wi < end; wi++){
+              constructionForKey[li + '_' + wi] = { construction: c, colorVar };
+            }
+          }
+        }
+      });
+      // Fall back to stored positions if a live text match couldn't be found
+      // at all (e.g. the words no longer exist in the song as originally tagged).
+      if(!found){
+        (c.members || []).forEach(([li, wi]) => {
+          constructionForKey[li + '_' + wi] = { construction: c, colorVar };
+        });
+      }
+    }
   });
 }
 
@@ -1406,6 +1487,7 @@ function renderCreatorNotes(){
   const seenPatterns = new Set();
   const consItems = [];
   (SONG.constructions || []).forEach(c => {
+    if(c.kind === 'vocabulary') return; // shown in its own "Vocabulary" section instead
     if(!seenPatterns.has(c.pattern)){
       seenPatterns.add(c.pattern);
       consItems.push(c);
@@ -1446,7 +1528,7 @@ function renderCreatorNotes(){
     </div>
   `;}).join('');
 
-  section.innerHTML = `<div class="notes-heading">Notes on this song</div>` + wordHtml + consHtml;
+  section.innerHTML = `<div class="notes-heading">Editor's notes</div>` + wordHtml + consHtml;
 
   section.querySelectorAll('.note-jumpable').forEach(el => {
     el.addEventListener('click', () => {
@@ -1455,7 +1537,7 @@ function renderCreatorNotes(){
       const blocks = document.querySelectorAll('.line-block');
       const targetLine = blocks[lineIdx];
       if(!targetLine) return;
-      const targetWord = targetLine.querySelectorAll('.word')[wordIdx];
+      const targetWord = targetLine.querySelector(`.word[data-word-idx="${wordIdx}"]`);
       if(!targetWord) return;
       targetWord.scrollIntoView({ behavior: 'smooth', block: 'center' });
       targetWord.classList.add('note-flash');
@@ -1463,6 +1545,59 @@ function renderCreatorNotes(){
     });
   });
   section.style.display = 'block';
+}
+
+function renderVocabularySection(){
+  const details = document.getElementById('vocabSection');
+  const body = document.getElementById('vocabSectionBody');
+
+  // Anything already covered as a construction member (real or vocabulary)
+  // shouldn't also be listed again as a standalone character here.
+  const coveredPositions = new Set();
+  (SONG.constructions || []).forEach(c => {
+    (c.members || []).forEach(([li, wi]) => coveredPositions.add(li + '_' + wi));
+  });
+
+  const seenHanzi = new Set();
+  const items = [];
+
+  (SONG.constructions || []).forEach(c => {
+    if(c.kind !== 'vocabulary') return;
+    if(seenHanzi.has(c.pattern)) return;
+    seenHanzi.add(c.pattern);
+    items.push({ hanzi: c.pattern, pinyin: c.pinyin || '', gloss: consGlossArray(c.gloss) });
+  });
+
+  SONG.lines.forEach((entry, li) => {
+    entry.words.forEach((tok, wi) => {
+      if(tok.isPunct || !tok.h || !tok.h.trim()) return;
+      if(tok.hsk !== 0) return;
+      if(coveredPositions.has(li + '_' + wi)) return;
+      if(seenHanzi.has(tok.h)) return;
+      seenHanzi.add(tok.h);
+      const g = Array.isArray(tok.g) ? tok.g : (tok.g ? [tok.g] : []);
+      items.push({ hanzi: tok.h, pinyin: tok.p || '', gloss: g.length ? g : (tok.short ? [tok.short] : []) });
+    });
+  });
+
+  if(items.length === 0){
+    details.style.display = 'none';
+    return;
+  }
+
+  body.innerHTML = `<div class="vocab-card-grid">` + items.map((it, i) => `
+    <div class="vocab-card" data-idx="${i}">
+      <div class="vocab-card-front">${it.hanzi}</div>
+      <div class="vocab-card-back">
+        ${it.pinyin ? `<div class="vocab-card-pinyin">${it.pinyin}</div>` : ''}
+        <div class="vocab-card-gloss">${it.gloss.join(' / ') || '(no definition yet)'}</div>
+      </div>
+    </div>
+  `).join('') + `</div>`;
+  body.querySelectorAll('.vocab-card').forEach(card => {
+    card.addEventListener('click', () => card.classList.toggle('flipped'));
+  });
+  details.style.display = 'block';
 }
 
 let translationHidden = new Set();
@@ -1575,6 +1710,7 @@ function render(){
       }
       const w = document.createElement('div');
       w.className = 'word';
+      w.dataset.wordIdx = wordIdx;
       const isPunct = tok.h.length===1 && /[。，！？]/.test(tok.h);
       if(isPunct){
         w.innerHTML = `<span class="pinyin"></span><span class="hanzi" style="color:var(--text-dim)">${tok.h}</span><span class="gloss"></span>`;
@@ -1701,6 +1837,10 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
     badge.textContent = 'Construction';
     badge.style.color = 'var(--accent)';
     badge.style.borderColor = 'var(--accent)';
+  } else if(tok.isVocabulary){
+    badge.textContent = 'Vocabulary';
+    badge.style.color = 'var(--text-dim)';
+    badge.style.borderColor = 'var(--rule)';
   } else {
     badge.textContent = hskBadgeLabel(tok.hsk);
     badge.style.color = `var(${HSK_VAR[tok.hsk]})`;
@@ -1841,11 +1981,13 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
   const consEl = document.getElementById('popupConstruction');
   const cons = !tok.isConstruction && (constructionOverride || constructionForKey[key]);
   if(cons){
-    let isConsSaved = saved.some(s => s.h === cons.construction.pattern && s.kind === 'construction');
+    const consKind = cons.construction.kind || 'construction';
+    let isConsSaved = saved.some(s => s.h === cons.construction.pattern && s.kind === consKind);
     const speakHanzi = cons.construction.pattern.replace(/\.{2,}|…+/g, '');
     const speakPinyin = (cons.construction.pinyin || '').replace(/\s*…\s*|\.{2,}/g, ' ').trim();
     const canEditCons = currentProfile && currentProfile.is_creator;
     consEl.innerHTML = `
+      <div class="cons-kind-badge">${consKind === 'vocabulary' ? 'Vocabulary' : 'Construction'}</div>
       <div class="cons-header">
         <span class="cons-pattern">${cons.construction.pattern}</span>
         ${cons.construction.pinyin ? `<span class="cons-pattern-pinyin">${cons.construction.pinyin}</span>` : ''}
@@ -1956,7 +2098,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
     // show as unsaved when opened from another.
     if(currentUser){
       sb.from('saved_words').select('hanzi').eq('user_id', currentUser.id)
-        .eq('hanzi', cons.construction.pattern).eq('kind', 'construction').maybeSingle()
+        .eq('hanzi', cons.construction.pattern).eq('kind', consKind).maybeSingle()
         .then(({ data }) => {
           const actuallySaved = !!data;
           if(actuallySaved === isConsSaved) return;
@@ -1969,7 +2111,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx){
           btn.textContent = isConsSaved ? '\u2605 saved' : '\u2606 save this construction';
           // Also fix the in-memory list so the rest of the UI (star icon,
           // saved-words sidebar) agrees with the server too.
-          if(isConsSaved && !saved.some(s => s.h === cons.construction.pattern && s.kind === 'construction')){
+          if(isConsSaved && !saved.some(s => s.h === cons.construction.pattern && s.kind === consKind)){
             loadVocabFromSupabase();
           }
         });
@@ -2028,7 +2170,7 @@ function navigatePopup(direction){
   const target = flat[newIdx];
   const blocks = document.querySelectorAll('.line-block');
   const targetLine = blocks[target.lineIdx];
-  const targetWord = targetLine ? targetLine.querySelectorAll('.word')[target.wordIdx] : null;
+  const targetWord = targetLine ? targetLine.querySelector(`.word[data-word-idx="${target.wordIdx}"]`) : null;
   if(!targetWord) return;
   openPopup(target.tok, target.lineIdx + '_' + target.wordIdx, targetWord);
   targetWord.scrollIntoView({ behavior:'smooth', block:'center' });
@@ -2075,16 +2217,17 @@ async function removeWord(h){
 }
 
 async function saveConstruction(cons){
-  const existing = saved.find(s => s.h === cons.pattern && s.kind === 'construction');
+  const kind = cons.kind || 'construction';
+  const existing = saved.find(s => s.h === cons.pattern && s.kind === kind);
   const glossArray = [...consGlossArray(cons.gloss), cons.note].filter(Boolean);
   if(existing){
     if(!existing.sources.includes(SONG_ID)) existing.sources.push(SONG_ID);
   } else {
-    saved.push({ h: cons.pattern, p: cons.pinyin || '', g: glossArray, hsk: 0, kind: 'construction', sources: [SONG_ID] });
+    saved.push({ h: cons.pattern, p: cons.pinyin || '', g: glossArray, hsk: 0, kind, sources: [SONG_ID] });
   }
   if(currentUser){
     await sb.from('saved_words').upsert({
-      user_id: currentUser.id, kind: 'construction', hanzi: cons.pattern, pinyin: cons.pinyin || '',
+      user_id: currentUser.id, kind, hanzi: cons.pattern, pinyin: cons.pinyin || '',
       gloss: glossArray, hsk: 0,
       sources: existing ? existing.sources : [SONG_ID]
     }, { onConflict: 'user_id,hanzi' });
@@ -2152,9 +2295,10 @@ function renderVocab(){
 }
 
 function openVocabPopup(s, el, vocabIdx){
-  if(s.kind === 'construction'){
+  if(s.kind === 'construction' || s.kind === 'vocabulary'){
     const g = Array.isArray(s.g) ? s.g : (s.g ? [s.g] : []);
-    const tok = { h: s.h, p: s.p || '', g, short: g[0] || '', hsk: 0, note: '', isConstruction: true };
+    const tok = { h: s.h, p: s.p || '', g, short: g[0] || '', hsk: 0, note: '', kind: s.kind,
+      isConstruction: true, isVocabulary: s.kind === 'vocabulary' };
     openPopup(tok, 'vocab_' + s.h, el, null, vocabIdx);
   } else {
     const g = Array.isArray(s.g) ? s.g : (s.g ? [s.g] : []);
@@ -3565,6 +3709,7 @@ async function init(){
     renderVocab();
     renderVideo();
     renderCreatorNotes();
+    renderVocabularySection();
   } catch(err){
     document.getElementById('loadState').textContent =
       `Couldn't load "${SONG_ID}". It may not exist, or it's a draft you don't have creator access to.`;

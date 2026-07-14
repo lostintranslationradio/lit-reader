@@ -157,6 +157,7 @@
 <main id="unlockedMain" style="display:none;">
 
 <div id="floatingSave" style="position:fixed; bottom:20px; right:20px; z-index:100; display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+  <button id="btnUndo" class="btn secondary" disabled style="box-shadow:0 2px 10px rgba(0,0,0,.15);">↩ Undo</button>
   <button id="btnFloatingSave" class="btn" style="box-shadow:0 2px 10px rgba(0,0,0,.15);">Save</button>
   <div id="floatingSaveStatus" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--accent); text-align:right;"></div>
 </div>
@@ -317,7 +318,6 @@
       dictionary — fill in pinyin/gloss by hand, or leave it: it'll just render as a Beyond-tier word
       with no gloss until you do. The translation field is the only thing that was never automatic.
     </p>
-    <button class="btn secondary" id="btnUndo" disabled style="margin-bottom:10px;">↩ Undo</button>
     <div id="linesContainer"></div>
   </div>
 
@@ -437,7 +437,7 @@ async function fetchKnownConstructions(){
   const seen = new Map();
   data.forEach(song => {
     (song.constructions || []).forEach(c => {
-      if(!seen.has(c.pattern)) seen.set(c.pattern, { pattern: c.pattern, gloss: c.gloss, note: c.note || '' });
+      if(!seen.has(c.pattern)) seen.set(c.pattern, { pattern: c.pattern, gloss: c.gloss, note: c.note || '', kind: c.kind || 'construction' });
     });
   });
   knownConstructions = [...seen.values()];
@@ -490,7 +490,7 @@ function scanForSuggestedConstructions(){
       const s = suggestions[parseInt(btn.dataset.linkSuggestion, 10)];
       constructions.push({
         id: 'c' + Date.now() + Math.random().toString(36).slice(2),
-        pattern: s.pattern, gloss: s.gloss, note: s.note,
+        pattern: s.pattern, gloss: s.gloss, note: s.note, kind: s.kind || 'construction',
         pinyin: getMemberPinyin(s.members), members: s.members
       });
       renderConstructionsList();
@@ -516,28 +516,49 @@ function findSplitTermCandidates(){
   const candidates = [];
   lineData.forEach((line, li) => {
     const tokens = line.tokens;
-    for(let start = 0; start < tokens.length; start++){
-      if(tokens[start].isPunct) continue;
+    let start = 0;
+    while(start < tokens.length){
+      if(tokens[start].isPunct){ start++; continue; }
+      // Check the longest possible span first, working down to the
+      // shortest (2 tokens) — take the first (longest) genuine dictionary
+      // hit rather than surfacing every shorter sub-match too. Otherwise a
+      // word like 从来没有 would also suggest 从来 as a separate, overlapping
+      // candidate, and adding both creates conflicting constructions that
+      // fight over the same words in the popup.
+      const maxSpan = Math.min(MAX_SPLIT_SPAN, tokens.length - start);
+      let safeSpan = 0;
+      for(let i = start; i < start + maxSpan; i++){
+        if(tokens[i].isPunct) break;
+        safeSpan++;
+      }
+      let matchSpan = 0;
+      let matchEntry = null;
       let combined = '';
-      for(let end = start; end < Math.min(tokens.length, start + MAX_SPLIT_SPAN); end++){
-        if(tokens[end].isPunct) break;
-        combined += tokens[end].h;
-        const span = end - start + 1;
-        if(span < 2) continue; // need at least 2 tokens for this to be a "split" case at all
+      for(let span = safeSpan; span >= 2; span--){
+        const candidate = Array.from({ length: span }, (_, i) => tokens[start + i].h).join('');
         // Only a genuine dictionary hit counts — lookup() alone, not the
         // fallbackLookup() character-stitching, which is exactly the
         // "(from characters)" case that shouldn't trigger a suggestion.
-        const entry = lookup(combined);
-        if(entry && !currentPatterns.has(combined) && !dismissedSplitSuggestions.has(combined) && !seen.has(combined)){
-          seen.add(combined);
-          candidates.push({
-            pattern: combined,
-            gloss: entry.g,
-            pinyin: entry.p,
-            note: '',
-            members: Array.from({ length: span }, (_, i) => [li, start + i])
-          });
+        const entry = lookup(candidate);
+        if(entry){
+          matchSpan = span;
+          matchEntry = entry;
+          combined = candidate;
+          break;
         }
+      }
+      if(matchSpan >= 2 && matchEntry && !currentPatterns.has(combined) && !dismissedSplitSuggestions.has(combined) && !seen.has(combined)){
+        seen.add(combined);
+        candidates.push({
+          pattern: combined,
+          gloss: matchEntry.g,
+          pinyin: matchEntry.p,
+          note: '',
+          members: Array.from({ length: matchSpan }, (_, i) => [li, start + i])
+        });
+        start += matchSpan; // skip past the claimed span entirely
+      } else {
+        start++;
       }
     }
   });
@@ -572,7 +593,7 @@ function renderSplitTermCandidates(){
       const c = candidates[parseInt(btn.dataset.addSplit, 10)];
       constructions.push({
         id: 'c' + Date.now() + Math.random().toString(36).slice(2),
-        pattern: c.pattern, gloss: c.gloss, note: c.note,
+        pattern: c.pattern, gloss: c.gloss, note: c.note, kind: 'vocabulary',
         pinyin: c.pinyin, members: c.members
       });
       renderConstructionsList();
@@ -870,51 +891,16 @@ function applyParticleOverride(tok){
   return tok;
 }
 
-// Forward maximum matching: at each position, try the longest substring
-// that exists as its own dictionary entry before falling back to shorter
-// ones. This means a word like 归零 — which IS in CC-CEDICT with its own
-// correct definition — gets recognized as one word automatically, instead
-// of a generic linguistic segmenter splitting it into 归 + 零 before the
-// dictionary ever gets a chance to look up the whole thing. Only spans with
-// no dictionary entry at any length fall through to single characters.
-const MAX_WORD_LEN = 8;
-
 function segmentLine(text){
   const seg = new Intl.Segmenter('zh', { granularity: 'word' });
-  const chars = Array.from(text);
   const tokens = [];
-  let i = 0;
-  while(i < chars.length){
-    const remaining = chars.slice(i).join('');
-    if(!remaining.trim()){ i++; continue; }
-    if(PUNCT_RE.test(chars[i])){
-      let j = i + 1;
-      while(j < chars.length && PUNCT_RE.test(chars[j])) j++;
-      tokens.push({ h: chars.slice(i, j).join(''), p: '', g: [], hsk: 0, isPunct: true });
-      i = j;
+  for(const { segment } of seg.segment(text)){
+    if(!segment || !segment.trim()) continue;
+    if(PUNCT_RE.test(segment)){
+      tokens.push({ h: segment, p: '', g: [], hsk: 0, isPunct: true });
       continue;
     }
-    let matchLen = 0;
-    const maxLen = Math.min(MAX_WORD_LEN, chars.length - i);
-    for(let len = maxLen; len >= 1; len--){
-      const candidate = chars.slice(i, i + len).join('');
-      if(DICT[candidate]){
-        matchLen = len;
-        break;
-      }
-    }
-    let segment, entry;
-    if(matchLen > 0){
-      segment = chars.slice(i, i + matchLen).join('');
-      entry = lookup(segment);
-    } else {
-      // Nothing in the dictionary at any length starting here (rare) —
-      // fall back to the generic segmenter for just this one word so we
-      // still get a sensible boundary, then try character-stitching.
-      const iter = seg.segment(remaining)[Symbol.iterator]().next();
-      segment = (iter.value && iter.value.segment) || chars[i];
-      entry = fallbackLookup(segment);
-    }
+    let entry = lookup(segment) || fallbackLookup(segment);
     const hasMultipleReadings = entry && entry.readings && entry.readings.length > 1;
     tokens.push(applyParticleOverride({
       h: segment,
@@ -929,7 +915,6 @@ function segmentLine(text){
       selected_reading: hasMultipleReadings ? entry.p : null,
       needsReadingPick: hasMultipleReadings
     }));
-    i += Array.from(segment).length;
   }
   return tokens;
 }
@@ -1004,11 +989,15 @@ function renderConstructionsList(){
   if(constructions.length === 0){ el.innerHTML = ''; return; }
   el.innerHTML = constructions.map((c, ci) => {
     const words = c.members.map(([li, ti]) => lineData[li]?.tokens[ti]?.h || '?').join(' + ');
+    const isVocab = c.kind === 'vocabulary';
+    const kindBadge = `<span style="font-family:'JetBrains Mono',monospace; font-size:9px; text-transform:uppercase;
+      padding:1px 6px; border-radius:8px; border:1px solid ${isVocab ? 'var(--hsk79, var(--rule))' : 'var(--accent)'};
+      color:${isVocab ? 'var(--text-dim)' : 'var(--accent)'}; margin-left:6px;">${isVocab ? 'vocabulary' : 'construction'}</span>`;
     return `
       <div class="cons-row" data-cons-row="${ci}" style="padding:8px 0; border-bottom:1px solid var(--rule);">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
           <div>
-            <span style="font-family:'Noto Serif SC',serif; color:var(--accent);">${c.pattern}</span>
+            <span style="font-family:'Noto Serif SC',serif; color:var(--accent);">${c.pattern}</span>${kindBadge}
             <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${glossToArray(c.gloss).join(' / ')} · ${words}</span>
           </div>
           <div style="display:flex; gap:6px; flex-shrink:0;">
@@ -1118,7 +1107,7 @@ function findOtherOccurrences(consIndex){
         const members = match.map(idx => [li, idx]);
         constructions.push({
           id: 'c' + Date.now() + Math.random().toString(36).slice(2),
-          pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
+          pattern: cons.pattern, gloss: cons.gloss, note: cons.note, kind: cons.kind || 'construction',
           pinyin: getMemberPinyin(members),
           members
         });
@@ -1134,7 +1123,7 @@ function findOtherOccurrences(consIndex){
         const members = matchIndices.map(idx => [li, idx]);
         constructions.push({
           id: 'c' + Date.now() + Math.random().toString(36).slice(2),
-          pattern: cons.pattern, gloss: cons.gloss, note: cons.note,
+          pattern: cons.pattern, gloss: cons.gloss, note: cons.note, kind: cons.kind || 'construction',
           pinyin: getMemberPinyin(members),
           members
         });
@@ -1194,7 +1183,7 @@ document.getElementById('btnSaveConstruction').addEventListener('click', () => {
   if(!pattern || gloss.length === 0){ alert('Fill in at least the pattern and a definition.'); return; }
   constructions.push({
     id: 'c' + Date.now(),
-    pattern, gloss, note,
+    pattern, gloss, note, kind: 'construction',
     pinyin: getMemberPinyin(selectedMembers),
     members: selectedMembers.map(m => [...m])
   });
