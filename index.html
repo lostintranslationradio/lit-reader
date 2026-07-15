@@ -720,9 +720,16 @@ function teaserCardHTML(){
   `;
 }
 
+function isEffectivelyPublished(song){
+  if(song.status === 'published') return true;
+  return song.status === 'draft' && !!song.publishAt && new Date(song.publishAt) <= new Date();
+}
+
 function songStatusLabel(song){
   const isScheduled = song.status === 'draft' && song.publishAt && new Date(song.publishAt) > new Date();
-  return isScheduled ? 'scheduled' : song.status;
+  if(isScheduled) return 'scheduled';
+  if(isEffectivelyPublished(song)) return 'published';
+  return song.status;
 }
 
 function renderGrid(list){
@@ -914,8 +921,8 @@ function simpleHash(str){
 }
 
 function eligibleForFeature(){
-  // Published only, and not still-scheduled — same "actually live" definition used elsewhere.
-  return manifest.filter(s => s.status === 'published');
+  // Published, or draft-with-a-passed-schedule — same "actually live" definition used elsewhere.
+  return manifest.filter(isEffectivelyPublished);
 }
 
 async function renderSongOfDay(){
