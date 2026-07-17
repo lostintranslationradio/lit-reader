@@ -145,7 +145,7 @@
       <div class="eyebrow">creator tool</div>
       <div class="title">Add a Song</div>
     </div>
-    <a href="../index.html" class="library-btn">← <span class="library-btn-text">Library</span></a>
+    <a class='library-btn' href='/'>← <span class="library-btn-text">Library</span></a>
   </div>
 </header>
 
@@ -1752,7 +1752,7 @@ async function publishSong(){
     if(floatingStatusEl) floatingStatusEl.textContent = 'Failed — see status below';
   } else {
     const link = document.createElement('a');
-    link.href = `../reader.html?song=${song.id}`;
+    link.href = `../song/${song.id}.html`;
     link.target = '_blank';
     link.textContent = 'View the page →';
     link.style.marginLeft = '8px';
@@ -1778,5 +1778,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 </script>
+
+<script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="a8136fc7-1bf3-4a8a-91b3-53a7b5eb4cc1" data-netlify-deploy-branch="main" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiYTgxMzZmYzctMWJmMy00YThhLTkxYjMtNTNhN2I1ZWI0Y2MxIiwiYWNjb3VudF9pZCI6IjZhNTI5N2RlY2ZkNmQ5YmRkMmRmNzgwNSIsImRlcGxveV9pZCI6IjZhNTg0MzgzNTEwZTdhMDAwODQ2ZWIxZSIsImlzc3VlciI6Im5mc2VydmVyIn0.hZvSGLbYaOpIv_r4fRjgimqOB2PAOLWLOuC5Ce5byYA"></script>
 </body>
 </html>

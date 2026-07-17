@@ -142,7 +142,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
 
 <header>
   <div class="header-inner">
-    <a href="index.html" id="backLink" class="library-btn">← Library</a>
+    <a class='library-btn' href='/' id='backLink'>← Library</a>
     <div>
       <div class="eyebrow">Guide</div>
       <div class="title">How to Use This Site</div>
@@ -155,7 +155,7 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   <p class="lede">
     This page walks through every feature in the reader using the actual thing — not screenshots.
     Everything below is live: tap it, hold it, drag it. Once it clicks, jump into the
-    <a href="index.html">song library</a> and try it on a real song.
+    <a href='/'>song library</a> and try it on a real song.
   </p>
 
   <div class="lesson">
@@ -242,12 +242,12 @@ main{ max-width:760px; margin:0 auto; padding:36px 24px 90px; }
   <div class="lesson">
     <div class="lesson-num">09</div>
     <h2>Finding songs</h2>
-    <p>Back in the <a href="index.html">library</a>, every artist, year, and tag is clickable — tap one and the library filters to everything matching it. Sort by newest, alphabetical, year, or difficulty using the dropdown up top.</p>
+    <p>Back in the <a href='/'>library</a>, every artist, year, and tag is clickable — tap one and the library filters to everything matching it. Sort by newest, alphabetical, year, or difficulty using the dropdown up top.</p>
   </div>
 
   <div class="cta">
     <div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim);">Ready to try it on a real song?</div>
-    <a href="index.html">Go to the library →</a>
+    <a href='/'>Go to the library →</a>
   </div>
 </main>
 
@@ -466,12 +466,14 @@ document.getElementById('demoSlider').addEventListener('input', function(){
 const fromSong = new URLSearchParams(location.search).get('from');
 if(fromSong){
   const backLink = document.getElementById('backLink');
-  backLink.href = `reader.html?song=${encodeURIComponent(fromSong)}`;
+  backLink.href = `song/${encodeURIComponent(fromSong)}.html`;
   backLink.textContent = '← Back to song';
 }
 
 localStorage.setItem('hasSeenHowToUse', '1');
 renderAll();
 </script>
+
+<script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="a8136fc7-1bf3-4a8a-91b3-53a7b5eb4cc1" data-netlify-deploy-branch="main" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiYTgxMzZmYzctMWJmMy00YThhLTkxYjMtNTNhN2I1ZWI0Y2MxIiwiYWNjb3VudF9pZCI6IjZhNTI5N2RlY2ZkNmQ5YmRkMmRmNzgwNSIsImRlcGxveV9pZCI6IjZhNTg0MzgzNTEwZTdhMDAwODQ2ZWIxZSIsImlzc3VlciI6Im5mc2VydmVyIn0.hZvSGLbYaOpIv_r4fRjgimqOB2PAOLWLOuC5Ce5byYA"></script>
 </body>
 </html>

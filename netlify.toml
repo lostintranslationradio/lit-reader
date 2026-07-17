@@ -7,3 +7,8 @@
   from = "/about"
   to = "/about.html"
   status = 200
+
+[[redirects]]
+  from = "/song/*"
+  to = "/.netlify/functions/song-page"
+  status = 200

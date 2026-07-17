@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Song Library — L.I.T. Reader</title>
+<title>Lost In Translation — Song Library</title>
 <meta property="og:title" content="Lost In Translation Radio">
+<meta name="description" content="Mandopop lyrics translated line by line, with pinyin, HSK-leveled vocabulary, and grammar notes — built for Chinese learners.">
+<link rel="canonical" href="https://lostintranslationradio.com/">
 <meta property="og:description" content="Mandopop lyrics translated line by line, with pinyin, HSK-leveled vocabulary, and grammar notes — built for Chinese learners.">
 <meta property="og:image" content="https://lostintranslationradio.com/assets/social-preview.png">
 <meta property="og:url" content="https://lostintranslationradio.com/">
@@ -574,7 +576,7 @@
       <div class="eyebrow">song library</div>
       <div class="title">
         Lost in Translation Radio
-        <a id="aboutLink" class="about-q" href="about.html" title="About">?</a>
+        <a class='about-q' href='/about' id='aboutLink' title='About'>?</a>
       </div>
     </div>
     <button class="creator-link" id="creatorLink">Sign In</button>
@@ -735,7 +737,7 @@ function songStatusLabel(song){
 
 function renderGrid(list){
   document.getElementById('grid').innerHTML = list.map(song => `
-    <a class="card" href="reader.html?song=${song.id}">
+    <a class="card" href="song/${song.id}.html">
       <div class="cover" style="background:${coverColor(song.id)}22; border-bottom:1px solid var(--rule); ${song.coverUrl ? `background-image:url('${song.coverUrl}'); background-size:cover; background-position:center;` : ''}">
         ${creatorMode ? `<span class="status-pill">${songStatusLabel(song)}</span>` : ''}
         ${creatorMode ? `<button class="edit-btn" title="Edit this song" onclick="event.preventDefault(); event.stopPropagation(); location.href='creator/add-song.html?edit=${song.id}';">✎ Edit</button>` : ''}
@@ -773,7 +775,7 @@ function teaserRowHTML(){
 
 function renderList(list){
   document.getElementById('list').innerHTML = list.map((song, i) => `
-    <a class="row" href="reader.html?song=${song.id}">
+    <a class="row" href="song/${song.id}.html">
       <span class="row-index">${i+1}</span>
       <div class="row-swatch" style="background:${coverColor(song.id)}22; ${song.coverUrl ? `background-image:url('${song.coverUrl}'); background-size:cover; background-position:center;` : ''}">
         ${song.coverUrl ? '' : `<span style="color:${coverColor(song.id)}">${song.zh.slice(0,1)}</span>`}
@@ -981,7 +983,7 @@ async function renderSongOfDay(){
           <div class="sod-artist">${artistChipsHTML(chosen.artist)}${chosen.year ? ` · ${chosen.year}` : ''}</div>
           ${chosen.context ? `<div class="sod-about">${renderSimpleMarkdown(chosen.context)}</div>` : ''}
           ${chosen.tags && chosen.tags.length ? `<div class="sod-tags">${chosen.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>` : ''}
-          <a class="sod-cta" href="reader.html?song=${chosen.id}">Lyrics →</a>
+          <a class="sod-cta" href="song/${chosen.id}.html">Lyrics →</a>
         </div>
       </div>
     </div>
@@ -1006,7 +1008,7 @@ document.getElementById('randomSongBtn').addEventListener('click', () => {
   const pool = eligibleForFeature();
   if(pool.length === 0) return;
   const pick = pool[Math.floor(Math.random() * pool.length)];
-  location.href = `reader.html?song=${pick.id}`;
+  location.href = `song/${pick.id}.html`;
 });
 </script>
 <footer style="text-align:center; padding:20px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim);">
@@ -1024,11 +1026,11 @@ document.getElementById('randomSongBtn').addEventListener('click', () => {
   · Reading layout inspired by <a href="https://wubli.app" target="_blank" rel="noopener" style="color:var(--text-dim);">Wubli</a>
 </footer>
 
-<a id="addSongLink" href="creator/add-song.html" style="display:none; position:fixed; bottom:24px; right:24px; z-index:90;
+<a href='/creator/add-song' id='addSongLink' style='display:none; position:fixed; bottom:24px; right:24px; z-index:90;
   align-items:center; gap:8px; padding:16px 26px; border-radius:32px;
   background:#6b3f1d; color:#fff; text-decoration:none;
-  font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:500;
-  box-shadow:0 4px 16px rgba(0,0,0,.3);">+ Add Song</a>
+  font-family:\'JetBrains Mono\',monospace; font-size:15px; font-weight:500;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);'>+ Add Song</a>
 
 <div id="aboutModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; align-items:center; justify-content:center; padding:20px;">
   <div style="background:var(--surface); border-radius:10px; width:100%; max-width:720px; max-height:88vh; position:relative; overflow:hidden; display:flex; flex-direction:column;">
@@ -1069,5 +1071,7 @@ window.addEventListener('popstate', () => {
   }
 });
 </script>
+
+<script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="a8136fc7-1bf3-4a8a-91b3-53a7b5eb4cc1" data-netlify-deploy-branch="main" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiYTgxMzZmYzctMWJmMy00YThhLTkxYjMtNTNhN2I1ZWI0Y2MxIiwiYWNjb3VudF9pZCI6IjZhNTI5N2RlY2ZkNmQ5YmRkMmRmNzgwNSIsImRlcGxveV9pZCI6IjZhNTg0MzgzNTEwZTdhMDAwODQ2ZWIxZSIsImlzc3VlciI6Im5mc2VydmVyIn0.hZvSGLbYaOpIv_r4fRjgimqOB2PAOLWLOuC5Ce5byYA"></script>
 </body>
 </html>

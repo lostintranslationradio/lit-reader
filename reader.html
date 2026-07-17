@@ -4,8 +4,14 @@
 <meta charset="UTF-8">
 <title>Lyric Reader</title>
 <meta property="og:title" content="Lost In Translation Radio">
+<meta name="description" content="Mandopop lyrics translated line by line, with pinyin, HSK-leveled vocabulary, and grammar notes — built for Chinese learners.">
+<link rel="canonical" href="https://lostintranslationradio.com/reader.html">
 <meta property="og:description" content="Mandopop lyrics translated line by line, with pinyin, HSK-leveled vocabulary, and grammar notes — built for Chinese learners.">
 <meta property="og:image" content="https://lostintranslationradio.com/assets/social-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:site_name" content="Lost In Translation Radio">
+<meta property="og:url" content="https://lostintranslationradio.com/reader.html">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Lost In Translation Radio">
@@ -1126,16 +1132,16 @@
 
 <header>
   <div class="header-inner">
-    <a href="index.html" class="library-btn">← <span class="library-btn-text">Library</span></a>
+    <a class='library-btn' href='/'>← <span class="library-btn-text">Library</span></a>
     <div class="brand">
       <div class="eyebrow">Annotated Reader</div>
       <div class="title" id="pageTitle">
         Lost In Translation Radio
-        <a id="aboutLink" class="about-q" href="about.html" title="About">?</a>
+        <a class='about-q' href='/about' id='aboutLink' title='About'>?</a>
       </div>
     </div>
     <div style="justify-self:end; display:flex; gap:8px;">
-      <a href="how-to-use.html" id="howToUseLink" class="library-btn">How to Use</a>
+      <a class='library-btn' href='/how-to-use' id='howToUseLink'>How to Use</a>
     </div>
   </div>
 </header>
@@ -1370,7 +1376,16 @@
 </div>
 
 <script>
-const SONG_ID = new URLSearchParams(location.search).get('song') || 'song-1';
+function resolveSongId(){
+  // New clean URLs: /song/return-to-zero.html
+  const pathMatch = location.pathname.match(/\/song\/([^/]+?)(?:\.html)?\/?$/);
+  if (pathMatch) return decodeURIComponent(pathMatch[1]);
+  // Back-compat: old ?song=return-to-zero links (bookmarks, shares, search results)
+  const fromQuery = new URLSearchParams(location.search).get('song');
+  if (fromQuery) return fromQuery;
+  return 'song-1';
+}
+const SONG_ID = resolveSongId();
 let SONG = null;       // the current song's full data
 let SONG_TITLES = {};  // id -> zh title, for labeling cross-song vocab sources
 let DICT_OVERRIDES = {}; // hanzi -> {pinyin, gloss} — creator corrections that apply everywhere
@@ -3794,10 +3809,53 @@ async function init(){
       });
     });
 
-    document.title = SONG.zh + ' — Lyric Reader';
+    const artistListForMeta = Array.isArray(SONG.artist) ? SONG.artist : (SONG.artist ? [SONG.artist] : []);
+    const titleEn = SONG.en ? ` (${SONG.en})` : '';
+    const artistSuffix = artistListForMeta.length ? ` — ${artistListForMeta.join(', ')}` : '';
+    document.title = `${SONG.zh}${titleEn}${artistSuffix} | Lyric Reader`;
+
+    function plainTextDescription(text, fallback){
+      if(!text || !text.trim()) return fallback;
+      // Strip the same **bold**/*italic* markup used by renderSimpleMarkdown,
+      // and collapse whitespace/newlines into a single line.
+      const plain = text.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
+        .replace(/\s+/g, ' ').trim();
+      if(plain.length <= 155) return plain;
+      // Truncate at the last whole word before ~155 chars rather than
+      // cutting mid-word.
+      const cut = plain.slice(0, 155);
+      const lastSpace = cut.lastIndexOf(' ');
+      return cut.slice(0, lastSpace > 0 ? lastSpace : 155).trim() + '…';
+    }
+
+    const genericDescription =
+      `${SONG.zh}${titleEn}${artistSuffix}: line-by-line English translation with pinyin, word glosses, and grammar notes — built for Chinese learners.`;
+
+    const metaDescEl = document.querySelector('meta[name="description"]');
+    if (metaDescEl) {
+      metaDescEl.setAttribute('content', plainTextDescription(SONG.context, genericDescription));
+    }
+    let canonicalEl = document.querySelector('link[rel="canonical"]');
+    if (!canonicalEl) {
+      canonicalEl = document.createElement('link');
+      canonicalEl.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalEl);
+    }
+    const canonicalUrl = `https://lostintranslationradio.com/song/${encodeURIComponent(SONG_ID)}.html`;
+    canonicalEl.setAttribute('href', canonicalUrl);
+
+    const ogTitleEl = document.querySelector('meta[property="og:title"]');
+    if (ogTitleEl) ogTitleEl.setAttribute('content', `${SONG.zh}${titleEn}${artistSuffix} | Lyric Reader`);
+    const ogUrlEl = document.querySelector('meta[property="og:url"]');
+    if (ogUrlEl) ogUrlEl.setAttribute('content', canonicalUrl);
+    const ogDescEl = document.querySelector('meta[property="og:description"]');
+    if (ogDescEl) ogDescEl.setAttribute('content', plainTextDescription(SONG.context, genericDescription));
+    const twitterTitleEl = document.querySelector('meta[name="twitter:title"]');
+    if (twitterTitleEl) twitterTitleEl.setAttribute('content', `${SONG.zh}${titleEn}${artistSuffix} | Lyric Reader`);
+    const twitterDescEl = document.querySelector('meta[name="twitter:description"]');
+    if (twitterDescEl) twitterDescEl.setAttribute('content', plainTextDescription(SONG.context, genericDescription));
     document.getElementById('readerEditLink').href = `creator/add-song.html?edit=${encodeURIComponent(SONG_ID)}`;
     refreshCreatorEditLink();
-  if(SONG) render();
     document.getElementById('howToUseLink').href = `how-to-use.html?from=${encodeURIComponent(SONG_ID)}`;
     document.getElementById('readerHeadingZh').textContent = SONG.zh;
     document.getElementById('readerHeadingEn').textContent = SONG.en ? ' ' + SONG.en : '';
@@ -3909,5 +3967,7 @@ window.addEventListener('popstate', () => {
   }
 });
 </script>
+
+<script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="a8136fc7-1bf3-4a8a-91b3-53a7b5eb4cc1" data-netlify-deploy-branch="main" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiYTgxMzZmYzctMWJmMy00YThhLTkxYjMtNTNhN2I1ZWI0Y2MxIiwiYWNjb3VudF9pZCI6IjZhNTI5N2RlY2ZkNmQ5YmRkMmRmNzgwNSIsImRlcGxveV9pZCI6IjZhNTg0MzgzNTEwZTdhMDAwODQ2ZWIxZSIsImlzc3VlciI6Im5mc2VydmVyIn0.hZvSGLbYaOpIv_r4fRjgimqOB2PAOLWLOuC5Ce5byYA"></script>
 </body>
 </html>
