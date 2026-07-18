@@ -36,7 +36,7 @@ exports.handler = async function (event) {
   let song = null;
   try {
     const songRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/songs?id=eq.${encodeURIComponent(songId)}&status=eq.published&select=zh,en,artist,context`,
+      `${SUPABASE_URL}/rest/v1/songs?id=eq.${encodeURIComponent(songId)}&status=eq.published&select=zh,en,artist,context,video_thumbnail_url`,
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
     );
     if (songRes.ok) {
@@ -85,6 +85,12 @@ exports.handler = async function (event) {
     .replace(/<link rel="canonical" href=".*?">/, `<link rel="canonical" href="${escAttr(canonicalUrl)}">`)
     .replace(/<meta name="twitter:title" content=".*?">/, `<meta name="twitter:title" content="${escAttr(title)}">`)
     .replace(/<meta name="twitter:description" content=".*?">/, `<meta name="twitter:description" content="${escAttr(description)}">`);
+
+  if (song.video_thumbnail_url) {
+    template = template
+      .replace(/<meta property="og:image" content=".*?">/, `<meta property="og:image" content="${escAttr(song.video_thumbnail_url)}">`)
+      .replace(/<meta name="twitter:image" content=".*?">/, `<meta name="twitter:image" content="${escAttr(song.video_thumbnail_url)}">`);
+  }
 
   return { statusCode: 200, headers: htmlHeaders, body: template };
 };

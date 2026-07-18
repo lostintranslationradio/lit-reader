@@ -283,6 +283,14 @@
       </div>
       <div id="coverStatus" class="status-line" style="margin-top:6px;"></div>
     </div>
+    <div class="field">
+      <label>Video thumbnail (optional — used for the click-to-play poster and social-share preview for this song's page; independent of the thumbnail set on YouTube itself)</label>
+      <input type="file" id="fVideoThumbFile" accept="image/*">
+      <div id="videoThumbPreviewWrap" style="display:none; margin-top:10px;">
+        <img id="videoThumbPreview" style="width:160px; height:90px; object-fit:cover; border-radius:4px; border:1px solid var(--rule);">
+      </div>
+      <div id="videoThumbStatus" class="status-line" style="margin-top:6px;"></div>
+    </div>
   </div>
 
   <div class="panel">
@@ -708,6 +716,12 @@ async function loadSongForEditing(id){
   if(coverUrl){
     document.getElementById('coverPreview').src = coverUrl;
     document.getElementById('coverPreviewWrap').style.display = 'block';
+  }
+
+  videoThumbUrl = song.video_thumbnail_url || '';
+  if(videoThumbUrl){
+    document.getElementById('videoThumbPreview').src = videoThumbUrl;
+    document.getElementById('videoThumbPreviewWrap').style.display = 'block';
   }
 
   lineData = (song.lines || []).map(line => ({
@@ -1621,6 +1635,7 @@ const mergeBtn = card.querySelector('[data-action="merge"]');
 }
 
 let coverUrl = '';
+let videoThumbUrl = '';
 
 document.getElementById('fCoverFile').addEventListener('change', async (e) => {
   const file = e.target.files[0];
@@ -1642,6 +1657,29 @@ document.getElementById('fCoverFile').addEventListener('change', async (e) => {
   coverUrl = data.publicUrl;
   document.getElementById('coverPreview').src = coverUrl;
   document.getElementById('coverPreviewWrap').style.display = 'block';
+  statusEl.textContent = 'Uploaded.';
+});
+
+document.getElementById('fVideoThumbFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('videoThumbStatus');
+  if(!currentUser){ statusEl.textContent = 'Sign in as the creator first.'; return; }
+
+  statusEl.textContent = 'Uploading…';
+  const ext = file.name.split('.').pop();
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const { error } = await sb.storage.from('covers').upload(path, file, { upsert: false });
+  if(error){
+    statusEl.textContent = 'Upload failed: ' + error.message;
+    console.error(error);
+    return;
+  }
+  const { data } = sb.storage.from('covers').getPublicUrl(path);
+  videoThumbUrl = data.publicUrl;
+  document.getElementById('videoThumbPreview').src = videoThumbUrl;
+  document.getElementById('videoThumbPreviewWrap').style.display = 'block';
   statusEl.textContent = 'Uploaded.';
 });
 
@@ -1709,6 +1747,7 @@ function buildSongObject(){
     youtubeId: extractYoutubeId(document.getElementById('fYoutube').value),
     context: document.getElementById('fContext').value.trim(),
     coverUrl,
+    videoThumbUrl,
     lines: lineData.map(l => ({
       words: l.tokens.map(t => ({ h: t.h, p: t.p, g: t.g, short: t.short || (t.g && t.g[0]) || '', hsk: t.hsk, pos: t.pos || null, note: t.note || '' })),
       translation: l.translation,
@@ -1743,7 +1782,8 @@ async function publishSong(){
   const { error } = await sb.from('songs').upsert({
     id: song.id, zh: song.zh, en: song.en, artist: song.artist,
     status: song.status, tags: song.tags, year: song.year, publish_at: song.publishAt, youtube_id: song.youtubeId,
-    context: song.context, lines: song.lines, constructions: song.constructions, cover_url: song.coverUrl
+    context: song.context, lines: song.lines, constructions: song.constructions, cover_url: song.coverUrl,
+    video_thumbnail_url: song.videoThumbUrl
   }, { onConflict: 'id' });
 
   if(error){

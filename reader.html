@@ -288,6 +288,28 @@
     font-size:11px;
     line-height:1.6;
   }
+  .video-facade{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    border:0; padding:0; margin:0;
+    cursor:pointer;
+    background-size:cover;
+    background-position:center;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .video-facade-play{
+    width:56px; height:56px;
+    border-radius:50%;
+    background:rgba(0,0,0,.6);
+    color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px;
+    transition:background .15s, transform .15s;
+  }
+  .video-facade:hover .video-facade-play{
+    background:rgba(0,0,0,.75);
+    transform:scale(1.06);
+  }
   #creatorNotesSection{
     margin-top:32px;
     padding-top:24px;
@@ -2850,12 +2872,26 @@ function renderVideo(){
     wrap.innerHTML = `<div class="video-placeholder">No video linked yet for this song</div>`;
     return;
   }
+  if(SONG.video_thumbnail_url){
+    wrap.innerHTML =
+      `<button type="button" class="video-facade" id="videoFacade" aria-label="Play video" ` +
+      `style="background-image:url('${SONG.video_thumbnail_url.replace(/'/g, "\\'")}')">` +
+      `<span class="video-facade-play">▶</span></button>`;
+    document.getElementById('videoFacade').addEventListener('click', () => loadYouTubePlayer(true), { once: true });
+    setupMiniPlayer();
+    return;
+  }
+  loadYouTubePlayer(false);
+}
+
+function loadYouTubePlayer(autoplay){
+  const wrap = document.getElementById('videoWrap');
   wrap.innerHTML = `<div class="video-placeholder">Loading player…</div>`;
   waitForYT(() => {
     wrap.innerHTML = `<div id="ytPlayerEl"></div>`;
     ytPlayer = new YT.Player('ytPlayerEl', {
       videoId: SONG.youtubeId,
-      playerVars: { rel: 0 },
+      playerVars: { rel: 0, autoplay: autoplay ? 1 : 0 },
       events: {
         onReady: () => {
           const hasTimestamps = SONG.lines.some(l => typeof l.start === 'number');
@@ -3855,6 +3891,12 @@ async function init(){
     if (twitterTitleEl) twitterTitleEl.setAttribute('content', `${SONG.zh}${titleEn}${artistSuffix} | Lyric Reader`);
     const twitterDescEl = document.querySelector('meta[name="twitter:description"]');
     if (twitterDescEl) twitterDescEl.setAttribute('content', plainTextDescription(SONG.context, genericDescription));
+    if (SONG.video_thumbnail_url) {
+      const ogImageEl = document.querySelector('meta[property="og:image"]');
+      if (ogImageEl) ogImageEl.setAttribute('content', SONG.video_thumbnail_url);
+      const twitterImageEl = document.querySelector('meta[name="twitter:image"]');
+      if (twitterImageEl) twitterImageEl.setAttribute('content', SONG.video_thumbnail_url);
+    }
     document.getElementById('readerEditLink').href = `creator/add-song.html?edit=${encodeURIComponent(SONG_ID)}`;
     refreshCreatorEditLink();
     document.getElementById('howToUseLink').href = `how-to-use.html?from=${encodeURIComponent(SONG_ID)}`;
