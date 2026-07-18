@@ -136,6 +136,20 @@
   .sod-artist span{ cursor:pointer; }
   .sod-artist span:hover{ color:var(--accent); text-decoration:underline; }
   .sod-about{ font-size:13px; line-height:1.6; color:var(--text); margin-bottom:14px; }
+  .spoiler{
+    background:var(--text-dim);
+    color:transparent;
+    border-radius:3px;
+    cursor:pointer;
+    transition:background .2s, color .2s;
+    user-select:none;
+  }
+  .spoiler.revealed{
+    background:transparent;
+    color:inherit;
+    cursor:text;
+    user-select:text;
+  }
   .sod-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
   .sod-cta{
     display:inline-block;
@@ -968,7 +982,8 @@ async function renderSongOfDay(){
     const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     return escaped
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/\|\|(.+?)\|\|/g, '<span class="spoiler" onclick="this.classList.toggle(\'revealed\')">$1</span>');
   }
 
   el.innerHTML = `

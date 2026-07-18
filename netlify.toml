@@ -12,3 +12,6 @@
   from = "/song/*"
   to = "/.netlify/functions/song-page"
   status = 200
+
+[functions."song-page"]
+  included_files = ["reader.html"]

@@ -381,6 +381,8 @@
     <h2>4 · Publish</h2>
     <button class="btn" id="btnPublish">Publish to site</button>
     <button class="btn secondary" id="btnGenerate">Download backup JSON</button>
+    <br>
+    <button class="btn secondary" id="btnViewPublished" style="margin-top:10px;">View published page →</button>
     <div id="publishStatus" class="status-line" style="margin-top:12px;"></div>
     <p class="note" style="margin-top:16px;">
       <b>Publish</b> writes this song directly into the site's database — no files, no redeploying.
@@ -732,7 +734,7 @@ async function loadSongForEditing(id){
       return {
         h: w.h, p: w.p, g: w.g, short: w.short || (w.g && w.g[0]) || '', hsk: w.hsk, pos: w.pos || null, note: w.note || '',
         isPunct, unresolved: false,
-        reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: pickShortGloss(r.g) })) : null,
+        reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: resolveGlossArray(r.g), gloss_short: pickShortGloss(r.g) })) : null,
         selected_reading: hasMultipleReadings ? w.p : null,
         selected_reading_index: hasMultipleReadings ? findReadingIndex(entry.readings, w.p, w.g) : null,
         needsReadingPick: hasMultipleReadings,
@@ -867,14 +869,44 @@ function extractYoutubeId(input){
   return m ? m[1] : '';
 }
 
+// Some CC-CEDICT readings only carry a "variant of X|Y[pinyin]" cross-reference
+// as their definition (e.g. 里's "lǐ" reading meaning "inside" is recorded as
+// "variant of 裡|里[lǐ]" rather than spelling out "inside, interior, within"
+// directly). That's useless shown on its own, so resolve it by looking up the
+// referenced word's own dictionary entry and using its real definition(s)
+// instead. Falls back to the original cross-reference text if the referenced
+// word isn't found in the bundled dictionary (only tried one hop deep, to
+// avoid chasing a chain of cross-references).
+function resolveCrossReference(gloss){
+  const m = gloss.match(/^(?:variant of|old variant of|unofficial variant of)\s+([^|]+)\|([^\[]+)\[/i);
+  if(!m) return null;
+  const traditional = m[1].trim();
+  const simplified = m[2].trim();
+  const target = lookup(traditional) || (simplified !== traditional ? lookup(simplified) : null);
+  if(!target || !target.g || !target.g.length) return null;
+  const substantive = target.g.filter(d => !/^(variant of|old variant of|unofficial variant of)/i.test(d));
+  return substantive.length ? substantive : null;
+}
+
+// If every definition in this reading is just a cross-reference with nothing
+// substantive of its own, swap in the referenced word's real definitions.
+function resolveGlossArray(defs){
+  if(!defs || defs.length === 0) return defs;
+  const hasSubstantive = defs.some(d => !/^(variant of|old variant of|unofficial variant of)/i.test(d));
+  if(hasSubstantive) return defs;
+  const resolved = resolveCrossReference(defs[0]);
+  return resolved || defs;
+}
+
 // Some CC-CEDICT readings list a "variant of X[...]" cross-reference as their
 // very first definition, which makes a bad short label on its own — pick the
 // first substantive definition instead when one exists, falling back to the
 // cross-reference only if that's genuinely all there is.
 function pickShortGloss(defs){
   if(!defs || defs.length === 0) return '';
-  const substantive = defs.find(d => !/^(variant of|old variant of|unofficial variant of)/i.test(d));
-  return substantive || defs[0];
+  const resolved = resolveGlossArray(defs);
+  const substantive = resolved.find(d => !/^(variant of|old variant of|unofficial variant of)/i.test(d));
+  return substantive || resolved[0];
 }
 
 // Matches by pinyin AND gloss content, not pinyin alone — two readings can
@@ -954,7 +986,7 @@ function segmentLine(text){
       pos: entry ? entry.pos : null,
       isPunct: false,
       unresolved: !entry,
-      reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: pickShortGloss(r.g) })) : null,
+      reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: resolveGlossArray(r.g), gloss_short: pickShortGloss(r.g) })) : null,
       selected_reading: hasMultipleReadings ? entry.p : null,
       selected_reading_index: hasMultipleReadings ? findReadingIndex(entry.readings, entry.p, entry.g) : null,
       needsReadingPick: hasMultipleReadings
@@ -1590,7 +1622,7 @@ function makeToken(hanzi){
     pos: entry ? entry.pos : null,
     isPunct: false,
     unresolved: !entry,
-    reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: r.g, gloss_short: pickShortGloss(r.g) })) : null,
+    reading_options: hasMultipleReadings ? entry.readings.map(r => ({ pinyin: r.p, definitions: resolveGlossArray(r.g), gloss_short: pickShortGloss(r.g) })) : null,
     selected_reading: hasMultipleReadings ? entry.p : null,
     selected_reading_index: hasMultipleReadings ? findReadingIndex(entry.readings, entry.p, entry.g) : null,
     needsReadingPick: hasMultipleReadings
@@ -1809,6 +1841,12 @@ async function publishSong(){
 
 document.getElementById('btnPublish').addEventListener('click', publishSong);
 document.getElementById('btnFloatingSave').addEventListener('click', publishSong);
+
+document.getElementById('btnViewPublished').addEventListener('click', () => {
+  const id = document.getElementById('fId').value.trim();
+  if(!id){ alert('Set a Song ID first.'); return; }
+  window.open(`../song/${encodeURIComponent(id)}.html`, '_blank');
+});
 
 document.addEventListener('keydown', (e) => {
   const isSaveShortcut = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's';

@@ -9,6 +9,34 @@
 // in server-side. That keeps this in sync with the "Publish" button in the
 // creator panel, which writes straight to Supabase with no redeploy —
 // there's nothing here that needs a rebuild to pick up a new song.
+const fs = require('fs');
+const path = require('path');
+
+// reader.html is bundled alongside this function (see included_files in
+// netlify.toml), so it can be read locally instead of fetched over the
+// network on every request — that fetch was serving the same ~166KB file
+// out and then immediately back in, roughly doubling the bandwidth cost of
+// every song-page visit for no real benefit. Netlify's own docs and support
+// forum threads show the exact on-disk location of included_files can vary
+// by setup, so this tries a few plausible paths and only falls back to the
+// old network fetch if none of them pan out — same end result either way,
+// just cheaper when the local read succeeds.
+function readBundledTemplate() {
+  const candidates = [
+    path.join(__dirname, 'reader.html'),
+    path.join(process.cwd(), 'reader.html'),
+    path.resolve('reader.html')
+  ];
+  for (const candidate of candidates) {
+    try {
+      return fs.readFileSync(candidate, 'utf-8');
+    } catch (err) {
+      // try the next candidate
+    }
+  }
+  return null;
+}
+
 exports.handler = async function (event) {
   const SUPABASE_URL = 'https://urozuwaidryhduquvtzi.supabase.co';
   const SUPABASE_KEY = 'sb_publishable_tHobcgdhTkhP18yvEdg79Q_ItYxDVuw';
@@ -18,15 +46,17 @@ exports.handler = async function (event) {
   const match = event.path.match(/\/song\/([^/]+?)(?:\.html)?\/?$/);
   const songId = match ? decodeURIComponent(match[1]) : null;
 
-  let template;
-  try {
-    const templateRes = await fetch(`${SITE_URL}/reader.html`);
-    if (!templateRes.ok) throw new Error(`template fetch failed: ${templateRes.status}`);
-    template = await templateRes.text();
-  } catch (err) {
-    // Can't even get the base shell — nothing sensible left to prerender.
-    // Let Netlify's normal static handling take over instead of erroring out.
-    return { statusCode: 404, headers: htmlHeaders, body: 'Not found' };
+  let template = readBundledTemplate();
+  if (!template) {
+    try {
+      const templateRes = await fetch(`${SITE_URL}/reader.html`);
+      if (!templateRes.ok) throw new Error(`template fetch failed: ${templateRes.status}`);
+      template = await templateRes.text();
+    } catch (err) {
+      // Can't even get the base shell — nothing sensible left to prerender.
+      // Let Netlify's normal static handling take over instead of erroring out.
+      return { statusCode: 404, headers: htmlHeaders, body: 'Not found' };
+    }
   }
 
   if (!songId) {
@@ -63,7 +93,9 @@ exports.handler = async function (event) {
 
   function plainTextDescription(text, fallback) {
     if (!text || !text.trim()) return fallback;
-    const plain = text.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/\s+/g, ' ').trim();
+    const withoutSpoilers = text.replace(/\|\|.+?\|\|/g, '').replace(/\s+/g, ' ').trim();
+    if (!withoutSpoilers) return fallback;
+    const plain = withoutSpoilers.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/\s+/g, ' ').trim();
     if (plain.length <= 155) return plain;
     const cut = plain.slice(0, 155);
     const lastSpace = cut.lastIndexOf(' ');

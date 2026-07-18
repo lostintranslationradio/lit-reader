@@ -371,6 +371,20 @@
     color:var(--text);
     opacity:.9;
   }
+  .spoiler{
+    background:var(--text-dim);
+    color:transparent;
+    border-radius:3px;
+    cursor:pointer;
+    transition:background .2s, color .2s;
+    user-select:none;
+  }
+  .spoiler.revealed{
+    background:transparent;
+    color:inherit;
+    cursor:text;
+    user-select:text;
+  }
   .reader-heading{
     font-family:var(--font-title);
     font-size:26px;
@@ -3853,9 +3867,14 @@ async function init(){
 
     function plainTextDescription(text, fallback){
       if(!text || !text.trim()) return fallback;
+      // A spoiler is meant to stay hidden until someone deliberately clicks
+      // it on the page — it should never surface in a search snippet or
+      // social preview, which anyone can read without visiting at all.
+      const withoutSpoilers = text.replace(/\|\|.+?\|\|/g, '').replace(/\s+/g, ' ').trim();
+      if(!withoutSpoilers) return fallback;
       // Strip the same **bold**/*italic* markup used by renderSimpleMarkdown,
       // and collapse whitespace/newlines into a single line.
-      const plain = text.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
+      const plain = withoutSpoilers.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
         .replace(/\s+/g, ' ').trim();
       if(plain.length <= 155) return plain;
       // Truncate at the last whole word before ~155 chars rather than
@@ -3931,11 +3950,12 @@ async function init(){
     });
     function renderSimpleMarkdown(text){
       // Escape raw HTML first so nothing can be injected — only the specific
-      // **bold** / *italic* patterns below get turned into real formatting.
+      // **bold** / *italic* / ||spoiler|| patterns below get turned into real formatting.
       const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return escaped
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>');
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/\|\|(.+?)\|\|/g, '<span class="spoiler" onclick="this.classList.toggle(\'revealed\')">$1</span>');
     }
     document.getElementById('contextBody').innerHTML = renderSimpleMarkdown(SONG.context || '');
     if(!SONG.context) document.getElementById('contextBlock').style.display = 'none';
