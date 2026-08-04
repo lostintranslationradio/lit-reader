@@ -160,6 +160,7 @@
 <div id="floatingSave" style="position:fixed; bottom:20px; right:20px; z-index:100; display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
   <button id="btnUndo" class="btn secondary" disabled style="box-shadow:0 2px 10px rgba(0,0,0,.15);">↩ Undo</button>
   <button id="btnFloatingSave" class="btn" style="box-shadow:0 2px 10px rgba(0,0,0,.15);">Save</button>
+  <button id="btnFloatingViewPublished" class="btn secondary" style="box-shadow:0 2px 10px rgba(0,0,0,.15);">View published page →</button>
   <div id="floatingSaveStatus" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--accent); text-align:right;"></div>
 </div>
 
@@ -347,6 +348,7 @@
       <div class="field">
         <label>Pattern (e.g. 在……之前)</label>
         <input type="text" id="consPattern" placeholder="在……之前">
+        <p id="linkDictHint" class="note" style="display:none; margin-top:4px; color:var(--accent);"></p>
       </div>
       <div class="row2">
         <div class="field">
@@ -381,8 +383,6 @@
     <h2>4 · Publish</h2>
     <button class="btn" id="btnPublish">Publish to site</button>
     <button class="btn secondary" id="btnGenerate">Download backup JSON</button>
-    <br>
-    <button class="btn secondary" id="btnViewPublished" style="margin-top:10px;">View published page →</button>
     <div id="publishStatus" class="status-line" style="margin-top:12px;"></div>
     <p class="note" style="margin-top:16px;">
       <b>Publish</b> writes this song directly into the site's database — no files, no redeploying.
@@ -593,7 +593,7 @@ function renderSplitTermCandidates(){
         <span style="font-size:11px; color:var(--text-dim); margin-left:8px;">${c.pinyin} · ${c.gloss.join(' / ')}</span>
       </div>
       <div style="display:flex; gap:6px; flex-shrink:0;">
-        <button class="btn secondary small" data-add-split="${i}">add as construction</button>
+        <button class="btn secondary small" data-add-split="${i}">add as vocabulary</button>
         <button class="btn secondary small" data-dismiss-split="${i}">dismiss</button>
       </div>
     </div>
@@ -693,6 +693,7 @@ async function loadSongForEditing(id){
   }
 
   document.getElementById('fExistingSong').value = id;
+  loadedSongId = song.id;
   document.getElementById('fZh').value = song.zh || '';
   document.getElementById('fEn').value = song.en || '';
   artistList = Array.isArray(song.artist) ? [...song.artist] : (song.artist ? [song.artist] : []);
@@ -870,19 +871,25 @@ function extractYoutubeId(input){
 }
 
 // Some CC-CEDICT readings only carry a "variant of X|Y[pinyin]" cross-reference
-// as their definition (e.g. 里's "lǐ" reading meaning "inside" is recorded as
-// "variant of 裡|里[lǐ]" rather than spelling out "inside, interior, within"
-// directly). That's useless shown on its own, so resolve it by looking up the
-// referenced word's own dictionary entry and using its real definition(s)
-// instead. Falls back to the original cross-reference text if the referenced
-// word isn't found in the bundled dictionary (only tried one hop deep, to
-// avoid chasing a chain of cross-references).
+// as their definition (e.g. one of 里's readings points at "variant of
+// 裡|里[lǐ]" instead of spelling out a real definition). That's useless shown
+// on its own, so resolve it by looking up the referenced word and using its
+// real definition(s) instead.
+//
+// The traditional side of the cross-reference (裡) usually isn't its own
+// entry in this bundled dictionary — CC-CEDICT typically folds a character's
+// full definition into the simplified form's own entry instead, even when a
+// separate reading lists it as a bare cross-reference. So this tries the
+// traditional form first, and falls back to the simplified form (verified
+// against the actual bundled dictionary.json — for 裡|里, 里's own entry
+// carries the real "lining, interior, inside, internal" definition that the
+// cross-reference reading is pointing at).
 function resolveCrossReference(gloss){
   const m = gloss.match(/^(?:variant of|old variant of|unofficial variant of)\s+([^|]+)\|([^\[]+)\[/i);
   if(!m) return null;
   const traditional = m[1].trim();
   const simplified = m[2].trim();
-  const target = lookup(traditional) || (simplified !== traditional ? lookup(simplified) : null);
+  const target = lookup(traditional) || lookup(simplified);
   if(!target || !target.g || !target.g.length) return null;
   const substantive = target.g.filter(d => !/^(variant of|old variant of|unofficial variant of)/i.test(d));
   return substantive.length ? substantive : null;
@@ -1026,6 +1033,13 @@ function updateUndoButton(){
 document.getElementById('btnUndo').addEventListener('click', undoLastEdit);
 let linkMode = false;
 let selectedMembers = [];
+// Set by autofillPattern() when the selected words, concatenated, match a
+// real dictionary entry — e.g. linking 动 + 情 across the 了 in 动了情 finds
+// 动情 itself. Tracked separately from the "Find split terms" scanner below
+// because that one only catches ADJACENT words; this covers the manual
+// link-words flow, which is exactly for cases like this where the two
+// halves of a word are split apart by something else in the actual line.
+let linkedDictMatch = null;
 
 function toggleMemberSelection(li, ti){
   const idx = selectedMembers.findIndex(m => m[0] === li && m[1] === ti);
@@ -1037,12 +1051,32 @@ function toggleMemberSelection(li, ti){
 
 function autofillPattern(){
   const patternEl = document.getElementById('consPattern');
+  const glossEl = document.getElementById('consGloss');
+  const hintEl = document.getElementById('linkDictHint');
   if(selectedMembers.length < 2) return;
   const sorted = [...selectedMembers].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   const hanziList = sorted.map(([li, ti]) => lineData[li]?.tokens[ti]?.h || '');
   const sameLine = sorted.every(([li]) => li === sorted[0][0]);
   const contiguous = sameLine && sorted.every((m, i) => i === 0 || m[1] === sorted[i-1][1] + 1);
   patternEl.value = contiguous ? hanziList.join('') : hanziList.join('……');
+
+  // Check the dictionary using the words run together with no gap, regardless
+  // of whether they're actually adjacent in the line — this is what catches
+  // separable-verb splits like 动了情 (动情 with 了 inserted in the middle),
+  // not just verbatim-adjacent phrases.
+  const combined = hanziList.join('');
+  const entry = sameLine ? lookup(combined) : null;
+  if(entry && entry.g && entry.g.length){
+    linkedDictMatch = { pattern: combined, gloss: entry.g, pinyin: entry.p };
+    glossEl.value = entry.g.join('\n');
+    if(hintEl){
+      hintEl.textContent = `✓ Found in dictionary (${entry.p}) — saving this as vocabulary, not a construction.`;
+      hintEl.style.display = 'block';
+    }
+  } else {
+    linkedDictMatch = null;
+    if(hintEl) hintEl.style.display = 'none';
+  }
 }
 
 function updateSelectStatus(){
@@ -1219,6 +1253,7 @@ function findOtherOccurrences(consIndex){
 document.getElementById('btnLinkMode').addEventListener('click', () => {
   linkMode = !linkMode;
   selectedMembers = [];
+  linkedDictMatch = null;
   document.getElementById('btnLinkMode').textContent = linkMode ? 'Cancel linking' : 'Link words';
   updateSelectStatus();
   renderLines();
@@ -1226,6 +1261,7 @@ document.getElementById('btnLinkMode').addEventListener('click', () => {
 
 document.getElementById('btnCancelConstruction').addEventListener('click', () => {
   selectedMembers = [];
+  linkedDictMatch = null;
   updateSelectStatus();
   renderLines();
 });
@@ -1259,7 +1295,7 @@ document.getElementById('btnSaveConstruction').addEventListener('click', () => {
   if(!pattern || gloss.length === 0){ alert('Fill in at least the pattern and a definition.'); return; }
   constructions.push({
     id: 'c' + Date.now(),
-    pattern, gloss, note, kind: 'construction',
+    pattern, gloss, note, kind: linkedDictMatch ? 'vocabulary' : 'construction',
     pinyin: getMemberPinyin(selectedMembers),
     members: selectedMembers.map(m => [...m])
   });
@@ -1267,6 +1303,7 @@ document.getElementById('btnSaveConstruction').addEventListener('click', () => {
   document.getElementById('consGloss').value = '';
   document.getElementById('consNote').value = '';
   selectedMembers = [];
+  linkedDictMatch = null;
   linkMode = false;
   document.getElementById('btnLinkMode').textContent = 'Link words';
   updateSelectStatus();
@@ -1666,6 +1703,11 @@ const mergeBtn = card.querySelector('[data-action="merge"]');
   return card;
 }
 
+// Tracks which song's own ID this editing session started from, if any —
+// used by publishSong() to tell "resaving the song I'm editing" apart from
+// "this ID happens to collide with a different, existing song."
+let loadedSongId = null;
+
 let coverUrl = '';
 let videoThumbUrl = '';
 
@@ -1807,6 +1849,23 @@ async function publishSong(){
   if(!song.id){ alert('Set a Song ID first.'); return; }
   if(!currentUser){ alert('Sign in as the creator first.'); return; }
 
+  // This ID belongs to a DIFFERENT song than the one this session started
+  // editing (or no song was being edited at all) — publishing would upsert
+  // straight into that other song's row and silently overwrite it, since
+  // the database has no separate "duplicate ID" error for that. Warn first.
+  if(song.id !== loadedSongId){
+    const { data: existing } = await sb.from('songs').select('id, zh, en').eq('id', song.id).maybeSingle();
+    if(existing){
+      const label = existing.en ? `${existing.zh} (${existing.en})` : existing.zh;
+      const proceed = confirm(
+        `The ID "${song.id}" is already used by a different song: ${label}.\n\n` +
+        `Publishing now will overwrite that song's content — this cannot be undone from here.\n\n` +
+        `Click OK to overwrite it anyway, or Cancel to go back and change the ID.`
+      );
+      if(!proceed) return;
+    }
+  }
+
   statusEl.classList.remove('ok');
   statusEl.textContent = 'Publishing…';
   if(floatingStatusEl) floatingStatusEl.textContent = 'Saving…';
@@ -1823,6 +1882,7 @@ async function publishSong(){
     console.error(error);
     if(floatingStatusEl) floatingStatusEl.textContent = 'Failed — see status below';
   } else {
+    loadedSongId = song.id;
     const link = document.createElement('a');
     link.href = `../song/${song.id}.html`;
     link.target = '_blank';
@@ -1842,7 +1902,7 @@ async function publishSong(){
 document.getElementById('btnPublish').addEventListener('click', publishSong);
 document.getElementById('btnFloatingSave').addEventListener('click', publishSong);
 
-document.getElementById('btnViewPublished').addEventListener('click', () => {
+document.getElementById('btnFloatingViewPublished').addEventListener('click', () => {
   const id = document.getElementById('fId').value.trim();
   if(!id){ alert('Set a Song ID first.'); return; }
   window.open(`../song/${encodeURIComponent(id)}.html`, '_blank');
