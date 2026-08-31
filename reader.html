@@ -1141,18 +1141,7 @@
     .hanzi{ font-size:23px; }
     .library-btn-text{ display:none; }
     .library-btn{ padding:9px 12px; }
-    .mini-player-toggle{ display:inline-flex; }
   }
-  .mini-player-toggle{
-    display:none;
-    align-items:center; gap:6px;
-    font-family:'JetBrains Mono',monospace; font-size:10px;
-    padding:5px 10px; margin-bottom:8px;
-    border-radius:12px; border:1px solid var(--rule);
-    background:transparent; color:var(--text-dim);
-    cursor:pointer;
-  }
-  .mini-player-toggle.on{ border-color:var(--accent); color:var(--accent); background:rgba(184,134,58,.1); }
   @media (max-width: 400px){ .level-pct{ display:none; } }
   .remove{ background:none;border:none; color:var(--text-dim); font-size:14px; cursor:pointer; padding:4px; }
   .remove:hover{color:var(--hsk4);}
@@ -1206,7 +1195,6 @@
     </div>
     <div class="reader-sub" id="readerSub"></div>
     <div id="videoSentinel" style="height:1px;"></div>
-    <button id="miniPlayerToggle" class="mini-player-toggle" title="When on, the video shrinks into a small floating player as you scroll past it">📌 Mini player: off</button>
     <div class="video-wrap" id="videoOuter">
       <div id="videoWrap" style="position:absolute; inset:0;"></div>
       <div class="video-mini-handle" id="videoMiniHandle" title="Drag to move">⠿⠿</div>
@@ -1587,7 +1575,7 @@ function renderCreatorNotes(){
 
   const wordHtml = [...wordGroups.entries()].map(([hanzi, group]) => {
     const notesHtml = group.notes.length === 1
-      ? `<div class="note-jumpable" data-line="${group.notes[0].lineIdx}" data-word="${group.notes[0].wordIdx}">${group.notes[0].note}</div>`
+      ? `<div class="note-jumpable" data-line="${group.notes[0].lineIdx}" data-word="${group.notes[0].wordIdx}">${renderSimpleMarkdown(group.notes[0].note)}</div>`
       : group.notes.map((n, i) => `
           <div class="note-jumpable numbered-note" data-line="${n.lineIdx}" data-word="${n.wordIdx}">
             <span class="note-num">${i + 1}.</span> ${n.note}
@@ -1609,7 +1597,7 @@ function renderCreatorNotes(){
     <div class="creator-note-item">
       <div class="cni-hanzi" style="color:var(--accent);">${c.pattern}</div>
       <div class="cni-text">
-        ${isVocabNoteOnly ? '' : `<div ${jumpAttrs}>${humanizeDefs(consGlossArray(c.gloss)).join(' / ')}</div>`}        ${c.note ? `<div style="margin-top:2px; opacity:.85;">${c.note}</div>` : ''}
+        ${isVocabNoteOnly ? '' : `<div ${jumpAttrs}>${humanizeDefs(consGlossArray(c.gloss)).join(' / ')}</div>`}        ${c.note ? `<div style="margin-top:2px; opacity:.85;">${renderSimpleMarkdown(c.note)}</div>` : ''}
       </div>
     </div>
   `;}).join('');
@@ -1918,6 +1906,21 @@ function humanizeDefs(defs){
   return out;
 }
 
+// Shared by every place a creator-written note gets shown — About This Song,
+// word/construction/vocabulary notes, the constructions summary list — so
+// **bold**, *italic*, and ||spoiler|| all work consistently everywhere,
+// not just in the one place this happened to be written for originally.
+function renderSimpleMarkdown(text){
+  if(!text) return '';
+  // Escape raw HTML first so nothing can be injected — only the specific
+  // **bold** / *italic* / ||spoiler|| patterns below get turned into real formatting.
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escaped
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\|\|(.+?)\|\|/g, '<span class="spoiler" onclick="this.classList.toggle(\'revealed\')">$1</span>');
+}
+
 function parseClassifiers(text){
   const inner = text.replace(/^\(?CL:/, '').replace(/\)$/, '');
   const parts = inner.split(',').map(p => p.trim()).filter(Boolean);
@@ -2115,7 +2118,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
 
   const creatorNoteEl = document.getElementById('popupCreatorNote');
   if(tok.note && !isGoldConstruction){
-    creatorNoteEl.innerHTML = `<div class="note-label">Note</div><div>${tok.note}</div>`;
+    creatorNoteEl.innerHTML = `<div class="note-label">Note</div><div>${renderSimpleMarkdown(tok.note)}</div>`;
     creatorNoteEl.style.display = 'block';
   } else {
     creatorNoteEl.style.display = 'none';
@@ -2183,7 +2186,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
         <button id="consSpeakSlow" title="Listen slowly">🐢 Slow</button>
       </div>
       <div class="cons-gloss"><ol>${humanizeDefs(consGlossArray(cons.construction.gloss)).map(g => `<li>${g}</li>`).join('')}</ol></div>
-      ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
+      ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${renderSimpleMarkdown(cons.construction.note)}</div></div>` : ''}
       ${editSection}
       <button id="popupConsSave" style="font-family:'JetBrains Mono',monospace; font-size:10px;
         padding:5px 10px; border-radius:12px; border:1px solid ${isConsSaved ? 'var(--accent)' : 'var(--rule)'};
@@ -2804,7 +2807,7 @@ const FONT_PAIRS = {
 };
 const DEFAULT_READING_SETTINGS = {
   level: 0, hidePinyin: false, hideWordGloss: false, hideTranslation: false,
-  hideHsk: false, textScaleIndex: 1, fontChoice: 'sans-inter', miniPlayerOnMobile: false
+  hideHsk: false, textScaleIndex: 1, fontChoice: 'sans-inter'
 };
 function loadLocalReadingSettings(){
   const stored = JSON.parse(localStorage.getItem('readingSettings') || 'null');
@@ -2852,17 +2855,8 @@ function applyAllReadingSettings(){
   applyFontChoice(readingSettings.fontChoice);
   textScaleIndex = readingSettings.textScaleIndex;
   applyTextScale();
-  applyMiniPlayerToggleUI();
   setupMiniPlayer();
   render();
-}
-
-function applyMiniPlayerToggleUI(){
-  const btn = document.getElementById('miniPlayerToggle');
-  if(!btn) return;
-  const on = !!readingSettings.miniPlayerOnMobile;
-  btn.textContent = `📌 Mini player: ${on ? 'on' : 'off'}`;
-  btn.classList.toggle('on', on);
 }
 
 function applyFontChoice(choice){
@@ -2873,14 +2867,6 @@ function applyFontChoice(choice){
 }
 document.getElementById('fontPicker').value = readingSettings.fontChoice;
 applyFontChoice(readingSettings.fontChoice);
-
-applyMiniPlayerToggleUI();
-document.getElementById('miniPlayerToggle').addEventListener('click', function(){
-  readingSettings.miniPlayerOnMobile = !readingSettings.miniPlayerOnMobile;
-  applyMiniPlayerToggleUI();
-  saveReadingSettings();
-  setupMiniPlayer(); // apply immediately — no reload needed either way
-});
 
 if(!localStorage.getItem('hasSeenHowToUse')){
   document.getElementById('howToUseLink').classList.add('glow');
@@ -3203,10 +3189,10 @@ function setupMiniPlayer(){
   const spacer = document.getElementById('videoMiniSpacer');
   if(miniObserver) miniObserver.disconnect();
 
-  // On mobile, the floating mini player is opt-in — it can get in the way
-  // of reading on a small screen, so it stays off until the person turns it
-  // on themselves via the toggle next to the video. Desktop is unaffected.
-  if(isMobileViewport() && !readingSettings.miniPlayerOnMobile){
+  // The floating mini player doesn't work on mobile — there's not enough
+  // screen real estate for a small floating video without it just getting
+  // in the way of reading. Desktop is unaffected.
+  if(isMobileViewport()){
     outer.classList.remove('mini');
     clearMiniRectStyles();
     spacer.style.height = '0';
@@ -4065,15 +4051,6 @@ async function init(){
       a.textContent = tag;
       subEl.appendChild(a);
     });
-    function renderSimpleMarkdown(text){
-      // Escape raw HTML first so nothing can be injected — only the specific
-      // **bold** / *italic* / ||spoiler|| patterns below get turned into real formatting.
-      const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-      return escaped
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/\|\|(.+?)\|\|/g, '<span class="spoiler" onclick="this.classList.toggle(\'revealed\')">$1</span>');
-    }
     document.getElementById('contextBody').innerHTML = renderSimpleMarkdown(SONG.context || '');
     if(!SONG.context) document.getElementById('contextBlock').style.display = 'none';
 
