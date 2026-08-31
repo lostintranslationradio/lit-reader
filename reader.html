@@ -2170,7 +2170,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
           g, short: g[0] || '', hsk: 0, note: cons.construction.note || '',
           kind: consKind, isConstruction: true, isVocabulary: isVocab
         };
-        openPopup(detailTok, (isVocab ? 'vocab_' : 'cons_') + cons.construction.pattern, el, cons.construction, null, { tok, key, el });
+        openPopup(detailTok, (isVocab ? 'vocab_' : 'cons_') + cons.construction.pattern, el, cons, null, { tok, key, el });
       });
     } else {
       document.getElementById('consSpeakNormal').addEventListener('click', () => speakWord(speakHanzi, 1, 1, speakPinyin, false));
@@ -2466,7 +2466,7 @@ function openVocabPopup(s, el, vocabIdx){
     const g = Array.isArray(s.g) ? s.g : (s.g ? [s.g] : []);
     const tok = { h: s.h, p: s.p || '', g, short: g[0] || '', hsk: 0, note: s.note || '', kind: s.kind,
       isConstruction: true, isVocabulary: s.kind === 'vocabulary' };
-    const override = { pattern: s.h, gloss: g, note: s.note || '', pinyin: s.p || '', kind: s.kind };
+    const override = { construction: { pattern: s.h, gloss: g, note: s.note || '', pinyin: s.p || '', kind: s.kind } };
     openPopup(tok, (s.kind === 'vocabulary' ? 'vocab_' : 'cons_') + s.h, el, override, vocabIdx);
   } else {
     const g = Array.isArray(s.g) ? s.g : (s.g ? [s.g] : []);
