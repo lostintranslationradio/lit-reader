@@ -600,6 +600,7 @@
     cursor:pointer;
     text-align:left;
     max-width:150px;
+    padding:6px 8px;
   }
   .popup-back-btn:hover{ color:var(--accent); }
   .popup-star{
@@ -1919,18 +1920,21 @@ function parseClassifiers(text){
 
 function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   currentPopup = { tok, key, el, vocabIdx };
-  // A construction/vocabulary "tap to see" detail card renders its own
-  // complete header (pattern, pinyin, badge, gloss, sound) inside
-  // #popupConstruction further down — showing the generic word-shell here
-  // too would just duplicate all of it, in the wrong (non-accent) color.
-  const isDetailCard = !!tok.isConstruction;
+  // Only a genuine grammar CONSTRUCTION gets the special gold detail card
+  // that replaces the generic word-shell entirely (pattern, pinyin, gloss,
+  // sound, all styled in the accent color inside #popupConstruction).
+  // VOCABULARY cross-references should look exactly like any other word —
+  // plain hanzi, the ordinary "Vocabulary" badge (blue, same slot "Beyond
+  // HSK" uses for a real dictionary word) — so they use the generic shell
+  // below just like a normal word does.
+  const isGoldConstruction = !!tok.isConstruction && !tok.isVocabulary;
   const headerEl = document.querySelector('.popup-hanzi');
   const pinyinEl = document.querySelector('.popup-pinyin');
   const soundEl = document.querySelector('.popup-sound');
   const badgeWrapEl = document.getElementById('popupHsk');
   const defsWrapEl = document.getElementById('popupDefs');
   [headerEl, pinyinEl, soundEl, badgeWrapEl, defsWrapEl].forEach(elToToggle => {
-    if(elToToggle) elToToggle.style.display = isDetailCard ? 'none' : '';
+    if(elToToggle) elToToggle.style.display = isGoldConstruction ? 'none' : '';
   });
   document.getElementById('popupHanzi').textContent = tok.h;
   document.getElementById('popupPinyin').textContent = tok.p;
@@ -2098,7 +2102,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   }
 
   const creatorNoteEl = document.getElementById('popupCreatorNote');
-  if(tok.note && !isDetailCard){
+  if(tok.note && !isGoldConstruction){
     creatorNoteEl.innerHTML = `<div class="note-label">Note</div><div>${tok.note}</div>`;
     creatorNoteEl.style.display = 'block';
   } else {
@@ -2129,19 +2133,11 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
     const speakHanzi = cons.construction.pattern.replace(/\.{2,}|…+/g, '');
     const speakPinyin = (cons.construction.pinyin || '').replace(/\s*…\s*|\.{2,}/g, ' ').trim();
     const canEditCons = currentProfile && currentProfile.is_creator;
-    const bodyHtml = `
-      <div class="cons-kind-badge">${isVocab ? 'Vocabulary' : 'Construction'}</div>
-      <div class="cons-header">
-        <span class="cons-pattern">${cons.construction.pattern}</span>
-        ${cons.construction.pinyin ? `<span class="cons-pattern-pinyin">${cons.construction.pinyin}</span>` : ''}
-      </div>
-      <div class="cons-sound">
-        <button id="consSpeakNormal" title="Listen">🔊 Listen</button>
-        <button id="consSpeakSlow" title="Listen slowly">🐢 Slow</button>
-      </div>
-      <div class="cons-gloss"><ol>${humanizeDefs(consGlossArray(cons.construction.gloss)).map(g => `<li>${g}</li>`).join('')}</ol></div>
-      ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
-      ${canEditCons ? `
+    // Editing still goes through the construction-record mechanism for both
+    // kinds (pattern/gloss/note, propagated across every song using the
+    // same pattern) — there's no "real dictionary entry" backing a
+    // vocabulary cross-reference the way there is for an actual word.
+    const editSection = canEditCons ? `
         <button id="consEditBtn" style="font-family:'JetBrains Mono',monospace; font-size:10px;
           padding:4px 10px; border-radius:12px; border:1px solid var(--rule); background:transparent;
           color:var(--text-dim); cursor:pointer; margin-top:8px;">✎ Edit</button>
@@ -2163,7 +2159,20 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
           </div>
           <p class="note" id="consEditStatus" style="margin-top:6px; margin-bottom:0;"></p>
         </div>
-      ` : ''}
+      ` : '';
+    const bodyHtml = isVocab ? editSection : `
+      <div class="cons-kind-badge">Construction</div>
+      <div class="cons-header">
+        <span class="cons-pattern">${cons.construction.pattern}</span>
+        ${cons.construction.pinyin ? `<span class="cons-pattern-pinyin">${cons.construction.pinyin}</span>` : ''}
+      </div>
+      <div class="cons-sound">
+        <button id="consSpeakNormal" title="Listen">🔊 Listen</button>
+        <button id="consSpeakSlow" title="Listen slowly">🐢 Slow</button>
+      </div>
+      <div class="cons-gloss"><ol>${humanizeDefs(consGlossArray(cons.construction.gloss)).map(g => `<li>${g}</li>`).join('')}</ol></div>
+      ${cons.construction.note ? `<div class="cons-note-box"><div class="note-label">Note</div><div>${cons.construction.note}</div></div>` : ''}
+      ${editSection}
       <button id="popupConsSave" style="font-family:'JetBrains Mono',monospace; font-size:10px;
         padding:5px 10px; border-radius:12px; border:1px solid ${isConsSaved ? 'var(--accent)' : 'var(--rule)'};
         background:${isConsSaved ? 'rgba(184,134,58,.14)' : 'transparent'};
@@ -2174,7 +2183,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
     consEl.innerHTML = tok.isConstruction
       ? bodyHtml
       : `<button id="consRevealBtn" class="cons-reveal-btn">Also part of ${isVocab ? 'the term' : 'the construction'} ${cons.construction.pattern} — tap to see</button>`;
-    consEl.style.display = 'block';
+    consEl.style.display = (tok.isConstruction && isVocab && !canEditCons) ? 'none' : 'block';
 
     if(!tok.isConstruction){
       document.getElementById('consRevealBtn').addEventListener('click', () => {
@@ -2186,6 +2195,50 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
         };
         openPopup(detailTok, (isVocab ? 'vocab_' : 'cons_') + cons.construction.pattern, el, cons, null, { tok, key, el });
       });
+    } else if(isVocab){
+      // Vocabulary's own detail card: the generic word-shell above already
+      // shows hanzi/pinyin/badge/gloss/note, and the top-right star already
+      // handles saving — bodyHtml here is just editSection, so only wire up
+      // the edit listeners (already gated to only exist when canEditCons).
+      if(canEditCons){
+        document.getElementById('consEditBtn').addEventListener('click', () => {
+          document.getElementById('consEditForm').style.display = 'block';
+          document.getElementById('consEditBtn').style.display = 'none';
+        });
+        document.getElementById('consEditCancel').addEventListener('click', () => {
+          document.getElementById('consEditForm').style.display = 'none';
+          document.getElementById('consEditBtn').style.display = 'inline-block';
+        });
+        document.getElementById('consEditSave').addEventListener('click', async () => {
+          const newPinyin = document.getElementById('consEditPinyin').value.trim();
+          const newGloss = document.getElementById('consEditGloss').value.split('\n').map(s => s.trim()).filter(Boolean);
+          const newNote = document.getElementById('consEditNote').value.trim();
+          const statusEl = document.getElementById('consEditStatus');
+          statusEl.textContent = 'Saving…';
+          const pattern = cons.construction.pattern;
+          cons.construction.pinyin = newPinyin;
+          cons.construction.gloss = newGloss;
+          cons.construction.note = newNote;
+          const { error: thisErr } = await sb.from('songs').update({ constructions: SONG.constructions }).eq('id', SONG_ID);
+          let otherErr = null;
+          const { data: otherSongs } = await sb.from('songs').select('id, constructions').neq('id', SONG_ID);
+          if(otherSongs){
+            for(const s of otherSongs){
+              const matches = (s.constructions || []).filter(c => c.pattern === pattern);
+              if(matches.length === 0) continue;
+              matches.forEach(c => { c.pinyin = newPinyin; c.gloss = newGloss; c.note = newNote; });
+              const { error } = await sb.from('songs').update({ constructions: s.constructions }).eq('id', s.id);
+              if(error) otherErr = error;
+            }
+          }
+          if(thisErr || otherErr){
+            statusEl.textContent = 'Failed to save — try again.';
+            return;
+          }
+          statusEl.textContent = 'Saved.';
+          openPopup(tok, key, el, constructionOverride, vocabIdx);
+        });
+      }
     } else {
       document.getElementById('consSpeakNormal').addEventListener('click', () => speakWord(speakHanzi, 1, 1, speakPinyin, false));
     document.getElementById('consSpeakSlow').addEventListener('click', () => speakWord(speakHanzi, 0.6, 0.3, speakPinyin, false));
@@ -2429,11 +2482,13 @@ function renderVocab(){
     const sourceNames = s.sources.map(id => SONG_TITLES[id] || id).join(' · ');
     const g0 = Array.isArray(s.g) ? (s.g[0]||'') : (s.g||'');
     const isCons = s.kind === 'construction';
+    const isVocabKind = s.kind === 'vocabulary';
+    const vhColor = isCons ? 'var(--accent)' : isVocabKind ? 'var(--hsk2)' : `var(${HSK_VAR[s.hsk]})`;
     return `
     <div class="vocab-item" data-vocab-idx="${si}">
       <div class="vocab-info">
         <div class="vh-wrap" style="position:relative; display:inline-block;">
-          <div class="vh" style="${isCons ? '' : `color:var(${HSK_VAR[s.hsk]})`}">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}</div>
+          <div class="vh" style="color:${vhColor}">${s.h}${crossSong ? `<span class="cross">×${s.sources.length}</span>` : ''}</div>
           <svg class="ring" viewBox="0 0 34 34" style="left:50%; top:50%;"><circle cx="17" cy="17" r="14"></circle></svg>
         </div>
         ${s.p ? `<div class="vp">${s.p}</div>` : ''}
