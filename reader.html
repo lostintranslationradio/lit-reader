@@ -1141,7 +1141,18 @@
     .hanzi{ font-size:23px; }
     .library-btn-text{ display:none; }
     .library-btn{ padding:9px 12px; }
+    .mini-player-toggle{ display:inline-flex; }
   }
+  .mini-player-toggle{
+    display:none;
+    align-items:center; gap:6px;
+    font-family:'JetBrains Mono',monospace; font-size:10px;
+    padding:5px 10px; margin-bottom:8px;
+    border-radius:12px; border:1px solid var(--rule);
+    background:transparent; color:var(--text-dim);
+    cursor:pointer;
+  }
+  .mini-player-toggle.on{ border-color:var(--accent); color:var(--accent); background:rgba(184,134,58,.1); }
   @media (max-width: 400px){ .level-pct{ display:none; } }
   .remove{ background:none;border:none; color:var(--text-dim); font-size:14px; cursor:pointer; padding:4px; }
   .remove:hover{color:var(--hsk4);}
@@ -1195,6 +1206,7 @@
     </div>
     <div class="reader-sub" id="readerSub"></div>
     <div id="videoSentinel" style="height:1px;"></div>
+    <button id="miniPlayerToggle" class="mini-player-toggle" title="When on, the video shrinks into a small floating player as you scroll past it">📌 Mini player: off</button>
     <div class="video-wrap" id="videoOuter">
       <div id="videoWrap" style="position:absolute; inset:0;"></div>
       <div class="video-mini-handle" id="videoMiniHandle" title="Drag to move">⠿⠿</div>
@@ -2792,7 +2804,7 @@ const FONT_PAIRS = {
 };
 const DEFAULT_READING_SETTINGS = {
   level: 0, hidePinyin: false, hideWordGloss: false, hideTranslation: false,
-  hideHsk: false, textScaleIndex: 1, fontChoice: 'sans-inter'
+  hideHsk: false, textScaleIndex: 1, fontChoice: 'sans-inter', miniPlayerOnMobile: false
 };
 function loadLocalReadingSettings(){
   const stored = JSON.parse(localStorage.getItem('readingSettings') || 'null');
@@ -2840,7 +2852,17 @@ function applyAllReadingSettings(){
   applyFontChoice(readingSettings.fontChoice);
   textScaleIndex = readingSettings.textScaleIndex;
   applyTextScale();
+  applyMiniPlayerToggleUI();
+  setupMiniPlayer();
   render();
+}
+
+function applyMiniPlayerToggleUI(){
+  const btn = document.getElementById('miniPlayerToggle');
+  if(!btn) return;
+  const on = !!readingSettings.miniPlayerOnMobile;
+  btn.textContent = `📌 Mini player: ${on ? 'on' : 'off'}`;
+  btn.classList.toggle('on', on);
 }
 
 function applyFontChoice(choice){
@@ -2851,6 +2873,14 @@ function applyFontChoice(choice){
 }
 document.getElementById('fontPicker').value = readingSettings.fontChoice;
 applyFontChoice(readingSettings.fontChoice);
+
+applyMiniPlayerToggleUI();
+document.getElementById('miniPlayerToggle').addEventListener('click', function(){
+  readingSettings.miniPlayerOnMobile = !readingSettings.miniPlayerOnMobile;
+  applyMiniPlayerToggleUI();
+  saveReadingSettings();
+  setupMiniPlayer(); // apply immediately — no reload needed either way
+});
 
 if(!localStorage.getItem('hasSeenHowToUse')){
   document.getElementById('howToUseLink').classList.add('glow');
@@ -3163,11 +3193,25 @@ window.addEventListener('resize', () => {
   }
 });
 
+function isMobileViewport(){
+  return window.innerWidth <= 760;
+}
+
 function setupMiniPlayer(){
   const outer = document.getElementById('videoOuter');
   const sentinel = document.getElementById('videoSentinel');
   const spacer = document.getElementById('videoMiniSpacer');
   if(miniObserver) miniObserver.disconnect();
+
+  // On mobile, the floating mini player is opt-in — it can get in the way
+  // of reading on a small screen, so it stays off until the person turns it
+  // on themselves via the toggle next to the video. Desktop is unaffected.
+  if(isMobileViewport() && !readingSettings.miniPlayerOnMobile){
+    outer.classList.remove('mini');
+    clearMiniRectStyles();
+    spacer.style.height = '0';
+    return;
+  }
 
   miniObserver = new IntersectionObserver((entries) => {
     const entry = entries[0];
@@ -3334,6 +3378,15 @@ async function loadVocabFromSupabase(){
     }, { onConflict: 'user_id,hanzi' });
   }
   saved = [...remote, ...localOnly];
+  // Once merged into the account, this guest-mode snapshot has served its
+  // purpose. It's only ever written to (never cleared) while signed in, so
+  // leaving it in place would mean anything ever saved as a guest keeps
+  // reappearing here on every future load and getting re-uploaded — even
+  // long after being legitimately removed from the account, since this
+  // function has no way to tell "never synced yet" apart from "was synced,
+  // then deleted." Clearing it removes that stale source entirely; from
+  // here on, Supabase alone is the source of truth for a signed-in user.
+  localStorage.removeItem('lyricVocab');
   renderVocab();
   render();
 }
