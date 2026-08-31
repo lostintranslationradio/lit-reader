@@ -2107,7 +2107,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   }
 
   const consEl = document.getElementById('popupConstruction');
-  const cons = !tok.isConstruction && (constructionOverride || constructionForKey[key]);
+  const cons = constructionOverride || (!tok.isConstruction && constructionForKey[key]);
   if(cons){
     const consKind = cons.construction.kind || 'construction';
     const isVocab = consKind === 'vocabulary';
@@ -2157,20 +2157,20 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
         ${isConsSaved ? '\u2605 saved' : '\u2606 save this construction'}
       </button>
     `;
-    consEl.innerHTML = isVocab
-      ? `<button id="consRevealBtn" class="cons-reveal-btn">Also part of ${cons.construction.pattern} — tap to see</button>`
-      : bodyHtml;
+    consEl.innerHTML = tok.isConstruction
+      ? bodyHtml
+      : `<button id="consRevealBtn" class="cons-reveal-btn">Also part of ${isVocab ? 'the term' : 'the construction'} ${cons.construction.pattern} — tap to see</button>`;
     consEl.style.display = 'block';
 
-    if(isVocab){
+    if(!tok.isConstruction){
       document.getElementById('consRevealBtn').addEventListener('click', () => {
         const g = consGlossArray(cons.construction.gloss);
-        const vocabTok = {
+        const detailTok = {
           h: cons.construction.pattern, p: cons.construction.pinyin || '',
           g, short: g[0] || '', hsk: 0, note: cons.construction.note || '',
-          kind: consKind, isConstruction: true, isVocabulary: true
+          kind: consKind, isConstruction: true, isVocabulary: isVocab
         };
-        openPopup(vocabTok, 'vocab_' + cons.construction.pattern, el, null, null, { tok, key, el });
+        openPopup(detailTok, (isVocab ? 'vocab_' : 'cons_') + cons.construction.pattern, el, cons.construction, null, { tok, key, el });
       });
     } else {
       document.getElementById('consSpeakNormal').addEventListener('click', () => speakWord(speakHanzi, 1, 1, speakPinyin, false));
@@ -2234,6 +2234,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
       });
     }
     }
+
 
     // The button above renders instantly from the local cache, which can be
     // stale right after navigating from a different song where this same
@@ -2465,7 +2466,8 @@ function openVocabPopup(s, el, vocabIdx){
     const g = Array.isArray(s.g) ? s.g : (s.g ? [s.g] : []);
     const tok = { h: s.h, p: s.p || '', g, short: g[0] || '', hsk: 0, note: s.note || '', kind: s.kind,
       isConstruction: true, isVocabulary: s.kind === 'vocabulary' };
-    openPopup(tok, 'vocab_' + s.h, el, null, vocabIdx);
+    const override = { pattern: s.h, gloss: g, note: s.note || '', pinyin: s.p || '', kind: s.kind };
+    openPopup(tok, (s.kind === 'vocabulary' ? 'vocab_' : 'cons_') + s.h, el, override, vocabIdx);
   } else {
     const g = Array.isArray(s.g) ? s.g : (s.g ? [s.g] : []);
     const tok = { h: s.h, p: s.p || '', g, short: g[0] || '', hsk: s.hsk || 0, note: s.note || '', pos: s.pos || null };
@@ -4032,5 +4034,7 @@ window.addEventListener('popstate', () => {
 </script>
 
 <script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="a8136fc7-1bf3-4a8a-91b3-53a7b5eb4cc1" data-netlify-deploy-branch="main" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiYTgxMzZmYzctMWJmMy00YThhLTkxYjMtNTNhN2I1ZWI0Y2MxIiwiYWNjb3VudF9pZCI6IjZhNTI5N2RlY2ZkNmQ5YmRkMmRmNzgwNSIsImRlcGxveV9pZCI6IjZhNTg0MzgzNTEwZTdhMDAwODQ2ZWIxZSIsImlzc3VlciI6Im5mc2VydmVyIn0.hZvSGLbYaOpIv_r4fRjgimqOB2PAOLWLOuC5Ce5byYA"></script>
+
+<script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="a8136fc7-1bf3-4a8a-91b3-53a7b5eb4cc1" data-netlify-deploy-branch="main" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiYTgxMzZmYzctMWJmMy00YThhLTkxYjMtNTNhN2I1ZWI0Y2MxIiwiYWNjb3VudF9pZCI6IjZhNTI5N2RlY2ZkNmQ5YmRkMmRmNzgwNSIsImRlcGxveV9pZCI6IjZhNzE1MmQ3NDcyNDQ3MDAwN2VmNGJhOCIsImlzc3VlciI6Im5mc2VydmVyIn0.aLSH_w1mcDLj-mZSS-ot_J5uzmiH3RK_rD0ykyYi-3M"></script>
 </body>
 </html>
