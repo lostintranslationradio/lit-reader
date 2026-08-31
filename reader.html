@@ -1919,6 +1919,19 @@ function parseClassifiers(text){
 
 function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   currentPopup = { tok, key, el, vocabIdx };
+  // A construction/vocabulary "tap to see" detail card renders its own
+  // complete header (pattern, pinyin, badge, gloss, sound) inside
+  // #popupConstruction further down — showing the generic word-shell here
+  // too would just duplicate all of it, in the wrong (non-accent) color.
+  const isDetailCard = !!tok.isConstruction;
+  const headerEl = document.querySelector('.popup-hanzi');
+  const pinyinEl = document.querySelector('.popup-pinyin');
+  const soundEl = document.querySelector('.popup-sound');
+  const badgeWrapEl = document.getElementById('popupHsk');
+  const defsWrapEl = document.getElementById('popupDefs');
+  [headerEl, pinyinEl, soundEl, badgeWrapEl, defsWrapEl].forEach(elToToggle => {
+    if(elToToggle) elToToggle.style.display = isDetailCard ? 'none' : '';
+  });
   document.getElementById('popupHanzi').textContent = tok.h;
   document.getElementById('popupPinyin').textContent = tok.p;
   const backBtn = document.getElementById('popupBackBtn');
@@ -1952,6 +1965,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   document.getElementById('popupDefs').innerHTML = posLabel + (defs.length
     ? '<ol>' + defs.map(d=>`<li>${d}</li>`).join('') + '</ol>'
     : '<div style="opacity:.6">(no definition yet)</div>');
+
 
   const editBtn = document.getElementById('popupEditBtn');
   const editForm = document.getElementById('popupEditForm');
@@ -2084,7 +2098,7 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   }
 
   const creatorNoteEl = document.getElementById('popupCreatorNote');
-  if(tok.note){
+  if(tok.note && !isDetailCard){
     creatorNoteEl.innerHTML = `<div class="note-label">Note</div><div>${tok.note}</div>`;
     creatorNoteEl.style.display = 'block';
   } else {
@@ -2271,18 +2285,11 @@ function openPopup(tok, key, el, constructionOverride, vocabIdx, returnTo){
   document.getElementById('popupStar').classList.toggle('starred', isSaved);
   document.getElementById('popupKnown').classList.toggle('known', knownWords.has(tok.h));
 
-  const mainSaveBtn = document.getElementById('popupMainSave');
-  if(tok.isConstruction){
-    const label = tok.isVocabulary ? 'vocabulary' : 'construction';
-    mainSaveBtn.style.display = 'block';
-    mainSaveBtn.textContent = isSaved ? `★ saved` : `☆ save this ${label}`;
-    mainSaveBtn.style.border = `1px solid ${isSaved ? 'var(--accent)' : 'var(--rule)'}`;
-    mainSaveBtn.style.background = isSaved ? 'rgba(184,134,58,.14)' : 'transparent';
-    mainSaveBtn.style.color = isSaved ? 'var(--accent)' : 'var(--text-dim)';
-    mainSaveBtn.onclick = () => document.getElementById('popupStar').click();
-  } else {
-    mainSaveBtn.style.display = 'none';
-  }
+  // This used to be the only save button available for construction/vocab
+  // detail cards; now bodyHtml's own popupConsSave button (inside
+  // #popupConstruction) always covers that, so this is never needed anymore.
+  document.getElementById('popupMainSave').style.display = 'none';
+
 
   if(vocabIdx !== undefined && vocabIdx !== null){
     document.getElementById('popupPrev').disabled = vocabIdx <= 0;
