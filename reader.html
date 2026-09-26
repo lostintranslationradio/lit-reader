@@ -2978,7 +2978,7 @@ function renderVideo(){
   loadYouTubePlayer(false);
 }
 
-function loadYouTubePlayer(autoplay){
+function loadYouTubePlayer(autoplay, seekTo){
   const wrap = document.getElementById('videoWrap');
   wrap.innerHTML = `<div class="video-placeholder">Loading player…</div>`;
   waitForYT(() => {
@@ -2991,6 +2991,10 @@ function loadYouTubePlayer(autoplay){
           const hasTimestamps = SONG.lines.some(l => typeof l.start === 'number');
           document.getElementById('followToggle').style.display = hasTimestamps ? 'flex' : 'none';
           setupMiniPlayer();
+          if(typeof seekTo === 'number'){
+            ytPlayer.seekTo(seekTo, true);
+            ytPlayer.playVideo();
+          }
         },
         onStateChange: (event) => {
           if(followVideo && (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED)){
@@ -3249,7 +3253,14 @@ function findActiveLineIndex(t){
 }
 
 function jumpToLine(start){
-  if(!ytPlayer || typeof ytPlayer.seekTo !== 'function') return;
+  if(!ytPlayer || typeof ytPlayer.seekTo !== 'function'){
+    // The click-to-play facade may still be showing (video never loaded
+    // yet) — load the real player now and seek to this line once it's
+    // ready, instead of silently doing nothing.
+    loadYouTubePlayer(true, start);
+    document.getElementById('videoOuter').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   ytPlayer.seekTo(start, true);
   ytPlayer.playVideo();
   document.getElementById('videoOuter').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -4128,5 +4139,7 @@ window.addEventListener('popstate', () => {
 <script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="a8136fc7-1bf3-4a8a-91b3-53a7b5eb4cc1" data-netlify-deploy-branch="main" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiYTgxMzZmYzctMWJmMy00YThhLTkxYjMtNTNhN2I1ZWI0Y2MxIiwiYWNjb3VudF9pZCI6IjZhNTI5N2RlY2ZkNmQ5YmRkMmRmNzgwNSIsImRlcGxveV9pZCI6IjZhNTg0MzgzNTEwZTdhMDAwODQ2ZWIxZSIsImlzc3VlciI6Im5mc2VydmVyIn0.hZvSGLbYaOpIv_r4fRjgimqOB2PAOLWLOuC5Ce5byYA"></script>
 
 <script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="a8136fc7-1bf3-4a8a-91b3-53a7b5eb4cc1" data-netlify-deploy-branch="main" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiYTgxMzZmYzctMWJmMy00YThhLTkxYjMtNTNhN2I1ZWI0Y2MxIiwiYWNjb3VudF9pZCI6IjZhNTI5N2RlY2ZkNmQ5YmRkMmRmNzgwNSIsImRlcGxveV9pZCI6IjZhNzE1MmQ3NDcyNDQ3MDAwN2VmNGJhOCIsImlzc3VlciI6Im5mc2VydmVyIn0.aLSH_w1mcDLj-mZSS-ot_J5uzmiH3RK_rD0ykyYi-3M"></script>
+
+<script async id="netlify-rum-container" src="/.netlify/scripts/rum" data-netlify-rum-site-id="a8136fc7-1bf3-4a8a-91b3-53a7b5eb4cc1" data-netlify-deploy-branch="main" data-netlify-deploy-context="production" data-netlify-cwv-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzaXRlX2lkIjoiYTgxMzZmYzctMWJmMy00YThhLTkxYjMtNTNhN2I1ZWI0Y2MxIiwiYWNjb3VudF9pZCI6IjZhNTI5N2RlY2ZkNmQ5YmRkMmRmNzgwNSIsImRlcGxveV9pZCI6IjZhOTRlZjk1MDQyZDBlMDAwODU5ZGQxMSIsImlzc3VlciI6Im5mc2VydmVyIn0.jkkq58BVeTT2Oy--GyFvRVTBkZj6TvSs5tvY3_uIhmQ"></script>
 </body>
 </html>
